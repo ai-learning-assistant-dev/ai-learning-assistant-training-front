@@ -1,7 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import AiConversation from "@/components/ai-conversation"
- 
+import "./index.css";
+
 function App() {
   return (
     <div className="flex w-full h-full flex-row gap-6">
