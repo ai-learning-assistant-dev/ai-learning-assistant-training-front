@@ -118,6 +118,11 @@
     @apply bg-background text-foreground;
   }
 }
-#root{
-  height: 100vh;
+
+html,body,#root{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  margin: 0;
+  flex: 1;
 }
