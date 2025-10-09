@@ -1,22 +1,38 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
 import AiConversation from "@/components/ai-conversation"
 import "./index.css";
-import { useAutoCache } from "@/containers/auto-cache";
-import { sectionsServer } from "@/server/training-server";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuIndicator,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+  NavigationMenuViewport,
+} from "@/components/ui/navigation-menu"
+import { NavLink, Outlet } from "react-router";
 
 function App() {
-  const {loading, error, data} = useAutoCache(sectionsServer.search.bind(sectionsServer), [{limit: 10, page: 1}]);
   return (
     <div className="flex w-full h-full flex-row gap-6">
-      <Tabs defaultValue="account" className="w-[400px] grow">
-        <TabsList>
-          <TabsTrigger value="account">学习页</TabsTrigger>
-          <TabsTrigger value="password">用户信息</TabsTrigger>
-        </TabsList>
-        <TabsContent value="account">{(loading === false && error == null)?JSON.stringify(data.data[0]):'loading...'}</TabsContent>
-        <TabsContent value="password">用户信息<Button>Save</Button></TabsContent>
-      </Tabs>
+      <div className="flex flex-col w-full h-full">
+        <div className="flex w-full">
+          <NavigationMenu>
+            <NavigationMenuItem>
+            <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+              <NavLink to="/app/courseList">课程</NavLink>
+            </NavigationMenuLink>
+            <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+              <NavLink to="/app/settings">设置</NavLink>
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+          </NavigationMenu>
+        </div>
+        <div className="flex w-full h-full overflow-auto">
+          <Outlet />
+        </div>
+      </div>
       <div className="w-[400px] h-full shrink-0">
         <AiConversation />
       </div>
