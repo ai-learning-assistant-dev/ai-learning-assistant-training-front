@@ -5,6 +5,18 @@ const modelEnum = [
     '/health'
 ] as const;
 
+export interface Pagination {
+    totalPages: number,
+    total: number,
+    limit: number,
+    page: number
+}
+
+export interface PaginationParam {
+    limit: number,
+    page: number
+}
+
 /** 调用技能培训后端接口的类，提供了基本的增删改查功能 */
 export class TrainingServer<T> {
     http: HttpClient;
@@ -13,11 +25,11 @@ export class TrainingServer<T> {
         this.http = new HttpClient()
         this.baseUrl = schema + model
     }
-    list = async () =>{
-        return (await this.http.post<{data: T[]}>('/list',undefined, {baseURL: this.baseUrl})).data.data;
+    search = async (data?: Partial<T> & PaginationParam) =>{
+        return (await this.http.post<{data: T[], pagination: Pagination}>('/search', data, {baseURL: this.baseUrl})).data;
     }
-    get = async (id: string) =>{
-        return this.http.get<T>('/'+id, {baseURL: this.baseUrl});
+    getById = async (data: T) =>{
+        return this.http.post<T>('getById', data, {baseURL: this.baseUrl});
     }
     add = async (data: T) =>{
         return this.http.post<T>('/add', data, {baseURL: this.baseUrl});

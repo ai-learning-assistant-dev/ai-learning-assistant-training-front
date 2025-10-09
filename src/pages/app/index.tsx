@@ -6,7 +6,7 @@ import { useAutoCache } from "@/containers/auto-cache";
 import { sectionsServer } from "@/server/training-server";
 
 function App() {
-  const {loading, error, data} = useAutoCache(sectionsServer.list.bind(sectionsServer), []);
+  const {loading, error, data} = useAutoCache(sectionsServer.search.bind(sectionsServer), [{limit: 10, page: 1}]);
   return (
     <div className="flex w-full h-full flex-row gap-6">
       <Tabs defaultValue="account" className="w-[400px] grow">
@@ -14,7 +14,7 @@ function App() {
           <TabsTrigger value="account">学习页</TabsTrigger>
           <TabsTrigger value="password">用户信息</TabsTrigger>
         </TabsList>
-        <TabsContent value="account">{(loading === false && error == null)?JSON.stringify(data[0]):'loading...'}</TabsContent>
+        <TabsContent value="account">{(loading === false && error == null)?JSON.stringify(data.data[0]):'loading...'}</TabsContent>
         <TabsContent value="password">用户信息<Button>Save</Button></TabsContent>
       </Tabs>
       <div className="w-[400px] h-full shrink-0">
