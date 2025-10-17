@@ -4,7 +4,8 @@ const modelEnum = [
   '/courses',
   '/chapters',
   '/sections',
-  '/health'
+  '/health',
+  '/ai-chat'
 ] as const;
 
 export interface Pagination {
