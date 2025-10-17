@@ -1,25 +1,22 @@
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarHeader,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import AiConversation from "../ai-conversation"
+import { MessageSquare } from "lucide-react"
+import "./index.css";
 
-export function AppRightSidebar({children}: {children?: React.ReactNode}) {
+export function AppRightSidebar() {
   return (
-    <SidebarProvider>
-      <Sidebar side="right">
-        <SidebarContent>
-          <AiConversation />
-        </SidebarContent>
-      </Sidebar>
-      <main>
-        {children}
-      </main>
-    </SidebarProvider>
+    <Sheet>
+      <SheetTrigger className="ai-message-icon"><MessageSquare/></SheetTrigger>
+      <SheetContent>
+        <AiConversation/>
+      </SheetContent>
+    </Sheet>
   )
 }

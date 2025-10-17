@@ -21,4 +21,5 @@ UI框架|React|https://react.dev/learn
 脚手架|Vite|https://vite.dev/plugins/#vitejs-plugin-react
 CSS库|tailwindcss|https://tailwindcss.com/docs/height
 UI组件库|shadcn|https://ui.shadcn.com/docs/installation
+图标库|lucide|https://lucide.dev
 HTTP请求库|Axios|https://axios-http.com/zh/docs/intro

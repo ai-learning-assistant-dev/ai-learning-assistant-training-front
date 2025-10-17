@@ -7,9 +7,8 @@ function App() {
   return (
     <div>
       <AppLeftSidebar>
-        <AppRightSidebar>
-          <Outlet />
-        </AppRightSidebar>
+        <AppRightSidebar/>
+        <Outlet />
       </AppLeftSidebar>
     </div>
     
