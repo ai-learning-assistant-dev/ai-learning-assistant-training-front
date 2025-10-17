@@ -15,6 +15,7 @@ const router = createBrowserRouter([
     children: [
       {
         path: "courseList",
+        index: true,
         Component: CourseList,
       },
       {

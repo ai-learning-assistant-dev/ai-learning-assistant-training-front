@@ -1,3 +1,4 @@
+import { Fragment } from "react"
 import { useAutoCache } from "@/containers/auto-cache";
 import { chapterServer, courseServer, sectionsServer } from "@/server/training-server";
 import {
@@ -10,10 +11,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button";
-import { NavLink } from "react-router";
+import { NavLink, useParams } from "react-router";
+import { ArrowDown } from "lucide-react";
 
 export function CourseDetail() {
-  const { loading, error, data } = useAutoCache(sectionsServer.search.bind(sectionsServer), [{ limit: 10, page: 1 }]);
+  let params = useParams();
+  const { loading, error, data } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer),[{course_id: params?.id}]);
   if (loading) {
     return <div>loading...</div>
   }
@@ -21,7 +24,7 @@ export function CourseDetail() {
     return <div>{error.message}</div>
   }
   if (loading === false && error == null) {
-    const sections = data.data;
+    const course = data.data;
     return (
       <Table>
         <TableCaption>章节列表</TableCaption>
@@ -32,11 +35,21 @@ export function CourseDetail() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sections.map((section) => (
-            <TableRow key={section.section_id}>
-              <TableCell className="font-medium">{section.title}</TableCell>
-              <TableCell><NavLink to={`/app/sectionDetail/${section.section_id}`}><Button>学习</Button></NavLink></TableCell>
-            </TableRow>
+          {course?.chapters?.map((chapter) => (
+            <Fragment key={chapter.chapter_id}>
+              <TableRow key={chapter.chapter_id}>
+                <TableCell className="font-medium">{chapter.title}</TableCell>
+                <TableCell><ArrowDown /></TableCell>
+              </TableRow>
+              {
+                chapter?.sections?.map((section)=>(
+                  <TableRow key={section.section_id}>
+                    <TableCell className="font-medium">{section.title}</TableCell>
+                    <TableCell><NavLink to={`/app/sectionDetail/${section.section_id}`}><Button>学习</Button></NavLink></TableCell>
+                  </TableRow>
+                ))
+              }
+            </Fragment>
           ))}
         </TableBody>
       </Table>

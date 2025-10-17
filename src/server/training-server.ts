@@ -19,6 +19,16 @@ export interface PaginationParam {
   page: number
 }
 
+export interface Status<T>
+{
+  success: boolean,
+  /** 200是正常 */
+  statusCode: number,
+  data: T,
+  message: string,
+  pagination: Pagination
+}
+
 /** 调用技能培训后端接口的类，提供了基本的增删改查功能 */
 export class TrainingServer<T> {
   http: HttpClient;
@@ -28,19 +38,19 @@ export class TrainingServer<T> {
     this.baseUrl = schema + model
   }
   search = async (data?: Partial<T> & PaginationParam) => {
-    return (await this.http.post<{ data: T[], pagination: Pagination }>('/search', data, { baseURL: this.baseUrl })).data;
+    return (await this.http.post<Status<T[]>>('/search', data, { baseURL: this.baseUrl })).data;
   }
-  getById = async (data: T) => {
-    return this.http.post<T>('getById', data, { baseURL: this.baseUrl });
+  getById = async (data: Partial<T>) => {
+    return this.http.post<Status<T>>('/getById', data, { baseURL: this.baseUrl });
   }
   add = async (data: T) => {
-    return this.http.post<T>('/add', data, { baseURL: this.baseUrl });
+    return this.http.post<Status<T>>('/add', data, { baseURL: this.baseUrl });
   }
   update = async (data: T) => {
-    return this.http.post<T>('/update', data, { baseURL: this.baseUrl });
+    return this.http.post<Status<T>>('/update', data, { baseURL: this.baseUrl });
   }
   delete = async (data: T) => {
-    return this.http.post<T>('/delete', data, { baseURL: this.baseUrl });
+    return this.http.post<Status<T>>('/delete', data, { baseURL: this.baseUrl });
   }
 
 }
@@ -51,12 +61,17 @@ export interface CourseResponse {
   icon_url?: string;
   description?: string;
   default_ai_persona_id?: string;
+  chapters?: ChapterResponse[];
 }
 
 /** 调用课程接口的类，继承了基本增删改查的接口 */
 export class CourseServer extends TrainingServer<CourseResponse> {
   constructor() {
     super('/courses');
+  }
+
+  getCourseChaptersSections = async (data: Partial<CourseResponse>)=>{
+    return (await this.http.post<Status<CourseResponse>>('/getCourseChaptersSections', data, { baseURL: this.baseUrl })).data;
   }
 }
 export const courseServer = new CourseServer();
@@ -66,6 +81,7 @@ export interface ChapterResponse {
   course_id: string;
   title: string;
   chapter_order: number;
+  sections?: SectionResponse[];
 }
 
 /** 调用课程章接口的类，继承了基本增删改查的接口 */

@@ -1,16 +1,9 @@
 import { useAutoCache } from "@/containers/auto-cache";
 import { courseServer } from "@/server/training-server";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Button } from "@/components/ui/button";
 import { NavLink } from "react-router";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemFooter, ItemHeader, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Book } from "lucide-react";
 
 export function CourseList() {
   const { loading, error, data } = useAutoCache(courseServer.search.bind(courseServer), [{ limit: 10, page: 1 }]);
@@ -23,23 +16,22 @@ export function CourseList() {
   if (loading === false && error == null) {
     const courseList = data.data;
     return (
-      <Table>
-        <TableCaption>课程列表</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[100px]">课程名称</TableHead>
-            <TableHead>操作</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {courseList.map((course) => (
-            <TableRow key={course.course_id}>
-              <TableCell className="font-medium">{course.name}</TableCell>
-              <TableCell><NavLink to={`/app/courseDetail/${course.course_id}`}><Button>学习</Button></NavLink></TableCell>
-            </TableRow>
+      <div className="flex">
+        {courseList.map((course) => (
+          <Item key={course.course_id} variant="outline">
+            <ItemMedia><Book /></ItemMedia>
+            <ItemContent>
+              <ItemTitle>{course.name}</ItemTitle>
+              <ItemDescription>{course.description}</ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <NavLink to={`/app/courseDetail/${course.course_id}`}><Button>学习</Button></NavLink>
+            </ItemActions>
+          </Item>
           ))}
-        </TableBody>
-      </Table>
+        
+
+      </div>
     )
   }
 }
