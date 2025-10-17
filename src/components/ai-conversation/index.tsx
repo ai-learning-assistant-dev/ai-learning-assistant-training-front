@@ -30,6 +30,9 @@ import { cn } from '@/lib/utils';
 import { MicIcon, PaperclipIcon, RotateCcwIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { type FormEventHandler, useCallback, useEffect, useState } from 'react';
+import { aiChatServer, sectionsServer } from '@/server/training-server';
+import { useAutoCache } from '@/containers/auto-cache';
+import { useParams } from 'react-router';
 type ChatMessage = {
   id: string;
   content: string;
@@ -71,6 +74,29 @@ const sampleResponses = [
     ]
   }
 ];
+
+async function testAIChart(message: string){
+  const response = await aiChatServer.new(
+    {
+      "userId": "531c0c28-c1c8-4d51-8d24-e9978ad4d1fe",
+      "sectionId": "fa2bbd84-1f87-4327-82ca-69efdd6e0e92",
+      "personaId": "b32b1bfb-f660-4734-b35c-febf911762ba"
+    }
+  );
+  console.log(response.data);
+
+  const chatResponse = await aiChatServer.chat({
+    userId: response.data.user_id,
+    sectionId: response.data.section_id,
+    message: message,
+    personaId: response.data.persona_id,
+    sessionId: response.data.session_id
+  });
+  console.log(`AI Response: `, chatResponse.data.ai_response);
+  return chatResponse.data.ai_response;
+}
+
+
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -131,8 +157,16 @@ const AiConversation = () => {
     setInputValue('');
     setIsTyping(true);
     // Simulate AI response with delay
-    setTimeout(() => {
-      const responseData = sampleResponses[Math.floor(Math.random() * sampleResponses.length)];
+    setTimeout(async () => {
+
+      const responseData = 
+      {
+        content: await testAIChart(inputValue),
+        reasoning: "",
+        sources: [
+        ]
+      };
+      // const responseData = sampleResponses[Math.floor(Math.random() * sampleResponses.length)];
       const assistantMessageId = nanoid();
       
       const assistantMessage: ChatMessage = {

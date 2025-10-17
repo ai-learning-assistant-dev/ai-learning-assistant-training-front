@@ -116,3 +116,63 @@ export class SectionServer extends TrainingServer<SectionResponse> {
 }
 export const sectionsServer = new SectionServer();
 
+export function getBilibiliProxy(bilibiliUrl: string): string   {
+  return `http://localhost:3000/proxy/bilibili/stream?url=${encodeURIComponent(bilibiliUrl)}`;
+}
+
+/**
+ * 会话创建请求体
+ */
+interface CreateSessionRequest {
+  userId: string;
+  sectionId: string;
+  personaId?: string;
+}
+
+interface SessionInfo {
+  session_id: string;
+  user_id: string;
+  section_id: string;
+  persona_id?: string;
+  created_at: Date;
+}
+
+/**
+ * AI聊天接口请求体
+ */
+interface ChatRequest {
+  userId: string;
+  sectionId: string;
+  message: string;
+  personaId?: string;
+  sessionId?: string;
+}
+
+/**
+ * AI聊天响应
+ */
+interface ChatResponse {
+  interaction_id: string;
+  user_id: string;
+  section_id: string;
+  session_id: string;
+  user_message: string;
+  ai_response: string;
+  query_time: Date;
+  persona_id_in_use?: string;
+}
+
+export class AIChatServer extends TrainingServer<SessionInfo> {
+  constructor() {
+    super('/ai-chat');
+  }
+  new = async (data: CreateSessionRequest) => {
+    return this.http.post<SessionInfo>('/sessions/new', data, { baseURL: this.baseUrl });
+  }
+
+  chat = async (data: ChatRequest) => {
+    return this.http.post<ChatResponse>('/chat', data, { baseURL: this.baseUrl });
+  }
+}
+
+export const aiChatServer = new AIChatServer();
