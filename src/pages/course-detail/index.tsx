@@ -16,7 +16,7 @@ import { ArrowDown } from "lucide-react";
 
 export function CourseDetail() {
   let params = useParams();
-  const { loading, error, data } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer),[{course_id: params?.id}]);
+  const { loading, error, data } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer),[{course_id: params?.courseId}]);
   if (loading) {
     return <div>loading...</div>
   }
@@ -45,7 +45,7 @@ export function CourseDetail() {
                 chapter?.sections?.map((section)=>(
                   <TableRow key={section.section_id}>
                     <TableCell className="font-medium">{section.title}</TableCell>
-                    <TableCell><NavLink to={`/app/sectionDetail/${section.section_id}`}><Button>学习</Button></NavLink></TableCell>
+                    <TableCell><NavLink to={`/app/courseList/courseDetail/${course.course_id}/sectionDetail/${section.section_id}`}><Button>学习</Button></NavLink></TableCell>
                   </TableRow>
                 ))
               }

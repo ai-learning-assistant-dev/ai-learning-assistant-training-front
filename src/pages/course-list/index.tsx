@@ -25,7 +25,7 @@ export function CourseList() {
               <ItemDescription>{course.description}</ItemDescription>
             </ItemContent>
             <ItemActions>
-              <NavLink to={`/app/courseDetail/${course.course_id}`}><Button>学习</Button></NavLink>
+              <NavLink to={`/app/courseList/courseDetail/${course.course_id}`}><Button>学习</Button></NavLink>
             </ItemActions>
           </Item>
           ))}

@@ -5,7 +5,7 @@ import { useParams } from "react-router";
 
 export function SectionDetail(){
     let params = useParams();
-    const {loading, error, data} = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{section_id: params.id}]);
+    const {loading, error, data} = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{section_id: params.sectionId}]);
     if(loading){
         return <div>loading...</div>
     }

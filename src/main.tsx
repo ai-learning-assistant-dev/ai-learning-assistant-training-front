@@ -19,11 +19,11 @@ const router = createBrowserRouter([
         Component: CourseList,
       },
       {
-        path: "courseDetail/:id",
+        path: "courseList/courseDetail/:courseId",
         Component: CourseDetail,
       },
       {
-        path: "sectionDetail/:id",
+        path: "courseList/courseDetail/:courseId/sectionDetail/:sectionId",
         Component: SectionDetail,
       }
     ],
