@@ -1,5 +1,7 @@
 import { HttpClient } from "@/lib/http-client";
 
+export const serverHost = 'http://localhost:3000';
+
 const modelEnum = [
   '/courses',
   '/chapters',
@@ -34,7 +36,7 @@ export interface Status<T>
 export class TrainingServer<T> {
   http: HttpClient;
   baseUrl = '';
-  constructor(model: typeof modelEnum[number] = '/health', schema: string = 'http://localhost:3000',) {
+  constructor(model: typeof modelEnum[number] = '/health', schema: string = serverHost,) {
     this.http = new HttpClient()
     this.baseUrl = schema + model
   }
@@ -116,10 +118,6 @@ export class SectionServer extends TrainingServer<SectionResponse> {
   }
 }
 export const sectionsServer = new SectionServer();
-
-export function getBilibiliProxy(bilibiliUrl: string): string   {
-  return `http://localhost:3000/proxy/bilibili/stream?url=${encodeURIComponent(bilibiliUrl)}`;
-}
 
 /**
  * 会话创建请求体

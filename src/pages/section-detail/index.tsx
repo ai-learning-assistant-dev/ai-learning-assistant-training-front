@@ -1,3 +1,4 @@
+import { VideoPlayer } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
 import { sectionsServer } from "@/server/training-server";
 import { useParams } from "react-router";
@@ -17,10 +18,7 @@ export function SectionDetail(){
             <div>
                 <h2>{section.title}</h2>
                 <h3>{section.video_subtitles}</h3>
-                <video width="400" controls>
-                    <source src={section.video_url} type="video/mp4" />
-                    Your browser does not support the video tag.
-                </video>
+                <VideoPlayer url={section.video_url} />
                 <p>{section.knowledge_content}</p>
             </div>
         )
