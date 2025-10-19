@@ -8,6 +8,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
+  SidebarInset,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Progress } from "@/components/ui/progress"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { SiteHeader } from "./site-header"
 // Menu items.
 const topItems = [
   {
@@ -56,8 +58,15 @@ const bottomItems = [
 
 export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
   return (
-    <SidebarProvider>
-      <Sidebar>
+    <SidebarProvider 
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <Sidebar variant="inset">
         <SidebarHeader>
           <Card>
             <CardHeader>
@@ -106,10 +115,16 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <main>
-        <SidebarTrigger />
-        {children}
-      </main>
+      <SidebarInset>
+        <SiteHeader />
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+              {children}
+            </div>
+          </div>
+        </div>
+      </SidebarInset>
     </SidebarProvider>
   )
 }
