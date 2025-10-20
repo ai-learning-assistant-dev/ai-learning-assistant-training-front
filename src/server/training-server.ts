@@ -44,16 +44,16 @@ export class TrainingServer<T> {
     return (await this.http.post<Status<T[]>>('/search', data, { baseURL: this.baseUrl })).data;
   }
   getById = async (data: Partial<T>) => {
-    return this.http.post<Status<T>>('/getById', data, { baseURL: this.baseUrl });
+    return (await this.http.post<Status<T>>('/getById', data, { baseURL: this.baseUrl })).data;
   }
   add = async (data: T) => {
-    return this.http.post<Status<T>>('/add', data, { baseURL: this.baseUrl });
+    return (await this.http.post<Status<T>>('/add', data, { baseURL: this.baseUrl })).data;
   }
   update = async (data: T) => {
-    return this.http.post<Status<T>>('/update', data, { baseURL: this.baseUrl });
+    return (await this.http.post<Status<T>>('/update', data, { baseURL: this.baseUrl })).data;
   }
   delete = async (data: T) => {
-    return this.http.post<Status<T>>('/delete', data, { baseURL: this.baseUrl });
+    return (await this.http.post<Status<T>>('/delete', data, { baseURL: this.baseUrl })).data;
   }
 
 }

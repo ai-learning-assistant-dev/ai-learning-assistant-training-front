@@ -2,6 +2,8 @@ import { VideoPlayer } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
 import { sectionsServer } from "@/server/training-server";
 import { useParams } from "react-router";
+import { Response } from "@/components/ui/shadcn-io/ai/response";
+import { SectionHeader } from "@/components/section-header";
 
 export function SectionDetail(){
     let params = useParams();
@@ -13,13 +15,12 @@ export function SectionDetail(){
         return <div>{error.message}</div>
     }
     if(loading === false && error == null){
-        const section = data.data.data;
+        const section = data.data;
         return (
-            <div>
-                <h2>{section.title}</h2>
-                <h3>{section.video_subtitles}</h3>
+            <div className="flex flex-col gap-4 px-6">
+                <SectionHeader />
                 <VideoPlayer url={section.video_url} />
-                <p>{section.knowledge_content}</p>
+                <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>
             </div>
         )
     }

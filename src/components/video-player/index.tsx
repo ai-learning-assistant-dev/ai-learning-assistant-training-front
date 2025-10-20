@@ -22,5 +22,5 @@ export function VideoPlayer(props: { url?: string, className?: string, style?: R
             player.initialize(element, getBilibiliProxy(props.url), true);
         }
     }, []);
-    return <video id={playerId} controls style={{width: '100%', ...props.style}} className={props.className}></video>
+    return <video id={playerId} controls style={{width: '100%',borderRadius: '1em', ...props.style}} className={props.className}></video>
 }
