@@ -5,6 +5,7 @@ import { useParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
+import { PopQuiz } from "@/components/pop-quiz";
 
 export function SectionDetail(){
     let params = useParams();
@@ -23,6 +24,7 @@ export function SectionDetail(){
                 <SectionStage />
                 <VideoPlayer url={section.video_url} />
                 <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>
+                <PopQuiz />
             </div>
         )
     }
