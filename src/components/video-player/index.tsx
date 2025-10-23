@@ -19,7 +19,7 @@ export function VideoPlayer(props: { url?: string, className?: string, style?: R
         let player = dashjs.MediaPlayer().create();
         const element = document.getElementById(playerId) as HTMLVideoElement
         if(element && props.url){
-            player.initialize(element, getBilibiliProxy(props.url), true);
+            player.initialize(element, getBilibiliProxy(props.url), false);
         }
     }, []);
     return <video id={playerId} controls style={{width: '100%',borderRadius: '1em', ...props.style}} className={props.className}></video>

@@ -4,6 +4,7 @@ import { sectionsServer } from "@/server/training-server";
 import { useParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
+import { SectionStage } from "@/components/section-stage";
 
 export function SectionDetail(){
     let params = useParams();
@@ -19,6 +20,7 @@ export function SectionDetail(){
         return (
             <div className="flex flex-col gap-4 px-6">
                 <SectionHeader />
+                <SectionStage />
                 <VideoPlayer url={section.video_url} />
                 <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>
             </div>
