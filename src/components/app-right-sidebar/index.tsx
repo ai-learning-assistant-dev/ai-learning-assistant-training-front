@@ -12,11 +12,8 @@ import "./index.css";
 
 export function AppRightSidebar() {
   return (
-    <Sheet>
-      <SheetTrigger className="ai-message-icon"><MessageSquare/></SheetTrigger>
-      <SheetContent>
-        <AiConversation/>
-      </SheetContent>
-    </Sheet>
+    <div className="flex w-200 h-100% py-2 pr-2 bg-gray-50 h-svh">
+      <AiConversation/>
+    </div>
   )
 }

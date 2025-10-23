@@ -87,10 +87,10 @@ export default function Selection({
     flexDirection: 'column',
     gap: 10,
     padding: compact ? "6px 8px" : "10px 12px",
-    borderRadius: 6,
-    border: "1px solid #e6e6e6",
+    // borderRadius: 6,
+    // border: "1px solid #e6e6e6",
     cursor: disabled ? "not-allowed" : "pointer",
-    background: "#fff",
+    // background: "#fff",
   };
 
   const optionDisabledStyle: React.CSSProperties = {

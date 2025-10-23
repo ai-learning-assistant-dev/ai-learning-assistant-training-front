@@ -86,9 +86,9 @@ export default function ShortAnswer({
     <form
       onSubmit={handleSubmit}
       style={{
-        border: "1px solid #e6e6e6",
+        // border: "1px solid #e6e6e6",
         padding: 12,
-        borderRadius: 6,
+        // borderRadius: 6,
         maxWidth: 720,
       }}
     >

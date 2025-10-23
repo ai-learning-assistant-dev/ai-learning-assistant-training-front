@@ -5,13 +5,12 @@ import { Outlet } from "react-router";
 
 function App() {
   return (
-    <div>
+    <div className="flex flex-row">
       <AppLeftSidebar>
-        <AppRightSidebar/>
         <Outlet />
       </AppLeftSidebar>
+      <AppRightSidebar/>
     </div>
-    
   )
 }
  

@@ -11,7 +11,7 @@ const options: Option[] = [
 
 export function PopQuiz() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 rounded-xl border border-gray-200 border-solid p-4">
       <Selection question="请选择" image={image} options={options} />
       <Selection question="请选择" image={image} options={options} mode='multiple'/>
       <ShortAnswer question="请简要描述一下你对本节内容的理解。" image={image} />

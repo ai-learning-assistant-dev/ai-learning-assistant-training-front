@@ -18,6 +18,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { SiteHeader } from "./site-header"
+import { AppRightSidebar } from "../app-right-sidebar"
 // Menu items.
 const topItems = [
   {
@@ -67,7 +68,7 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
       }
     >
       <Sidebar variant="inset">
-        <SidebarHeader>
+        <SidebarHeader className="p-0">
           <Card>
             <CardHeader>
               <CardTitle><User size={24} style={{display: 'inline'}} />用户名</CardTitle>
@@ -119,7 +120,7 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
         <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 overflow-y-auto" style={{height: 'calc(100svh - 80px)'}}>
               {children}
             </div>
           </div>

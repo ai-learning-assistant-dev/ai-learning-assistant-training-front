@@ -8,28 +8,28 @@ import { SectionStage } from "@/components/section-stage";
 import { PopQuiz } from "@/components/pop-quiz";
 import type { Stage } from "@/components/section-stage";
 
-export function SectionDetail(){
-    let params = useParams();
-    const {loading, error, data} = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{section_id: params.sectionId}]);
-    if(loading){
-        return <div>loading...</div>
-    }
-    if(error){
-        return <div>{error.message}</div>
-    }
-    if(loading === false && error == null){
-        const section = data.data;
+export function SectionDetail() {
+  let params = useParams();
+  const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
+  if (loading) {
+    return <div>loading...</div>
+  }
+  if (error) {
+    return <div>{error.message}</div>
+  }
+  if (loading === false && error == null) {
+    const section = data.data;
 
-        const stage: Stage = 'compare'
-        return (
-            <div className="flex flex-col gap-4 px-6">
-                <SectionHeader />
-                <SectionStage stage={stage} />
-                <VideoPlayer url={section.video_url} />
-                <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>
-                <PopQuiz />
-            </div>
-        )
-    }
-    
+    const stage: Stage = 'quiz'
+    return (
+      <div className="flex flex-col gap-4 px-6">
+        <SectionHeader />
+        <SectionStage stage={stage} />
+        {stage !== 'quiz' && <VideoPlayer url={section.video_url} />}
+        {stage !== 'quiz' && <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>}
+        {stage !== 'video' && <PopQuiz />}
+      </div>
+    )
+  }
+
 }
