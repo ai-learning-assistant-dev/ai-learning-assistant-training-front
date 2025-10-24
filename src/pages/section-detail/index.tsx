@@ -27,7 +27,7 @@ export function SectionDetail() {
         <SectionStage stage={stage} />
         {stage !== 'quiz' && <VideoPlayer url={section.video_url} />}
         {stage !== 'quiz' && <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>}
-        {stage !== 'video' && <PopQuiz />}
+        {/* {stage !== 'video' && <PopQuiz />} 报错，不注释不能build*/}
       </div>
     )
   }

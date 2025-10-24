@@ -161,6 +161,20 @@ interface ChatResponse {
   persona_id_in_use?: string;
 }
 
+/**
+ * AI流式聊天响应
+ */
+interface ChatStreamResponse {
+  interaction_id: string;
+  user_id: string;
+  section_id: string;
+  session_id: string;
+  user_message: string;
+  ai_response: ReadableStream;
+  query_time: Date;
+  persona_id_in_use?: string;
+}
+
 export class AIChatServer extends TrainingServer<SessionInfo> {
   constructor() {
     super('/ai-chat');
@@ -171,6 +185,10 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
 
   chat = async (data: ChatRequest) => {
     return this.http.post<ChatResponse>('/chat', data, { baseURL: this.baseUrl });
+  }
+
+  chatStream = async (data: ChatRequest) => {
+    return this.http.post<ChatStreamResponse>('/chat/stream', data, { baseURL: this.baseUrl });
   }
 }
 

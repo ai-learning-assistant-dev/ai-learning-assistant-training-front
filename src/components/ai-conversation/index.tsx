@@ -47,6 +47,7 @@ const models = [
   { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet' },
   { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
   { id: 'llama-3.1-70b', name: 'Llama 3.1 70B' },
+  { id: 'deepseek-v3.1', name: 'DeepSeek V3.1' },
 ];
 const sampleResponses = [
   {
@@ -75,25 +76,24 @@ const sampleResponses = [
   }
 ];
 
-async function testAIChart(message: string){
+async function testAIChatStream(message: string){
   const response = await aiChatServer.new(
     {
-      "userId": "531c0c28-c1c8-4d51-8d24-e9978ad4d1fe",
-      "sectionId": "fa2bbd84-1f87-4327-82ca-69efdd6e0e92",
-      "personaId": "b32b1bfb-f660-4734-b35c-febf911762ba"
+      "userId": "04cdc3f7-8c08-4231-9719-67e7f523e845",
+      "sectionId": "4c4f637b-f088-4000-96d4-384411de2761",
+      //"personaId": "b32b1bfb-f660-4734-b35c-febf911762ba"
     }
   );
   console.log(response.data);
 
-  const chatResponse = await aiChatServer.chat({
-    userId: response.data.user_id,
-    sectionId: response.data.section_id,
+  const chatStreamResponse = await aiChatServer.chatStream({
+    userId: "04cdc3f7-8c08-4231-9719-67e7f523e845",
+    sectionId: "4c4f637b-f088-4000-96d4-384411de2761",
     message: message,
-    personaId: response.data.persona_id,
     sessionId: response.data.session_id
   });
-  console.log(`AI Response: `, chatResponse.data.ai_response);
-  return chatResponse.data.ai_response;
+  console.log(`AI Stream Response: `, chatStreamResponse.data);
+  return chatStreamResponse.data.ai_response;
 }
 
 
@@ -116,6 +116,49 @@ const AiConversation = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   
+  const processStreamResponse = useCallback(async (messageId: string, stream: ReadableStream) => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === messageId) {
+            return {
+              ...msg,
+              content: msg.content + chunk,
+              isStreaming: true,
+            };
+          }
+          return msg;
+        }));
+      }
+      
+      // Mark streaming as complete
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            isStreaming: false,
+          };
+        }
+        return msg;
+      }));
+      
+    } catch (error) {
+      console.error('Stream processing error:', error);
+    } finally {
+      setIsTyping(false);
+      setStreamingMessageId(null);
+      reader.releaseLock();
+    }
+  }, []);
+
   const simulateTyping = useCallback((messageId: string, content: string, reasoning?: string, sources?: Array<{ title: string; url: string }>) => {
     let currentIndex = 0;
     const typeInterval = setInterval(() => {
@@ -146,43 +189,57 @@ const AiConversation = () => {
     event.preventDefault();
     
     if (!inputValue.trim() || isTyping) return;
+    
+    const currentInput = inputValue.trim();
+    
     // Add user message
     const userMessage: ChatMessage = {
       id: nanoid(),
-      content: inputValue.trim(),
+      content: currentInput,
       role: 'user',
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
-    // Simulate AI response with delay
+    
+    // Process AI response with real streaming
     setTimeout(async () => {
-
-      const responseData = 
-      {
-        content: await testAIChart(inputValue),
-        reasoning: "",
-        sources: [
-        ]
-      };
-      // const responseData = sampleResponses[Math.floor(Math.random() * sampleResponses.length)];
-      const assistantMessageId = nanoid();
-      
-      const assistantMessage: ChatMessage = {
-        id: assistantMessageId,
-        content: '',
-        role: 'assistant',
-        timestamp: new Date(),
-        isStreaming: true,
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-      setStreamingMessageId(assistantMessageId);
-      
-      // Start typing simulation
-      simulateTyping(assistantMessageId, responseData.content, responseData.reasoning, responseData.sources);
-    }, 800);
-  }, [inputValue, isTyping, simulateTyping]);
+      try {
+        const stream = await testAIChatStream(currentInput);
+        
+        const assistantMessageId = nanoid();
+        
+        const assistantMessage: ChatMessage = {
+          id: assistantMessageId,
+          content: '',
+          role: 'assistant',
+          timestamp: new Date(),
+          isStreaming: true,
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        setStreamingMessageId(assistantMessageId);
+        
+        // Start real stream processing
+        await processStreamResponse(assistantMessageId, stream);
+        
+      } catch (error) {
+        console.error('AI Chat Error:', error);
+        setIsTyping(false);
+        setStreamingMessageId(null);
+        
+        // Add error message
+        const errorMessage: ChatMessage = {
+          id: nanoid(),
+          content: 'Sorry, I encountered an error. Please try again.',
+          role: 'assistant',
+          timestamp: new Date(),
+          isStreaming: false,
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    }, 300);
+  }, [inputValue, isTyping, processStreamResponse]);
   const handleReset = useCallback(() => {
     setMessages([
       {
