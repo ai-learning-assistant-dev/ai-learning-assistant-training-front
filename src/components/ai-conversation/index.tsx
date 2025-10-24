@@ -87,13 +87,13 @@ async function testAIChatStream(message: string){
   console.log(response.data);
 
   const chatStreamResponse = await aiChatServer.chatStream({
-    userId: "04cdc3f7-8c08-4231-9719-67e7f523e845",
-    sectionId: "4c4f637b-f088-4000-96d4-384411de2761",
+    userId: response.data.data.user_id,
+    sectionId: response.data.data.section_id,
     message: message,
-    sessionId: response.data.session_id
+    sessionId: response.data.data.session_id
   });
   console.log(`AI Stream Response: `, chatStreamResponse.data);
-  return chatStreamResponse.data.ai_response;
+  return chatStreamResponse.data.data.ai_response;
 }
 
 

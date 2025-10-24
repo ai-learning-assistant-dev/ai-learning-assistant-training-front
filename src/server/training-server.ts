@@ -180,15 +180,15 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
     super('/ai-chat');
   }
   new = async (data: CreateSessionRequest) => {
-    return this.http.post<SessionInfo>('/sessions/new', data, { baseURL: this.baseUrl });
+    return this.http.post<Status<SessionInfo>>('/sessions/new', data, { baseURL: this.baseUrl });
   }
 
   chat = async (data: ChatRequest) => {
-    return this.http.post<ChatResponse>('/chat', data, { baseURL: this.baseUrl });
+    return this.http.post<Status<ChatResponse>>('/chat', data, { baseURL: this.baseUrl });
   }
 
   chatStream = async (data: ChatRequest) => {
-    return this.http.post<ChatStreamResponse>('/chat/stream', data, { baseURL: this.baseUrl });
+    return this.http.post<Status<ChatStreamResponse>>('/chat/stream', data, { baseURL: this.baseUrl });
   }
 }
 
