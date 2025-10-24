@@ -17,6 +17,15 @@ export function SectionDetail() {
   if (error) {
     return <div>{error.message}</div>
   }
+
+  const onPass = async (data: any)=>{
+    alert(JSON.stringify(data));
+  }
+
+  const onFail = async (data: any)=>{
+    alert(JSON.stringify(data));
+  }
+
   if (loading === false && error == null) {
     const section = data.data;
 
@@ -27,7 +36,7 @@ export function SectionDetail() {
         <SectionStage stage={stage} />
         {stage !== 'examination' && <VideoPlayer url={section.video_url} />}
         {stage !== 'examination' && <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>}
-        {stage !== 'video' && <Examination />}
+        {stage !== 'video' && <Examination onPass={onPass} onFail={onFail} />}
       </div>
     )
   }

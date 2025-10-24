@@ -20,10 +20,10 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { isArray } from "lodash";
- 
 
 
-export function Examination() {
+
+export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, onFail?: (data: any) => void }) {
   const params = useParams();
   const {data} = useAutoCache(exerciseServer.getExercisesWithOptionsBySection, [{section_id: params.sectionId}]);
   const {data: exerciseResult } = useAutoCache(exerciseResultServer.getExerciseResults, [{user_id: '',section_id: params.sectionId}]);
@@ -73,8 +73,12 @@ export function Examination() {
       });
     }
     const result = await exerciseResultServer.saveExerciseResults(formData);
-    alert(JSON.stringify(result));
-  }, [params.sectionId]);
+    if(result.data.pass){
+      onPass?.(result);
+    }else {
+      onFail?.(result);
+    }
+  }, [params.sectionId, onPass, onFail]);
 
   return (
     <div className="flex flex-col gap-6 rounded-xl border border-gray-200 border-solid p-4">

@@ -59,32 +59,10 @@ export default function ShortAnswer({
     setTouched(true);
   }
 
-  function handleSubmit(e?: React.FormEvent) {
-    e?.preventDefault();
-    setTouched(true);
-    if (required && value.trim() === "") {
-      setError("此题为必答题。");
-      return;
-    }
-    if (maxLength && value.length > maxLength) {
-      setError(`已超过最大长度 ${maxLength} 字符。`);
-      return;
-    }
-    setError(null);
-    onSubmit?.(value);
-  }
-
-  function handleClear() {
-    if (disabled) return;
-    setValue("");
-    setTouched(true);
-  }
-
   const textareaId = id ?? `short-answer-${Math.random().toString(36).slice(2, 9)}`;
 
   return (
-    <form
-      onSubmit={handleSubmit}
+    <div
       style={{
         // border: "1px solid #e6e6e6",
         padding: 12,
@@ -121,6 +99,6 @@ export default function ShortAnswer({
           {error ?? (maxLength ? `${value.length}/${maxLength}` : `${value.length} 字符`)}
         </div>
       </div>
-    </form>
+    </div>
   );
 }
