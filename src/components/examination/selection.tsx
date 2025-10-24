@@ -12,7 +12,7 @@ export type Option = {
 type SelectionProps = {
   question: React.ReactNode;
   image?: string;
-  options: Option[];
+  options?: Option[];
   mode?: "single" | "multiple"; // single = 单选, multiple = 多选
   value?: string[]; // 受控值（总是数组），单选时数组长度 <= 1
   defaultValue?: string[]; // 非受控初始值
@@ -60,7 +60,6 @@ export default function Selection({
   }
 
   function toggleOption(optValue: string, optDisabled?: boolean) {
-    debugger;
     if (disabled || optDisabled) return;
     if (mode === "multiple") {
       const exists = internal.includes(optValue);
@@ -109,7 +108,7 @@ export default function Selection({
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
       <div>{question}{image?<img src={image} alt="" style={imgStyle} />:null}</div>
-      {options.map((opt) => {
+      {options&&options.map((opt) => {
         const checked = internal.includes(opt.value);
         const inputId = `${groupName}-${opt.id}`;
         return (

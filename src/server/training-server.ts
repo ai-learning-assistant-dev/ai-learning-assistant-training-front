@@ -8,7 +8,8 @@ const modelEnum = [
   '/sections',
   '/health',
   '/ai-chat',
-  '/exercises'
+  '/exercises',
+  '/exercise-results'
 ] as const;
 
 export interface Pagination {
@@ -210,3 +211,107 @@ class ExerciseServer extends TrainingServer<ExerciseResponse> {
 }
 
 export const exerciseServer = new ExerciseServer();
+
+
+export interface Test {
+  test_id: string;
+  course_id?: string;
+  course?: CourseResponse;
+  type_status: string;
+  title: string;
+  testResults: TestResult[];
+}
+
+export interface TestResult {
+  result_id: string;
+  user_id: string;
+  test_id: string;
+  test: Test;
+  start_date: string;
+  end_date?: Date;
+  score?: number;
+  ai_feedback?: string;
+}
+
+export interface ExerciseResult {
+  result_id: string;
+  user_id: string;
+  exercise_id: string;
+  exercise: ExerciseResponse;
+  test_result_id?: string;
+  testResult?: TestResult;
+  user_answer?: string;
+  score?: number;
+  ai_feedback?: string;
+}
+
+class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
+  constructor() {
+    super('/exercise-results');
+  }
+  // saveExerciseResults = async (data: {
+  //   "list": ExerciseResult[];
+  // }) => {
+  //   return (await this.http.post<Status<ExerciseResponse>>('/saveExerciseResults', data, { baseURL: this.baseUrl })).data;
+  // }
+
+  saveExerciseResults = async (data: {
+    user_id: string;
+    section_id?: string;
+    test_result_id?: string;
+    list: {
+      exercise_id: string;
+      user_answer?: string;
+    }[]
+  }) => {
+    return {
+      success: true,
+      /** 200是正常 */
+      statusCode: 200,
+      data: {
+        pass: true,
+        score: 60,
+        fullScore: 100,
+        ai_feedback: '',
+        exerciseResult: [
+          {
+            exercise_id: 'string',
+            score: 0,
+            ai_feedback: 'string',
+            user_answer: 'string',
+          }
+        ]
+      },
+      message: 'string'
+    };
+  }
+
+  getExerciseResults = async (data: {
+    user_id: string;
+    section_id?: string;
+    test_result_id?: string;
+  })=>{
+    return {
+      success: true,
+      /** 200是正常 */
+      statusCode: 200,
+      data: {
+        pass: true,
+        score: 60,
+        fullScore: 100,
+        ai_feedback: '',
+        exerciseResult: [
+          {
+            exercise_id: 'string',
+            score: 0,
+            ai_feedback: 'string',
+            user_answer: 'string',
+          }
+        ]
+      },
+      message: 'string'
+    };
+  }
+}
+
+export const exerciseResultServer = new ExerciseResultServer();
