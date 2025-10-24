@@ -187,6 +187,7 @@ export interface ExerciseResponse {
   answer: string;
   options?: ExerciseOption[];
   isMultiple?: boolean;
+  image?: string;
 }
 
 export interface ExerciseOption {
@@ -195,6 +196,7 @@ export interface ExerciseOption {
   exercise: ExerciseResponse;
   option_text: string;
   is_correct: boolean;
+  image?: string;
 }
 
 class ExerciseServer extends TrainingServer<ExerciseResponse> {

@@ -18,10 +18,12 @@ export function PopQuiz() {
             return <Selection
               key={exercise.exercise_id}
               question={exercise.question}
+              image={exercise.image}
               options={exercise.options?.map((opt) => ({
                 id: opt.option_id,
                 label: opt.option_text,
                 value: opt.option_text,
+                image: opt.image
               }))}
               mode={exercise.type_status === '0' ? 'single' : 'multiple'}
             />
@@ -29,6 +31,7 @@ export function PopQuiz() {
             return <ShortAnswer
               key={exercise.exercise_id}
               question={exercise.question}
+              image={exercise.image}
             />
           }
           return null;
