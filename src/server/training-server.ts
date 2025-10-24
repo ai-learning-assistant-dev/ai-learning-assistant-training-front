@@ -7,7 +7,8 @@ const modelEnum = [
   '/chapters',
   '/sections',
   '/health',
-  '/ai-chat'
+  '/ai-chat',
+  '/exercises'
 ] as const;
 
 export interface Pagination {
@@ -175,3 +176,35 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
 }
 
 export const aiChatServer = new AIChatServer();
+
+export interface ExerciseResponse {
+  exercise_id: string;
+  section_id?: string | undefined;
+  section?: SectionResponse | undefined;
+  question: string;
+  type_status: string;
+  score: number;
+  answer: string;
+  options?: ExerciseOption[];
+  isMultiple?: boolean;
+}
+
+export interface ExerciseOption {
+  option_id: string;
+  exercise_id: string;
+  exercise: ExerciseResponse;
+  option_text: string;
+  is_correct: boolean;
+}
+
+class ExerciseServer extends TrainingServer<ExerciseResponse> {
+  constructor() {
+    super('/exercises');
+  }
+
+  getExercisesWithOptionsBySection = async (data: Partial<SectionResponse>) => {
+    return (await this.http.post<Status<ExerciseResponse[]>>('/getExercisesWithOptionsBySection', data, { baseURL: this.baseUrl })).data;
+  }
+}
+
+export const exerciseServer = new ExerciseServer();
