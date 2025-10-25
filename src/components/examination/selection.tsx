@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
+import "./selection.css";
 
 export type Option = {
   id: string; // unique id for React keys
@@ -46,6 +47,7 @@ export default function Selection({
   optionClassName,
   showImage = true,
   compact = false,
+  explanation = false,
 }: SelectionProps) {
   const isControlled = value !== undefined;
   const generatedName = useMemo(() => `select-${Math.random().toString(36).slice(2, 8)}`, []);
@@ -134,11 +136,11 @@ export default function Selection({
               <input
                 id={inputId}
                 type={mode === "multiple" ? "checkbox" : "radio"}
+                className={`examination-checkbox ${explanation && (opt.is_correct ? 'good' : (checked ? 'bad' : ''))}`}
                 name={groupName}
                 checked={checked}
                 onChange={() => toggleOption(opt.value, opt.disabled)}
                 disabled={disabled || opt.disabled}
-                style={{ width: 16, height: 16 }}
                 aria-checked={checked}
               />
               <div style={{ display: "flex", flexDirection: "column" }}>

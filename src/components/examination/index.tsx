@@ -107,7 +107,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                           is_correct: opt.is_correct,
                         }))}
                         mode={exercise.type_status === '0' ? 'single' : 'multiple'}
-                        explanation={false}
+                        explanation={true}
                       />
                       )}
                   />
@@ -126,7 +126,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                         answerKey={exercise.answer}
                         score={exercise.score}
                         image={image}
-                        explanation={false}
+                        explanation={true}
                       />
                     )}
                   />

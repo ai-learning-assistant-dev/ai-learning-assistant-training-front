@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { Badge } from "../ui/badge";
+import { Separator } from "../ui/separator";
 
 type ShortAnswerProps = {
   id?: string;
@@ -10,7 +12,6 @@ type ShortAnswerProps = {
   initialValue?: string;
   placeholder?: string;
   maxLength?: number;
-  required?: boolean;
   disabled?: boolean;
   explanation?: boolean;
   // 提交时返回答案
@@ -34,7 +35,7 @@ export default function ShortAnswer({
   initialValue = "",
   placeholder = "在此输入你的答案",
   maxLength,
-  required = false,
+  score,
   disabled = false,
   onSubmit,
   onChange,
@@ -46,7 +47,7 @@ export default function ShortAnswer({
   useEffect(() => {
     onChange?.(value);
     // 简单校验：必填与长度
-    if (required && touched && value.trim() === "") {
+    if (touched && value.trim() === "") {
       setError("此题为必答题。");
       return;
     }
@@ -55,7 +56,7 @@ export default function ShortAnswer({
       return;
     }
     setError(null);
-  }, [value, touched, required, maxLength, onChange]);
+  }, [value, touched, maxLength, onChange]);
 
   function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     if (disabled) return;
@@ -75,8 +76,7 @@ export default function ShortAnswer({
       }}
     >
       <label htmlFor={textareaId} style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-        {question}
-        {required ? " *" : ""}
+        <div className="flex w-full items-start justify-between"><div>{question}</div><Badge variant={'outline'} className="h-8 border-gray-400 text-gray-400">简答题<Separator orientation="vertical" />{score}</Badge></div>
         {image?<img src={image} alt="" style={imgStyle} />:null}
       </label>
 
