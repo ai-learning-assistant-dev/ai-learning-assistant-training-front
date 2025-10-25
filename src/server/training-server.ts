@@ -270,13 +270,14 @@ class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
       statusCode: 200,
       data: {
         pass: true,
-        score: 60,
-        fullScore: 100,
+        user_score: 60,
+        score: 100,
         ai_feedback: '',
         exerciseResult: [
           {
             exercise_id: 'string',
-            score: 0,
+            user_score: 6,
+            core: 10,
             ai_feedback: 'string',
             user_answer: 'string',
           }
@@ -297,13 +298,14 @@ class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
       statusCode: 200,
       data: {
         pass: true,
-        score: 60,
-        fullScore: 100,
+        user_core: 60,
+        score: 100,
         ai_feedback: '',
         exerciseResult: [
           {
             exercise_id: 'string',
-            score: 0,
+            user_score: 6,
+            score: 10,
             ai_feedback: 'string',
             user_answer: 'string',
           }

@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Badge } from "../ui/badge";
+import { Separator } from "../ui/separator";
 
 export type Option = {
   id: string; // unique id for React keys
@@ -7,11 +9,14 @@ export type Option = {
   image?: string; // image URL (optional)
   imageAlt?: string;
   disabled?: boolean;
+  is_correct?: boolean;
 };
 
 type SelectionProps = {
   question: React.ReactNode;
   image?: string;
+  score: number;
+  user_score?: number;
   options?: Option[];
   mode?: "single" | "multiple"; // single = 单选, multiple = 多选
   value?: string[]; // 受控值（总是数组），单选时数组长度 <= 1
@@ -23,6 +28,7 @@ type SelectionProps = {
   optionClassName?: string;
   showImage?: boolean; // 是否显示图片（若 option.image 存在则显示）
   compact?: boolean; // 简洁模式（小尺寸）
+  explanation?: boolean;
 };
 
 export default function Selection({
@@ -31,6 +37,7 @@ export default function Selection({
   options,
   mode = "single",
   value,
+  score,
   defaultValue = [],
   onChange,
   name,
@@ -107,7 +114,8 @@ export default function Selection({
 
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
-      <div>{question}{image?<img src={image} alt="" style={imgStyle} />:null}</div>
+      <div className="flex w-full items-start justify-between"><div>{question}</div><Badge variant={'outline'} className="h-8 border-gray-400 text-gray-400">{mode === 'single'? '单选题' : '多选题'}<Separator orientation="vertical" />{score}</Badge></div>
+      {image?<img src={image} alt="" style={imgStyle} />:null}
       {options&&options.map((opt) => {
         const checked = internal.includes(opt.value);
         const inputId = `${groupName}-${opt.id}`;

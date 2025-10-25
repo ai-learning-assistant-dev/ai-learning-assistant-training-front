@@ -3,12 +3,16 @@ import React, { useState, useEffect } from "react";
 type ShortAnswerProps = {
   id?: string;
   question: string;
+  answerKey?: string;
+  score: number;
+  user_score?: number;
   image?: string;
   initialValue?: string;
   placeholder?: string;
   maxLength?: number;
   required?: boolean;
   disabled?: boolean;
+  explanation?: boolean;
   // 提交时返回答案
   onSubmit?: (answer: string) => void;
   // 每次变更时返回答案
