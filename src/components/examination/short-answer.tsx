@@ -70,7 +70,6 @@ export default function ShortAnswer({
     <div
       style={{
         // border: "1px solid #e6e6e6",
-        padding: 12,
         // borderRadius: 6,
         maxWidth: 720,
       }}

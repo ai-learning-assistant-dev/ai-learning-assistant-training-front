@@ -98,7 +98,6 @@ export default function Selection({
     alignItems: "start",
     flexDirection: 'column',
     gap: 10,
-    padding: compact ? "6px 8px" : "10px 12px",
     // borderRadius: 6,
     // border: "1px solid #e6e6e6",
     cursor: disabled ? "not-allowed" : "pointer",
@@ -115,7 +114,6 @@ export default function Selection({
     height: compact ? 48 : 352,
     objectFit: "cover",
     borderRadius: 6,
-    border: "1px solid #f0f0f0",
   };
 
   const shuffledOptions = useMemo(() => {
@@ -140,7 +138,6 @@ export default function Selection({
             style={{
               ...optionStyle,
               ...(opt.disabled ? optionDisabledStyle : {}),
-              ...(checked ? { borderColor: "#4b9cff", background: "#f2f9ff" } : {}),
             }}
           >
             <div className="flex items-center gap-2">

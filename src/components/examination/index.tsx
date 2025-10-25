@@ -81,9 +81,9 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
   }, [params.sectionId, onPass, onFail]);
 
   return (
-    <div className="flex flex-col gap-6 rounded-xl border border-gray-200 border-solid p-4">
+    <div className="flex">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6 rounded-xl border border-gray-200 border-solid p-4">
           {
             data?.data.map((exercise) => {
               if (exercise.type_status === '0' || exercise.type_status === '1') {
