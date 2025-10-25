@@ -97,6 +97,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                         {...field}
                         key={exercise.exercise_id}
                         question={exercise.question}
+                        answerKey={exercise.answer}
                         score={exercise.score}
                         image={image}
                         options={exercise.options?.map((opt) => ({

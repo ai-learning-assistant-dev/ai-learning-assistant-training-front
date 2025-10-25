@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import "./selection.css";
+import { shuffle } from "lodash";
 
 export type Option = {
   id: string; // unique id for React keys
@@ -15,6 +16,7 @@ export type Option = {
 
 type SelectionProps = {
   question: React.ReactNode;
+  answerKey?: string;
   image?: string;
   score: number;
   user_score?: number;
@@ -31,6 +33,7 @@ type SelectionProps = {
   compact?: boolean; // 简洁模式（小尺寸）
   explanation?: boolean;
 };
+const selectionNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'];
 
 export default function Selection({
   question,
@@ -48,6 +51,7 @@ export default function Selection({
   showImage = true,
   compact = false,
   explanation = false,
+  answerKey,
 }: SelectionProps) {
   const isControlled = value !== undefined;
   const generatedName = useMemo(() => `select-${Math.random().toString(36).slice(2, 8)}`, []);
@@ -114,11 +118,18 @@ export default function Selection({
     border: "1px solid #f0f0f0",
   };
 
+  const shuffledOptions = useMemo(() => {
+    if (options) {
+      return shuffle(options);
+    }
+    return null;
+  }, [JSON.stringify(options)]);
+
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
       <div className="flex w-full items-start justify-between"><div>{question}</div><Badge variant={'outline'} className="h-8 border-gray-400 text-gray-400">{mode === 'single'? '单选题' : '多选题'}<Separator orientation="vertical" />{score}</Badge></div>
       {image?<img src={image} alt="" style={imgStyle} />:null}
-      {options&&options.map((opt) => {
+      {shuffledOptions&&shuffledOptions.map((opt, index) => {
         const checked = internal.includes(opt.value);
         const inputId = `${groupName}-${opt.id}`;
         return (
@@ -144,7 +155,7 @@ export default function Selection({
                 aria-checked={checked}
               />
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: compact ? 13 : 14 }}>{opt.label}</div>
+                <div style={{ fontSize: compact ? 13 : 14 }}>{selectionNames[index]}: {opt.label}</div>
               </div>
             </div>
             {showImage && opt.image ? (
@@ -153,6 +164,10 @@ export default function Selection({
           </label>
         );
       })}
+      <div>
+        <div>正确答案为：{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
+        <div>选项解析：{explanation && answerKey}</div>
+      </div>
     </div>
   );
 }
