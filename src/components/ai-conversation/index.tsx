@@ -33,6 +33,8 @@ import { type FormEventHandler, useCallback, useEffect, useState } from 'react';
 import { aiChatServer, sectionsServer } from '@/server/training-server';
 import { useAutoCache } from '@/containers/auto-cache';
 import { useParams } from 'react-router';
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+
 type ChatMessage = {
   id: string;
   content: string;
@@ -519,8 +521,10 @@ const AiConversation = () => {
                       <Loader size={14} />
                       <span className="text-muted-foreground text-sm">Thinking...</span>
                     </div>
+                  ) : message.role === 'assistant' ? (
+                    <MarkdownRenderer content={message.content} />
                   ) : (
-                    message.content
+                    <p className="leading-7">{message.content}</p>
                   )}
                 </MessageContent>
                 <MessageAvatar 
