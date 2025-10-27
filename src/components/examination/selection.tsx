@@ -1,4 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Badge } from "../ui/badge";
+import { Separator } from "../ui/separator";
+import "./selection.css";
+import { shuffle } from "lodash";
 
 export type Option = {
   id: string; // unique id for React keys
@@ -7,12 +11,16 @@ export type Option = {
   image?: string; // image URL (optional)
   imageAlt?: string;
   disabled?: boolean;
+  is_correct?: boolean;
 };
 
 type SelectionProps = {
   question: React.ReactNode;
+  answerKey?: string;
   image?: string;
-  options: Option[];
+  score: number;
+  user_score?: number;
+  options?: Option[];
   mode?: "single" | "multiple"; // single = 单选, multiple = 多选
   value?: string[]; // 受控值（总是数组），单选时数组长度 <= 1
   defaultValue?: string[]; // 非受控初始值
@@ -23,7 +31,9 @@ type SelectionProps = {
   optionClassName?: string;
   showImage?: boolean; // 是否显示图片（若 option.image 存在则显示）
   compact?: boolean; // 简洁模式（小尺寸）
+  explanation?: boolean;
 };
+const selectionNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'];
 
 export default function Selection({
   question,
@@ -31,6 +41,7 @@ export default function Selection({
   options,
   mode = "single",
   value,
+  score,
   defaultValue = [],
   onChange,
   name,
@@ -39,6 +50,8 @@ export default function Selection({
   optionClassName,
   showImage = true,
   compact = false,
+  explanation = false,
+  answerKey,
 }: SelectionProps) {
   const isControlled = value !== undefined;
   const generatedName = useMemo(() => `select-${Math.random().toString(36).slice(2, 8)}`, []);
@@ -60,7 +73,6 @@ export default function Selection({
   }
 
   function toggleOption(optValue: string, optDisabled?: boolean) {
-    debugger;
     if (disabled || optDisabled) return;
     if (mode === "multiple") {
       const exists = internal.includes(optValue);
@@ -86,7 +98,6 @@ export default function Selection({
     alignItems: "start",
     flexDirection: 'column',
     gap: 10,
-    padding: compact ? "6px 8px" : "10px 12px",
     // borderRadius: 6,
     // border: "1px solid #e6e6e6",
     cursor: disabled ? "not-allowed" : "pointer",
@@ -103,13 +114,20 @@ export default function Selection({
     height: compact ? 48 : 352,
     objectFit: "cover",
     borderRadius: 6,
-    border: "1px solid #f0f0f0",
   };
+
+  const shuffledOptions = useMemo(() => {
+    if (options) {
+      return shuffle(options);
+    }
+    return null;
+  }, [JSON.stringify(options)]);
 
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
-      <div>{question}{image?<img src={image} alt="" style={imgStyle} />:null}</div>
-      {options.map((opt) => {
+      <div className="flex w-full items-start justify-between"><div>{question}</div><Badge variant={'outline'} className="h-8 border-gray-400 text-gray-400">{mode === 'single'? '单选题' : '多选题'}<Separator orientation="vertical" />{score}</Badge></div>
+      {image?<img src={image} alt="" style={imgStyle} />:null}
+      {shuffledOptions&&shuffledOptions.map((opt, index) => {
         const checked = internal.includes(opt.value);
         const inputId = `${groupName}-${opt.id}`;
         return (
@@ -120,22 +138,21 @@ export default function Selection({
             style={{
               ...optionStyle,
               ...(opt.disabled ? optionDisabledStyle : {}),
-              ...(checked ? { borderColor: "#4b9cff", background: "#f2f9ff" } : {}),
             }}
           >
             <div className="flex items-center gap-2">
               <input
                 id={inputId}
                 type={mode === "multiple" ? "checkbox" : "radio"}
+                className={`examination-checkbox ${explanation && (opt.is_correct ? 'good' : (checked ? 'bad' : ''))}`}
                 name={groupName}
                 checked={checked}
                 onChange={() => toggleOption(opt.value, opt.disabled)}
                 disabled={disabled || opt.disabled}
-                style={{ width: 16, height: 16 }}
                 aria-checked={checked}
               />
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: compact ? 13 : 14 }}>{opt.label}</div>
+                <div style={{ fontSize: compact ? 13 : 14 }}>{selectionNames[index]}: {opt.label}</div>
               </div>
             </div>
             {showImage && opt.image ? (
@@ -144,6 +161,10 @@ export default function Selection({
           </label>
         );
       })}
+      <div>
+        <div>正确答案为：{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
+        <div>选项解析：{explanation && answerKey}</div>
+      </div>
     </div>
   );
 }

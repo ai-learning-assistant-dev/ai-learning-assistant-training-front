@@ -5,7 +5,7 @@ import { useParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
-import { PopQuiz } from "@/components/pop-quiz";
+import { Examination } from "@/components/examination";
 import type { Stage } from "@/components/section-stage";
 
 export function SectionDetail() {
@@ -17,17 +17,26 @@ export function SectionDetail() {
   if (error) {
     return <div>{error.message}</div>
   }
+
+  const onPass = async (data: any)=>{
+    alert(JSON.stringify(data));
+  }
+
+  const onFail = async (data: any)=>{
+    alert(JSON.stringify(data));
+  }
+
   if (loading === false && error == null) {
     const section = data.data;
 
-    const stage: Stage = 'quiz'
+    const stage: Stage = 'examination'
     return (
       <div className="flex flex-col gap-4 px-6">
         <SectionHeader />
         <SectionStage stage={stage} />
-        {stage !== 'quiz' && <VideoPlayer url={section.video_url} />}
-        {stage !== 'quiz' && <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>}
-        {/* {stage !== 'video' && <PopQuiz />} 报错，不注释不能build*/}
+        {stage !== 'examination' && <VideoPlayer url={section.video_url} />}
+        {stage !== 'examination' && <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>}
+        {stage !== 'video' && <Examination onPass={onPass} onFail={onFail} />}
       </div>
     )
   }

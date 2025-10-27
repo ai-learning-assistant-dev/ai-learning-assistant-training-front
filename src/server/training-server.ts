@@ -7,7 +7,9 @@ const modelEnum = [
   '/chapters',
   '/sections',
   '/health',
-  '/ai-chat'
+  '/ai-chat',
+  '/exercises',
+  '/exercise-results'
 ] as const;
 
 export interface Pagination {
@@ -277,3 +279,143 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
 }
 
 export const aiChatServer = new AIChatServer();
+
+export interface ExerciseResponse {
+  exercise_id: string;
+  section_id?: string | undefined;
+  section?: SectionResponse | undefined;
+  question: string;
+  type_status: string;
+  score: number;
+  answer: string;
+  options?: ExerciseOption[];
+  isMultiple?: boolean;
+  image?: string;
+}
+
+export interface ExerciseOption {
+  option_id: string;
+  exercise_id: string;
+  exercise: ExerciseResponse;
+  option_text: string;
+  is_correct: boolean;
+  image?: string;
+}
+
+class ExerciseServer extends TrainingServer<ExerciseResponse> {
+  constructor() {
+    super('/exercises');
+  }
+
+  getExercisesWithOptionsBySection = async (data: Partial<SectionResponse>) => {
+    return (await this.http.post<Status<ExerciseResponse[]>>('/getExercisesWithOptionsBySection', data, { baseURL: this.baseUrl })).data;
+  }
+}
+
+export const exerciseServer = new ExerciseServer();
+
+
+export interface Test {
+  test_id: string;
+  course_id?: string;
+  course?: CourseResponse;
+  type_status: string;
+  title: string;
+  testResults: TestResult[];
+}
+
+export interface TestResult {
+  result_id: string;
+  user_id: string;
+  test_id: string;
+  test: Test;
+  start_date: string;
+  end_date?: Date;
+  score?: number;
+  ai_feedback?: string;
+}
+
+export interface ExerciseResult {
+  result_id: string;
+  user_id: string;
+  exercise_id: string;
+  exercise: ExerciseResponse;
+  test_result_id?: string;
+  testResult?: TestResult;
+  user_answer?: string;
+  score?: number;
+  ai_feedback?: string;
+}
+
+class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
+  constructor() {
+    super('/exercise-results');
+  }
+  // saveExerciseResults = async (data: {
+  //   "list": ExerciseResult[];
+  // }) => {
+  //   return (await this.http.post<Status<ExerciseResponse>>('/saveExerciseResults', data, { baseURL: this.baseUrl })).data;
+  // }
+
+  saveExerciseResults = async (data: {
+    user_id: string;
+    section_id?: string;
+    test_result_id?: string;
+    list: {
+      exercise_id: string;
+      user_answer?: string;
+    }[]
+  }) => {
+    return {
+      success: true,
+      /** 200是正常 */
+      statusCode: 200,
+      data: {
+        pass: true,
+        user_score: 60,
+        score: 100,
+        ai_feedback: '',
+        exerciseResult: [
+          {
+            exercise_id: 'string',
+            user_score: 6,
+            core: 10,
+            ai_feedback: 'string',
+            user_answer: 'string',
+          }
+        ]
+      },
+      message: 'string'
+    };
+  }
+
+  getExerciseResults = async (data: {
+    user_id: string;
+    section_id?: string;
+    test_result_id?: string;
+  })=>{
+    return {
+      success: true,
+      /** 200是正常 */
+      statusCode: 200,
+      data: {
+        pass: true,
+        user_core: 60,
+        score: 100,
+        ai_feedback: '',
+        exerciseResult: [
+          {
+            exercise_id: 'string',
+            user_score: 6,
+            score: 10,
+            ai_feedback: 'string',
+            user_answer: 'string',
+          }
+        ]
+      },
+      message: 'string'
+    };
+  }
+}
+
+export const exerciseResultServer = new ExerciseResultServer();
