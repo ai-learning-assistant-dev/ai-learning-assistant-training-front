@@ -27,7 +27,7 @@ import {
 import { Source, Sources, SourcesContent, SourcesTrigger } from '@/components/ui/shadcn-io/ai/source';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { MicIcon, PaperclipIcon, RotateCcwIcon } from 'lucide-react';
+import { MicIcon, PaperclipIcon, PlusIcon, RotateCcwIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { type FormEventHandler, useCallback, useEffect, useState } from 'react';
 import { aiChatServer, sectionsServer } from '@/server/training-server';
@@ -424,12 +424,48 @@ const AiConversation = () => {
       }
     }, 300);
   }, [inputValue, isTyping, currentSessionId, processStreamResponse]);
+  
   const handleReset = useCallback(() => {
     loadChatHistory();
     setInputValue('');
     setIsTyping(false);
     setStreamingMessageId(null);
   }, [loadChatHistory]);
+
+  // 新建会话
+  const handleNewSession = useCallback(async () => {
+    try {
+      console.log('创建新会话...');
+      
+      // 调用后端创建新会话
+      const response = await aiChatServer.new({
+        userId: USER_ID,
+        sectionId: SECTION_ID,
+      });
+      
+      console.log('新会话创建成功:', response.data);
+      const newSessionId = response.data.data.session_id;
+      
+      // 清空当前消息并设置新的会话ID
+      setCurrentSessionId(newSessionId);
+      setMessages([
+        {
+          id: nanoid(),
+          content: 'Hello! I\'m your AI assistant. How can I help you today?',
+          role: 'assistant',
+          timestamp: new Date(),
+        }
+      ]);
+      setInputValue('');
+      setIsTyping(false);
+      setStreamingMessageId(null);
+      
+      console.log('已切换到新会话:', newSessionId);
+    } catch (error) {
+      console.error('创建新会话失败:', error);
+    }
+  }, []);
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
       {/* Header */}
@@ -444,15 +480,26 @@ const AiConversation = () => {
             {models.find(m => m.id === selectedModel)?.name}
           </span>
         </div>
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={handleReset}
-          className="h-8 px-2"
-        >
-          <RotateCcwIcon className="size-4" />
-          <span className="ml-1">Reset</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleNewSession}
+            className="h-8 px-2"
+          >
+            <PlusIcon className="size-4" />
+            <span className="ml-1">New Chat</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleReset}
+            className="h-8 px-2"
+          >
+            <RotateCcwIcon className="size-4" />
+            <span className="ml-1">Reset</span>
+          </Button>
+        </div>
       </div>
       {/* Conversation Area */}
       <Conversation className="flex-1">
