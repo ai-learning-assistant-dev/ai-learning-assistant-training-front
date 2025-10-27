@@ -162,6 +162,48 @@ interface ChatResponse {
 }
 
 /**
+ * 用户章节会话信息
+ */
+interface SessionSummary {
+  session_id: string;
+  interaction_count: number;
+  first_interaction: Date;
+  last_interaction: Date;
+}
+
+/**
+ * 用户章节会话列表响应
+ */
+interface UserSectionSessionsResponse {
+  user_id: string;
+  section_id: string;
+  session_count: number;
+  sessions: SessionSummary[];
+}
+
+/**
+ * 会话历史消息
+ */
+interface HistoryMessage {
+  interaction_id: string;
+  user_message: string;
+  ai_response: string;
+  query_time: Date;
+  user_name?: string;
+  section_title?: string;
+  persona_name?: string;
+}
+
+/**
+ * 会话历史响应
+ */
+interface SessionHistoryResponse {
+  session_id: string;
+  message_count: number;
+  history: HistoryMessage[];
+}
+
+/**
  * AI流式聊天响应
  */
 interface ChatStreamResponse {
@@ -179,6 +221,7 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
   constructor() {
     super('/ai-chat');
   }
+  
   new = async (data: CreateSessionRequest) => {
     return this.http.post<Status<SessionInfo>>('/sessions/new', data, { baseURL: this.baseUrl });
   }
@@ -207,6 +250,29 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
 
     // 直接返回原始流，让调用方处理
     return response.body;
+  }
+
+  /**
+   * 获取用户在指定章节的所有会话列表
+   */
+  getSessionsByUserAndSection = async (userId: string, sectionId: string) => {
+    return this.http.get<Status<UserSectionSessionsResponse>>(
+      '/sessionID/by-user-section', 
+      { 
+        baseURL: this.baseUrl,
+        params: { userId, sectionId }
+      }
+    );
+  }
+
+  /**
+   * 获取会话的对话历史
+   */
+  getSessionHistory = async (sessionId: string) => {
+    return this.http.get<Status<SessionHistoryResponse>>(
+      `/history/${sessionId}`, 
+      { baseURL: this.baseUrl }
+    );
   }
 }
 

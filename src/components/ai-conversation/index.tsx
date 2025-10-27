@@ -76,45 +76,109 @@ const sampleResponses = [
   }
 ];
 
-async function testAIChatStream(message: string){
-  const response = await aiChatServer.new(
-    {
-      "userId": "04cdc3f7-8c08-4231-9719-67e7f523e845",
-      "sectionId": "4c4f637b-f088-4000-96d4-384411de2761",
-      //"personaId": "b32b1bfb-f660-4734-b35c-febf911762ba"
-    }
-  );
-  console.log(response.data);
+// 用户和章节ID配置
+const USER_ID = "04cdc3f7-8c08-4231-9719-67e7f523e845";
+const SECTION_ID = "4c4f637b-f088-4000-96d4-384411de2761";
 
+async function testAIChatStream(message: string, sessionId: string){
+  // 发送消息并获取流式响应
   const stream = await aiChatServer.chatStream({
-    userId: response.data.data.user_id,
-    sectionId: response.data.data.section_id,
-    message: message,
-    sessionId: response.data.data.session_id
+    userId: USER_ID,
+    sectionId: SECTION_ID,
+    message,
+    sessionId
   });
-  //console.log(`AI Stream Response: `, stream);
+  
+  console.log('开始接收AI流式响应...');
   return stream;
 }
 
 
 const AiConversation = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: nanoid(),
-      content: "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
-      role: 'assistant',
-      timestamp: new Date(),
-      sources: [
-        { title: "Getting Started Guide", url: "#" },
-        { title: "API Documentation", url: "#" }
-      ]
-    }
-  ]);
-  
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [selectedModel, setSelectedModel] = useState(models[0].id);
   const [isTyping, setIsTyping] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+
+  // 加载历史记录
+  const loadChatHistory = useCallback(async () => {
+    try {
+      setIsLoadingHistory(true);
+      
+      // 1. 获取用户在该章节的所有会话
+      const sessionsResponse = await aiChatServer.getSessionsByUserAndSection(USER_ID, SECTION_ID);
+      console.log('用户章节会话列表:', sessionsResponse.data);
+      
+      let sessionId: string;
+      let historyMessages: ChatMessage[] = [];
+      
+      // 2. 如果有现有会话，使用最新的
+      if (sessionsResponse.data.data.sessions && sessionsResponse.data.data.sessions.length > 0) {
+        sessionId = sessionsResponse.data.data.sessions[0].session_id;
+        console.log('使用最新的会话ID:', sessionId);
+        setCurrentSessionId(sessionId);
+        
+        // 3. 获取并加载历史记录
+        const historyResponse = await aiChatServer.getSessionHistory(sessionId);
+        console.log('会话历史记录:', historyResponse.data);
+        
+        // 将历史记录转换为ChatMessage格式
+        historyMessages = historyResponse.data.data.history.flatMap((msg) => {
+          const userMsg: ChatMessage = {
+            id: nanoid(),
+            content: msg.user_message,
+            role: 'user',
+            timestamp: new Date(msg.query_time),
+          };
+          
+          const aiMsg: ChatMessage = {
+            id: nanoid(),
+            content: msg.ai_response,
+            role: 'assistant',
+            timestamp: new Date(msg.query_time),
+          };
+          
+          return [userMsg, aiMsg];
+        });
+        
+        console.log(`加载了 ${historyMessages.length / 2} 条历史对话`);
+      } else {
+        console.log('没有找到现有会话，将在发送第一条消息时创建');
+        // 显示欢迎消息
+        historyMessages = [{
+          id: nanoid(),
+          content: "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
+          role: 'assistant',
+          timestamp: new Date(),
+          sources: [
+            { title: "Getting Started Guide", url: "#" },
+            { title: "API Documentation", url: "#" }
+          ]
+        }];
+      }
+      
+      setMessages(historyMessages);
+    } catch (error) {
+      console.error('加载历史记录失败:', error);
+      // 显示错误提示或默认消息
+      setMessages([{
+        id: nanoid(),
+        content: "Hello! I'm your AI assistant. What would you like to know?",
+        role: 'assistant',
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  }, []);
+
+  // 组件挂载时加载历史记录
+  useEffect(() => {
+    loadChatHistory();
+  }, [loadChatHistory]);
   
   const processStreamResponse = useCallback(async (messageId: string, stream: ReadableStream) => {
     const reader = stream.getReader();
@@ -288,7 +352,7 @@ const AiConversation = () => {
     }, 50);
     return () => clearInterval(typeInterval);
   }, []);
-  const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback((event) => {
+  const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(async (event) => {
     event.preventDefault();
     
     if (!inputValue.trim() || isTyping) return;
@@ -309,7 +373,20 @@ const AiConversation = () => {
     // Process AI response with real streaming
     setTimeout(async () => {
       try {
-        const stream = await testAIChatStream(currentInput);
+        // 如果没有sessionId，先创建一个
+        let sessionId = currentSessionId;
+        if (!sessionId) {
+          console.log('创建新会话...');
+          const response = await aiChatServer.new({
+            userId: USER_ID,
+            sectionId: SECTION_ID,
+          });
+          sessionId = response.data.data.session_id;
+          setCurrentSessionId(sessionId);
+          console.log('新会话创建成功:', sessionId);
+        }
+        
+        const stream = await testAIChatStream(currentInput, sessionId);
         
         if (!stream) {
           throw new Error('No stream received from server');
@@ -346,24 +423,13 @@ const AiConversation = () => {
         setMessages(prev => [...prev, errorMessage]);
       }
     }, 300);
-  }, [inputValue, isTyping, processStreamResponse]);
+  }, [inputValue, isTyping, currentSessionId, processStreamResponse]);
   const handleReset = useCallback(() => {
-    setMessages([
-      {
-        id: nanoid(),
-        content: "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
-        role: 'assistant',
-        timestamp: new Date(),
-        sources: [
-          { title: "Getting Started Guide", url: "#" },
-          { title: "API Documentation", url: "#" }
-        ]
-      }
-    ]);
+    loadChatHistory();
     setInputValue('');
     setIsTyping(false);
     setStreamingMessageId(null);
-  }, []);
+  }, [loadChatHistory]);
   return (
     <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
       {/* Header */}
@@ -391,6 +457,12 @@ const AiConversation = () => {
       {/* Conversation Area */}
       <Conversation className="flex-1">
         <ConversationContent className="space-y-4">
+          {isLoadingHistory && (
+            <div className="flex items-center justify-center py-4">
+              <Loader size={16} />
+              <span className="ml-2 text-muted-foreground text-sm">Loading chat history...</span>
+            </div>
+          )}
           {messages.map((message) => (
             <div key={message.id} className="space-y-3">
               <Message from={message.role}>
