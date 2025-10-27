@@ -188,7 +188,25 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
   }
 
   chatStream = async (data: ChatRequest) => {
-    return this.http.post<Status<ChatStreamResponse>>('/chat/stream', data, { baseURL: this.baseUrl });
+    // 使用 fetch API 来获取流式响应
+    const response = await fetch(`${this.baseUrl}/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error('Response body is null');
+    }
+
+    // 直接返回原始流，让调用方处理
+    return response.body;
   }
 }
 

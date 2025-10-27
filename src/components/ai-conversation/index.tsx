@@ -86,14 +86,14 @@ async function testAIChatStream(message: string){
   );
   console.log(response.data);
 
-  const chatStreamResponse = await aiChatServer.chatStream({
+  const stream = await aiChatServer.chatStream({
     userId: response.data.data.user_id,
     sectionId: response.data.data.section_id,
     message: message,
     sessionId: response.data.data.session_id
   });
-  console.log(`AI Stream Response: `, chatStreamResponse.data);
-  return chatStreamResponse.data.data.ai_response;
+  //console.log(`AI Stream Response: `, stream);
+  return stream;
 }
 
 
@@ -119,24 +119,127 @@ const AiConversation = () => {
   const processStreamResponse = useCallback(async (messageId: string, stream: ReadableStream) => {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
+    let buffer = '';
+    
+    console.log('Starting stream processing...');
     
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('Stream completed');
+          break;
+        }
         
-        const chunk = decoder.decode(value);
+        // 解码数据块
+        const chunk = decoder.decode(value, { stream: true });
+        console.log('Received chunk:', chunk);
+        buffer += chunk;
         
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === messageId) {
-            return {
-              ...msg,
-              content: msg.content + chunk,
-              isStreaming: true,
-            };
+        // 尝试按行分割处理
+        const lines = buffer.split('\n');
+        
+        // 保留最后一个可能不完整的行
+        buffer = lines.pop() || '';
+        
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          
+          console.log('Processing line:', line);
+          
+          try {
+            // 尝试解析为JSON
+            const parsed = JSON.parse(line);
+            console.log('Parsed JSON:', parsed);
+            
+            // 处理不同的响应格式
+            let textChunk = '';
+            
+            if (parsed.data && typeof parsed.data.ai_response === 'string') {
+              // 格式: {"success":true,"data":{"ai_response":"文本内容"}}
+              textChunk = parsed.data.ai_response;
+              console.log('Found ai_response in data:', textChunk);
+            } else if (typeof parsed.ai_response === 'string') {
+              // 格式: {"ai_response":"文本内容"}
+              textChunk = parsed.ai_response;
+              console.log('Found ai_response:', textChunk);
+            } else if (typeof parsed.content === 'string') {
+              // 格式: {"content":"文本内容"}
+              textChunk = parsed.content;
+              console.log('Found content:', textChunk);
+            } else if (typeof parsed === 'string') {
+              // 纯文本
+              textChunk = parsed;
+              console.log('Using raw string:', textChunk);
+            } else if (parsed.choices && parsed.choices[0]?.delta?.content) {
+              // OpenAI格式: {"choices":[{"delta":{"content":"文本"}}]}
+              textChunk = parsed.choices[0].delta.content;
+              console.log('Found OpenAI format:', textChunk);
+            } else {
+              console.log('No recognized format, parsed object:', parsed);
+            }
+            
+            if (textChunk) {
+              setMessages(prev => prev.map(msg => {
+                if (msg.id === messageId) {
+                  return {
+                    ...msg,
+                    content: msg.content + textChunk,
+                    isStreaming: true,
+                  };
+                }
+                return msg;
+              }));
+            }
+          } catch (e) {
+            console.log('Not JSON, treating as plain text:', line);
+            // 如果不是JSON，直接作为文本处理
+            if (line.trim()) {
+              setMessages(prev => prev.map(msg => {
+                if (msg.id === messageId) {
+                  return {
+                    ...msg,
+                    content: msg.content + line + '\n',
+                    isStreaming: true,
+                  };
+                }
+                return msg;
+              }));
+            }
           }
-          return msg;
-        }));
+        }
+      }
+      
+      // 处理剩余的buffer
+      if (buffer.trim()) {
+        console.log('Processing remaining buffer:', buffer);
+        try {
+          const parsed = JSON.parse(buffer);
+          let textChunk = '';
+          
+          if (parsed.data && typeof parsed.data.ai_response === 'string') {
+            textChunk = parsed.data.ai_response;
+          } else if (typeof parsed.ai_response === 'string') {
+            textChunk = parsed.ai_response;
+          } else if (typeof parsed.content === 'string') {
+            textChunk = parsed.content;
+          }
+          
+          if (textChunk) {
+            setMessages(prev => prev.map(msg => {
+              if (msg.id === messageId) {
+                return {
+                  ...msg,
+                  content: msg.content + textChunk,
+                  isStreaming: true,
+                };
+              }
+              return msg;
+            }));
+          }
+        } catch (e) {
+          console.log('Buffer is not valid JSON, ignoring');
+        }
       }
       
       // Mark streaming as complete
@@ -207,6 +310,10 @@ const AiConversation = () => {
     setTimeout(async () => {
       try {
         const stream = await testAIChatStream(currentInput);
+        
+        if (!stream) {
+          throw new Error('No stream received from server');
+        }
         
         const assistantMessageId = nanoid();
         
