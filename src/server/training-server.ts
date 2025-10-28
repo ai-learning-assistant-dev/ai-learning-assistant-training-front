@@ -9,7 +9,8 @@ const modelEnum = [
   '/health',
   '/ai-chat',
   '/exercises',
-  '/exercise-results'
+  '/exercise-results',
+  '/users'
 ] as const;
 
 export interface Pagination {
@@ -48,13 +49,13 @@ export class TrainingServer<T> {
   getById = async (data: Partial<T>) => {
     return (await this.http.post<Status<T>>('/getById', data, { baseURL: this.baseUrl })).data;
   }
-  add = async (data: T) => {
+  add = async (data: Partial<T>) => {
     return (await this.http.post<Status<T>>('/add', data, { baseURL: this.baseUrl })).data;
   }
-  update = async (data: T) => {
+  update = async (data: Partial<T>) => {
     return (await this.http.post<Status<T>>('/update', data, { baseURL: this.baseUrl })).data;
   }
-  delete = async (data: T) => {
+  delete = async (data: Partial<T>) => {
     return (await this.http.post<Status<T>>('/delete', data, { baseURL: this.baseUrl })).data;
   }
 
@@ -419,3 +420,25 @@ class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
 }
 
 export const exerciseResultServer = new ExerciseResultServer();
+
+export interface UserResponse {
+  user_id:string;
+  name: string;
+  avatar_url?: string;
+  education_level?: string;
+  learning_ability?: string;
+  goal?: string;
+  level?: number;
+  experience?: number;
+  current_title_id?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/** 调用课程接口的类，继承了基本增删改查的接口 */
+export class UserServer extends TrainingServer<UserResponse> {
+  constructor() {
+    super('/users');
+  }
+}
+export const userServer = new UserServer();

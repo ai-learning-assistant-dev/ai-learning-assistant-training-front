@@ -18,7 +18,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { SiteHeader } from "./site-header"
-import { AppRightSidebar } from "../app-right-sidebar"
+import { getLoginUser } from "@/containers/auth-middleware"
 // Menu items.
 const topItems = [
   {
@@ -58,6 +58,7 @@ const bottomItems = [
 ]
 
 export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
+  const user = getLoginUser();
   return (
     <SidebarProvider 
       style={
@@ -71,7 +72,7 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
         <SidebarHeader className="p-0">
           <Card>
             <CardHeader>
-              <CardTitle><User size={24} style={{display: 'inline'}} />用户名</CardTitle>
+              <CardTitle><User size={24} style={{display: 'inline'}} />{user?.name}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex justify-between items-center w-full">
