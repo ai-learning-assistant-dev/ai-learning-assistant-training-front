@@ -17,6 +17,7 @@ export type Option = {
 type SelectionProps = {
   question: React.ReactNode;
   answerKey?: string;
+  ai_feedback?: string;
   image?: string;
   score: number;
   user_score?: number;
@@ -37,11 +38,13 @@ const selectionNames = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', '
 
 export default function Selection({
   question,
+  ai_feedback,
   image,
   options,
   mode = "single",
   value,
   score,
+  user_score = 0,
   defaultValue = [],
   onChange,
   name,
@@ -123,9 +126,18 @@ export default function Selection({
     return null;
   }, [JSON.stringify(options)]);
 
+  const textColor = explanation ? (user_score < score ? 'text-red-700': 'text-lime-400'): '';
+
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
-      <div className="flex w-full items-start justify-between"><div>{question}</div><Badge variant={'outline'} className="h-8 border-gray-400 text-gray-400">{mode === 'single'? '单选题' : '多选题'}<Separator orientation="vertical" />{score}</Badge></div>
+      <div className="flex w-full items-start justify-between">
+        <div className="font-semibold">{question}</div>
+        <Badge variant={'outline'} className={`h-8 border-gray-400 text-gray-400`}>
+          {mode === 'single'? '单选题' : '多选题'}
+          <Separator orientation="vertical" />
+          <span className={textColor}>{ explanation && `${user_score}/`}{score}</span>
+        </Badge>
+      </div>
       {image?<img src={image} alt="" style={imgStyle} />:null}
       {shuffledOptions&&shuffledOptions.map((opt, index) => {
         const checked = internal.includes(opt.value);
@@ -161,10 +173,12 @@ export default function Selection({
           </label>
         );
       })}
-      <div>
-        <div>正确答案为：{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
-        <div>选项解析：{explanation && answerKey}</div>
-      </div>
+      {explanation && (
+        <div>
+          <div><span className="font-bold">正确答案为：</span>{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
+          <div><span className="font-bold">选项解析：</span>{ai_feedback}</div>
+        </div>
+      )}
     </div>
   );
 }

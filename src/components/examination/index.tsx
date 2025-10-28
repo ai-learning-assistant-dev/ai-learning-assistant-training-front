@@ -3,7 +3,7 @@ import type { Option } from "./selection";
 import ShortAnswer from "./short-answer";
 import image from './image.png';
 import { useAutoCache } from "@/containers/auto-cache";
-import { exerciseResultServer, exerciseServer } from "@/server/training-server";
+import { exerciseResultServer, exerciseServer, type ExrciseResultCompose } from "@/server/training-server";
 import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { use, useCallback, useState } from "react";
@@ -22,6 +22,13 @@ import {
 import { isArray } from "lodash";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { ExamResultDialog } from "../exam-result-dialog";
+
+function getSingleExerciseResult(results: ExrciseResultCompose, exercise_id: string){
+  const result = results.results.filter(item=>item.exercise_id === exercise_id)[0];
+  if(result){
+    return result;
+  }
+}
 
 export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, onFail?: (data: any) => void }) {
   const params = useParams();
@@ -87,6 +94,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
     setTrigger(trigger + 1);
     setResultDialogShow(true);
   }, [params.sectionId, setTrigger]);
+  
 
   return (
     <div className="flex">
@@ -94,6 +102,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6 rounded-xl border border-gray-200 border-solid p-4">
           {
             data?.data.map((exercise) => {
+              const singleResult = exerciseResult?.data && getSingleExerciseResult(exerciseResult?.data, exercise.exercise_id)
               if (exercise.type_status === '0' || exercise.type_status === '1') {
                 return (
                   <FormField
@@ -107,12 +116,14 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                         question={exercise.question}
                         answerKey={exercise.answer}
                         score={exercise.score}
-                        image={image}
+                        user_score={singleResult?singleResult.user_score:0}
+                        ai_feedback={singleResult?singleResult.ai_feedback:''}
+                        image={exercise.image}
                         options={exercise.options?.map((opt) => ({
                           id: opt.option_id,
                           label: opt.option_text,
                           value: opt.option_id,
-                          image: image,
+                          image: opt.image,
                           is_correct: opt.is_correct,
                         }))}
                         mode={exercise.type_status === '0' ? 'single' : 'multiple'}
@@ -134,7 +145,9 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                         question={exercise.question}
                         answerKey={exercise.answer}
                         score={exercise.score}
-                        image={image}
+                        user_score={singleResult?singleResult.user_score:0}
+                        ai_feedback={singleResult?singleResult.ai_feedback:''}
+                        image={exercise.image}
                         explanation={explanation}
                       />
                     )}
@@ -144,7 +157,9 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
               return null;
             })
           }
-          <Button type="submit">交卷</Button>
+          {!explanation&&<Button type="submit">交卷</Button>}
+          {explanation && exerciseResult?.data.pass && <Button onClick={()=> {setExplanation(false);onPass&&onPass(exerciseResult)}} type="button">进入对照学习</Button>}
+          {explanation && !(exerciseResult?.data.pass) && <Button onClick={()=>{setExplanation(false);onFail&&onFail(exerciseResult)}} type="button">返回视频学习</Button>}
         </form>
       </Form>
       {exerciseResult&&<ExamResultDialog open={resultDialogShow} {...exerciseResult.data} onSubmit={checkResult}/>}

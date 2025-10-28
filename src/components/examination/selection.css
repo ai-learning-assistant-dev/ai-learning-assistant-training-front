@@ -38,7 +38,7 @@
 
 .examination-checkbox.good::before{
   content: '';
-  background-color: greenyellow;
+  background-color: var(--color-lime-400);
 }
 
 .examination-checkbox.bad::before{

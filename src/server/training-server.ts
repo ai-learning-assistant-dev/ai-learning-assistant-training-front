@@ -364,6 +364,8 @@ const exrciseResultExample = {
   ]
 };
 
+export type ExrciseResultCompose= typeof exrciseResultExample;
+
 class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
   constructor() {
     super('/exercise-results');
@@ -378,7 +380,7 @@ class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
       user_answer?: string;
     }[]
   }) => {
-    return (await this.http.post<Status<typeof exrciseResultExample>>('/saveExerciseResults', data, { baseURL: this.baseUrl })).data;
+    return (await this.http.post<Status<ExrciseResultCompose>>('/saveExerciseResults', data, { baseURL: this.baseUrl })).data;
   }
 
   getExerciseResults = async (data: {
@@ -386,7 +388,7 @@ class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
     section_id?: string;
     test_result_id?: string;
   })=>{
-    return (await this.http.post<Status<typeof exrciseResultExample>>('/getExerciseResults', data, { baseURL: this.baseUrl })).data;
+    return (await this.http.post<Status<ExrciseResultCompose>>('/getExerciseResults', data, { baseURL: this.baseUrl })).data;
   }
 }
 

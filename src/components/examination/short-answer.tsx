@@ -6,6 +6,7 @@ type ShortAnswerProps = {
   id?: string;
   question: string;
   answerKey?: string;
+  ai_feedback?: string;
   score: number;
   user_score?: number;
   image?: string;
@@ -31,11 +32,15 @@ const imgStyle: React.CSSProperties = {
 export default function ShortAnswer({
   id,
   question,
+  answerKey,
+  ai_feedback,
   image,
   initialValue = "",
   placeholder = "在此输入你的答案",
   maxLength,
   score,
+  user_score = 0,
+  explanation = false,
   disabled = false,
   onSubmit,
   onChange,
@@ -66,6 +71,8 @@ export default function ShortAnswer({
 
   const textareaId = id ?? `short-answer-${Math.random().toString(36).slice(2, 9)}`;
 
+  const textColor = explanation ? (user_score < score ? 'text-red-700': 'text-lime-400'): '';
+
   return (
     <div
       style={{
@@ -74,12 +81,17 @@ export default function ShortAnswer({
         maxWidth: 720,
       }}
     >
-      <label htmlFor={textareaId} style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
-        <div className="flex w-full items-start justify-between"><div>{question}</div><Badge variant={'outline'} className="h-8 border-gray-400 text-gray-400">简答题<Separator orientation="vertical" />{score}</Badge></div>
-        {image?<img src={image} alt="" style={imgStyle} />:null}
+      <label htmlFor={textareaId} style={{ display: "block", marginBottom: 8}} className="font-semibold">
+        <div className="flex w-full items-start justify-between">
+          <div>{question}</div>
+          <Badge variant={'outline'} className="h-8 border-gray-400 text-gray-400">简答题<Separator orientation="vertical" />
+          <span className={textColor}>{ explanation && `${user_score}/`}{score}</span>
+          </Badge>
+        </div>
+        {image ? <img src={image} alt="" style={imgStyle} /> : null}
       </label>
 
-      <textarea
+      {!explanation && <textarea
         id={textareaId}
         value={value}
         onChange={handleChange}
@@ -95,7 +107,21 @@ export default function ShortAnswer({
           border: error ? "1px solid #e55353" : "1px solid #ccc",
           fontSize: 14,
         }}
-      />
+      />}
+
+      {explanation&&(
+        <>
+          <div>
+            <span className="font-bold">参考答案为：</span>{answerKey}
+          </div>
+          <div>
+            <span className="font-bold">你的答案为：</span>{value}
+          </div>
+          <div>
+            <span className="font-bold">AI批改：</span>{ai_feedback}
+          </div>
+        </>
+      )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
         <div style={{ color: error ? "#e55353" : "#666", fontSize: 12 }}>
