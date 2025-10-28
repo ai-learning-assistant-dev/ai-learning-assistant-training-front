@@ -1,0 +1,13 @@
+.exam-result-dialog-score{
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  color: var(--colors-text-text-primary-900, #101828);
+  text-align: center;
+  font-family: "Source Han Sans SC";
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 100%;
+}

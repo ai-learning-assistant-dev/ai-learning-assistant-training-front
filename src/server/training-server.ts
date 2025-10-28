@@ -10,7 +10,7 @@ const modelEnum = [
   '/ai-chat',
   '/exercises',
   '/exercise-results',
-  '/users'
+  '/users',
 ] as const;
 
 export interface Pagination {
@@ -348,15 +348,26 @@ export interface ExerciseResult {
   ai_feedback?: string;
 }
 
+const exrciseResultExample = {
+  pass: true,
+  user_score: 60,
+  score: 100,
+  ai_feedback: '',
+  results: [
+    {
+      exercise_id: 'string',
+      user_score: 6,
+      core: 10,
+      ai_feedback: 'string',
+      user_answer: 'string',
+    }
+  ]
+};
+
 class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
   constructor() {
     super('/exercise-results');
   }
-  // saveExerciseResults = async (data: {
-  //   "list": ExerciseResult[];
-  // }) => {
-  //   return (await this.http.post<Status<ExerciseResponse>>('/saveExerciseResults', data, { baseURL: this.baseUrl })).data;
-  // }
 
   saveExerciseResults = async (data: {
     user_id: string;
@@ -367,27 +378,7 @@ class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
       user_answer?: string;
     }[]
   }) => {
-    return {
-      success: true,
-      /** 200是正常 */
-      statusCode: 200,
-      data: {
-        pass: true,
-        user_score: 60,
-        score: 100,
-        ai_feedback: '',
-        exerciseResult: [
-          {
-            exercise_id: 'string',
-            user_score: 6,
-            core: 10,
-            ai_feedback: 'string',
-            user_answer: 'string',
-          }
-        ]
-      },
-      message: 'string'
-    };
+    return (await this.http.post<Status<typeof exrciseResultExample>>('/saveExerciseResults', data, { baseURL: this.baseUrl })).data;
   }
 
   getExerciseResults = async (data: {
@@ -395,27 +386,7 @@ class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
     section_id?: string;
     test_result_id?: string;
   })=>{
-    return {
-      success: true,
-      /** 200是正常 */
-      statusCode: 200,
-      data: {
-        pass: true,
-        user_core: 60,
-        score: 100,
-        ai_feedback: '',
-        exerciseResult: [
-          {
-            exercise_id: 'string',
-            user_score: 6,
-            score: 10,
-            ai_feedback: 'string',
-            user_answer: 'string',
-          }
-        ]
-      },
-      message: 'string'
-    };
+    return (await this.http.post<Status<typeof exrciseResultExample>>('/getExerciseResults', data, { baseURL: this.baseUrl })).data;
   }
 }
 

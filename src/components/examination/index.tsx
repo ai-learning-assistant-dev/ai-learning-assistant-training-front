@@ -6,7 +6,7 @@ import { useAutoCache } from "@/containers/auto-cache";
 import { exerciseResultServer, exerciseServer } from "@/server/training-server";
 import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
-import { use, useCallback } from "react";
+import { use, useCallback, useState } from "react";
 import { z } from "zod"
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,13 +20,24 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { isArray } from "lodash";
-
-
+import { getLoginUser } from "@/containers/auth-middleware";
+import { ExamResultDialog } from "../exam-result-dialog";
 
 export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, onFail?: (data: any) => void }) {
   const params = useParams();
+  const [explanation, setExplanation] = useState(false);
+  const [trigger, setTrigger] = useState(1);
+  const [resultDialogShow, setResultDialogShow] = useState(false);
   const {data} = useAutoCache(exerciseServer.getExercisesWithOptionsBySection, [{section_id: params.sectionId}]);
-  const {data: exerciseResult } = useAutoCache(exerciseResultServer.getExerciseResults, [{user_id: '',section_id: params.sectionId}]);
+  const {data: exerciseResult } = useAutoCache(
+    exerciseResultServer.getExerciseResults, 
+    [{user_id: getLoginUser()?.user_id,section_id: params.sectionId}], undefined, trigger
+  );
+
+  const checkResult = ()=>{
+    setExplanation(true);
+    setResultDialogShow(false);
+  }
 
   const schema: Record<string, z.ZodOptional<z.ZodAny>> = {
 
@@ -39,7 +50,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
   data?.data.forEach((exercise) => {
     schema[exercise.exercise_id] = z.any().optional();
     if(exerciseResult){
-      for(const item of exerciseResult?.data.exerciseResult){
+      for(const item of exerciseResult?.data.results){
         if(item.exercise_id === exercise.exercise_id){
           if(exercise.type_status === '2'){
             defaultValues[exercise.exercise_id] = item.user_answer;
@@ -59,7 +70,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
 
   const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) =>{
     const formData = {
-      user_id: '',
+      user_id: getLoginUser().user_id,
       section_id: params.sectionId,
       list: [] as { exercise_id: string; user_answer: string }[]
     };
@@ -72,13 +83,10 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
         user_answer: isArray(values[key]) ?  values[key].join(';') : values[key],
       });
     }
-    const result = await exerciseResultServer.saveExerciseResults(formData);
-    if(result.data.pass){
-      onPass?.(result);
-    }else {
-      onFail?.(result);
-    }
-  }, [params.sectionId, onPass, onFail]);
+    await exerciseResultServer.saveExerciseResults(formData);
+    setTrigger(trigger + 1);
+    setResultDialogShow(true);
+  }, [params.sectionId, setTrigger]);
 
   return (
     <div className="flex">
@@ -108,7 +116,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                           is_correct: opt.is_correct,
                         }))}
                         mode={exercise.type_status === '0' ? 'single' : 'multiple'}
-                        explanation={true}
+                        explanation={explanation}
                       />
                       )}
                   />
@@ -127,7 +135,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                         answerKey={exercise.answer}
                         score={exercise.score}
                         image={image}
-                        explanation={true}
+                        explanation={explanation}
                       />
                     )}
                   />
@@ -139,6 +147,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
           <Button type="submit">交卷</Button>
         </form>
       </Form>
+      {exerciseResult&&<ExamResultDialog open={resultDialogShow} {...exerciseResult.data} onSubmit={checkResult}/>}
     </div>
   )
 }

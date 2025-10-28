@@ -19,11 +19,11 @@ export function SectionDetail() {
   }
 
   const onPass = async (data: any)=>{
-    alert(JSON.stringify(data));
+    alert("成功了"+JSON.stringify(data));
   }
 
   const onFail = async (data: any)=>{
-    alert(JSON.stringify(data));
+    alert("失败了"+JSON.stringify(data));
   }
 
   if (loading === false && error == null) {
@@ -37,6 +37,7 @@ export function SectionDetail() {
         {stage !== 'examination' && <VideoPlayer url={section.video_url} />}
         {stage !== 'examination' && <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>}
         {stage !== 'video' && <Examination onPass={onPass} onFail={onFail} />}
+        
       </div>
     )
   }

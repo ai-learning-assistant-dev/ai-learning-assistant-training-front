@@ -16,9 +16,10 @@ export async function loginUser(user_id: string) {
   
 }
 
-export function getLoginUser(): UserResponse | null {
+export function getLoginUser(): UserResponse {
   const userString = localStorage.getItem(USER_STORAGE_KEY);
   const user = userString ? JSON.parse(userString) as UserResponse : null;
+  // @ts-ignore
   return user;
 }
 
