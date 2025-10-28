@@ -34,6 +34,7 @@ import { aiChatServer, sectionsServer } from '@/server/training-server';
 import { useAutoCache } from '@/containers/auto-cache';
 import { useParams } from 'react-router';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
+import { getLoginUser } from '@/containers/auth-middleware';
 
 type ChatMessage = {
   id: string;
@@ -79,14 +80,16 @@ const sampleResponses = [
 ];
 
 // 用户和章节ID配置
-const USER_ID = "04cdc3f7-8c08-4231-9719-67e7f523e845";
-const SECTION_ID = "4c4f637b-f088-4000-96d4-384411de2761";
+function getUserId(){
+  const user = getLoginUser();
+  return user?user.user_id:"04cdc3f7-8c08-4231-9719-67e7f523e845";
+};
 
-async function testAIChatStream(message: string, sessionId: string){
+async function testAIChatStream(message: string, sessionId: string, sectionId: string){
   // 发送消息并获取流式响应
   const stream = await aiChatServer.chatStream({
-    userId: USER_ID,
-    sectionId: SECTION_ID,
+    userId: getUserId(),
+    sectionId: sectionId,
     message,
     sessionId
   });
@@ -104,6 +107,8 @@ const AiConversation = () => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const params = useParams();
+  const sectionId = params.sectionId ? params.sectionId : "4c4f637b-f088-4000-96d4-384411de2761";
 
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
@@ -111,7 +116,7 @@ const AiConversation = () => {
       setIsLoadingHistory(true);
       
       // 1. 获取用户在该章节的所有会话
-      const sessionsResponse = await aiChatServer.getSessionsByUserAndSection(USER_ID, SECTION_ID);
+      const sessionsResponse = await aiChatServer.getSessionsByUserAndSection(getUserId(), sectionId);
       console.log('用户章节会话列表:', sessionsResponse.data);
       
       let sessionId: string;
@@ -380,15 +385,15 @@ const AiConversation = () => {
         if (!sessionId) {
           console.log('创建新会话...');
           const response = await aiChatServer.new({
-            userId: USER_ID,
-            sectionId: SECTION_ID,
+            userId: getUserId(),
+            sectionId: sectionId,
           });
           sessionId = response.data.data.session_id;
           setCurrentSessionId(sessionId);
           console.log('新会话创建成功:', sessionId);
         }
         
-        const stream = await testAIChatStream(currentInput, sessionId);
+        const stream = await testAIChatStream(currentInput, sessionId, sectionId);
         
         if (!stream) {
           throw new Error('No stream received from server');
@@ -441,8 +446,8 @@ const AiConversation = () => {
       
       // 调用后端创建新会话
       const response = await aiChatServer.new({
-        userId: USER_ID,
-        sectionId: SECTION_ID,
+        userId: getUserId(),
+        sectionId: sectionId,
       });
       
       console.log('新会话创建成功:', response.data);
