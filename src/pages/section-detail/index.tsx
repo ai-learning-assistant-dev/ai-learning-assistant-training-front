@@ -35,13 +35,15 @@ export function SectionDetail() {
     setStage('video')
   }
 
-  const changeStage = async (stage: Stage) => {
-    if (stage === 'video' || stage === 'examination') {
-      setStage(stage)
-    } else {
-      if (exerciseResult?.data.pass) {
-        setStage(stage);
+  const changeStage = async (nextStage: Stage) => {
+    if(stage === 'video'){
+      if(nextStage === 'examination'){
+        setStage(nextStage)
       }
+    }else if(stage === 'examination'){
+
+    }else if(stage === 'compare'){
+
     }
   }
 
