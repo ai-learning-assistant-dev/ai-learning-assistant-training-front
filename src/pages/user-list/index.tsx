@@ -22,7 +22,7 @@ export default function UserList() {
   async function loginOnSubmit(user_id: string){
     try{
       await loginUser(user_id);
-      navigate("/app");
+      navigate("/app/courseList");
     }catch(e){
       alert(e);
     }
@@ -37,7 +37,7 @@ export default function UserList() {
       const newUser = (await userServer.add({name})).data;
       setTrigger(trigger+1);
       await loginUser(newUser.user_id);
-      navigate("/app");
+      navigate("/app/courseList");
     }
     
   }
