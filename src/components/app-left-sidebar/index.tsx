@@ -1,4 +1,4 @@
-import { Calendar, Home, Inbox, Book, Search, Settings, CircleQuestionMark, VideoIcon, Gauge, User } from "lucide-react"
+import { Calendar, Home, Inbox, Book, Search, Settings, CircleQuestionMark, VideoIcon, Gauge, User, UserPen } from "lucide-react"
 
 import {
   Sidebar,
@@ -46,9 +46,14 @@ const topItems = [
 // Menu items.
 const bottomItems = [
   {
-    title: "Settings",
+    title: "设置",
     url: "#",
     icon: Settings,
+  },
+  {
+    title: "切换账户",
+    url: "/userList",
+    icon: UserPen,
   },
   {
     title: "获得帮助",
