@@ -23,7 +23,7 @@ import { getLoginUser } from "@/containers/auth-middleware"
 const topItems = [
   {
     title: "课程广场",
-    url: "/app/courseList",
+    url: "#/app/courseList",
     icon: Book,
   },
   {
@@ -52,7 +52,7 @@ const bottomItems = [
   },
   {
     title: "切换账户",
-    url: "/userList",
+    url: "#/userList",
     icon: UserPen,
   },
   {
