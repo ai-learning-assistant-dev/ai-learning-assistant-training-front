@@ -129,7 +129,7 @@ const AiConversation = () => {
         setCurrentSessionId(sessionId);
         
         // 3. 获取并加载历史记录
-        const historyResponse = await aiChatServer.getSessionHistory(sessionId);
+        const historyResponse = await aiChatServer.getSessionHistory(sessionId, true);
         console.log('会话历史记录:', historyResponse.data);
         
         // 将历史记录转换为ChatMessage格式

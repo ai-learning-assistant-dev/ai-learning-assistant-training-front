@@ -271,10 +271,10 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
   /**
    * 获取会话的对话历史
    */
-  getSessionHistory = async (sessionId: string) => {
+  getSessionHistory = async (sessionId: string, withoutInner: boolean) => {
     return this.http.get<Status<SessionHistoryResponse>>(
       `/history/${sessionId}`, 
-      { baseURL: this.baseUrl }
+      { baseURL: this.baseUrl, params: { withoutInner } }
     );
   }
 }
