@@ -173,7 +173,6 @@ export default function ShortAnswer({
                   sectionId,
                   message: composedMessage,
                 };
-                if (id) payload.exerciseId = id;
 
                 const resp = await aiChatServer.chat(payload as any);
                 const anyResp: any = resp;
