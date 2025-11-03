@@ -45,13 +45,44 @@ type ChatMessage = {
   sources?: Array<{ title: string; url: string }>;
   isStreaming?: boolean;
 };
-const models = [
-  { id: 'gpt-4o', name: 'GPT-4o' },
-  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
-  { id: 'llama-3.1-70b', name: 'Llama 3.1 70B' },
-  { id: 'deepseek-v3.1', name: 'DeepSeek V3.1' },
+
+// 添加模型类型定义
+type ModelInfo = {
+  id: string;
+  name: string;
+  provider: string;
+};
+
+const defaultModels = [
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai' },
+  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'anthropic' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'google' },
+  { id: 'llama-3.1-70b', name: 'Llama 3.1 70B', provider: '3rd party (openai-format)' },
+  { id: 'deepseek-v3.1', name: 'DeepSeek V3.1', provider: 'deepseek' },
 ];
+
+// 从后端配置文件中获取模型列表的函数
+const fetchAvailableModels = async () => {
+  try {
+    // 调用后端API获取模型列表
+    const response = await aiChatServer.getAvailableModels();
+    console.log('从后端获取的模型列表:', response.data, Array.isArray(response.data.data));
+    if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      return response.data.data.map((model: { id: string; name: string, provider: string }) => ({
+        id: model.id,
+        name: model.name,
+        provider: model.provider
+      }));
+    }
+    // 如果后端没有返回有效数据，使用默认模型列表
+    console.warn('后端未返回有效的模型列表，使用默认模型列表');
+    return defaultModels;
+  } catch (error) {
+    console.error('获取模型列表失败，使用默认模型列表:', error);
+    return defaultModels;
+  }
+};
+
 const sampleResponses = [
   {
     content: "I'd be happy to help you with that! React is a powerful JavaScript library for building user interfaces. What specific aspect would you like to explore?",
@@ -85,13 +116,14 @@ function getUserId(){
   return user?user.user_id:"04cdc3f7-8c08-4231-9719-67e7f523e845";
 };
 
-async function testAIChatStream(message: string, sessionId: string, sectionId: string){
+async function testAIChatStream(message: string, sessionId: string, sectionId: string, modelId: string) {
   // 发送消息并获取流式响应
   const stream = await aiChatServer.chatStream({
     userId: getUserId(),
     sectionId: sectionId,
     message,
-    sessionId
+    sessionId,
+    modelId  // 添加模型ID
   });
   
   console.log('开始接收AI流式响应...');
@@ -102,13 +134,46 @@ async function testAIChatStream(message: string, sessionId: string, sectionId: s
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [selectedModel, setSelectedModel] = useState(models[0].id);
+  const [selectedModel, setSelectedModel] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [models, setModels] = useState<ModelInfo[]>(defaultModels); // 使用类型定义
+  // 添加一个状态来标识模型是否已加载
+  const [modelsLoaded, setModelsLoaded] = useState(false);
   const params = useParams();
   const sectionId = params.sectionId ? params.sectionId : "4c4f637b-f088-4000-96d4-384411de2761";
+
+  // 加载模型列表
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const availableModels = await fetchAvailableModels();
+        setModels(availableModels);
+        setModelsLoaded(true);
+        // 设置默认选中第一个模型
+        if (availableModels.length > 0) {
+          // 如果还没有选中模型，或者选中的模型不在新列表中，则选中第一个
+          if (!selectedModel || !availableModels.some((m: ModelInfo) => m.id === selectedModel)) {
+            setSelectedModel(availableModels[0].id);
+            console.log('默认选中的模型:', availableModels[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('加载模型列表失败:', error);
+        // 即使加载失败，也要确保有一个默认选中的模型
+        if (defaultModels.length > 0) {
+          if (!selectedModel || !defaultModels.some((m: ModelInfo) => m.id === selectedModel)) {
+            setSelectedModel(defaultModels[0].id);
+          }
+        }
+        setModelsLoaded(true);
+      }
+    };
+    
+    loadModels();
+  }, []); // 依赖数组为空，只在组件挂载时执行一次
 
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
@@ -359,6 +424,7 @@ const AiConversation = () => {
     }, 50);
     return () => clearInterval(typeInterval);
   }, []);
+
   const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(async (event) => {
     event.preventDefault();
     
@@ -393,7 +459,7 @@ const AiConversation = () => {
           console.log('新会话创建成功:', sessionId);
         }
         
-        const stream = await testAIChatStream(currentInput, sessionId, sectionId);
+        const stream = await testAIChatStream(currentInput, sessionId, sectionId, selectedModel);
         
         if (!stream) {
           throw new Error('No stream received from server');
@@ -430,7 +496,7 @@ const AiConversation = () => {
         setMessages(prev => [...prev, errorMessage]);
       }
     }, 300);
-  }, [inputValue, isTyping, currentSessionId, processStreamResponse]);
+  }, [inputValue, isTyping, currentSessionId, processStreamResponse, selectedModel]);
   
   const handleReset = useCallback(() => {
     loadChatHistory();
@@ -484,7 +550,10 @@ const AiConversation = () => {
           </div>
           <div className="h-4 w-px bg-border" />
           <span className="text-muted-foreground text-xs">
-            {models.find(m => m.id === selectedModel)?.name}
+            {modelsLoaded 
+              ? (models.find((m: ModelInfo) => m.id === selectedModel)?.name || 
+                 (models.length > 0 ? models[0].name : 'Unknown Model'))
+              : 'Loading...'}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -583,12 +652,17 @@ const AiConversation = () => {
                 <span>Voice</span>
               </PromptInputButton>
               <PromptInputModelSelect 
-                value={selectedModel} 
+                value={selectedModel || (models.length > 0 ? models[0].id : '')}
                 onValueChange={setSelectedModel}
                 disabled={isTyping}
               >
                 <PromptInputModelSelectTrigger>
-                  <PromptInputModelSelectValue />
+                  <PromptInputModelSelectValue>
+                    {modelsLoaded 
+                      ? (models.find((m: ModelInfo) => m.id === selectedModel)?.name ||
+                         (models.length > 0 ? models[0].name : 'Select Model...'))
+                      : 'Loading...'}
+                  </PromptInputModelSelectValue>
                 </PromptInputModelSelectTrigger>
                 <PromptInputModelSelectContent>
                   {models.map((model) => (

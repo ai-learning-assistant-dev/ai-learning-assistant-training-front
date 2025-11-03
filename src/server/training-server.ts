@@ -148,6 +148,7 @@ interface ChatRequest {
   message: string;
   personaId?: string;
   sessionId?: string;
+  modelId?: string;  // 添加模型ID字段
 }
 
 /**
@@ -276,6 +277,31 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
       `/history/${sessionId}`, 
       { baseURL: this.baseUrl }
     );
+  }
+
+  /**
+   * 获取模型列表
+   */
+  getAvailableModels = async () => {
+    try {
+      const response = await this.http.get<Status<Array<{ id: string; name: string }>>>(
+        '/models', 
+        { 
+          baseURL: this.baseUrl,
+          // 添加缓存控制头，确保能正确处理304响应
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        }
+      );
+      return response;
+    } catch (error: any) {
+      // 特别处理304状态码
+      if (error.response && error.response.status === 304) {
+        return error.response;
+      }
+      throw error;
+    }
   }
 }
 
