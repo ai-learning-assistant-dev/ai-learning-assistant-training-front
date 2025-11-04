@@ -7,6 +7,7 @@ import { useParams } from "react-router";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { aiChatServer } from "@/server/training-server";
 import { Button } from "@/components/ui/button";
+import askAiImg from './ask_ai.png';
 
 export type Option = {
   id: string; // unique id for React keys
@@ -185,12 +186,6 @@ export default function Selection({
           </label>
         );
       })}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-        <Button type="button" size="sm" variant="outline" onClick={() => setShowAsk(s => !s)} disabled={disabled}>
-          向AI提问
-        </Button>
-      </div>
-
       {showAsk && (
         <div style={{ marginTop: 8, borderTop: '1px dashed #eee', paddingTop: 8 }}>
           <div style={{ marginBottom: 6 }} className="font-medium">向AI提问（可就本题提问）</div>
@@ -254,9 +249,18 @@ export default function Selection({
         </div>
       )}
       {explanation && (
-        <div>
-          <div><span className="font-bold">正确答案为：</span>{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
-          <div><span className="font-bold">选项解析：</span>{ai_feedback}</div>
+        <div style={{ paddingTop: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div><span className="font-bold">正确答案为：</span>{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
+              <div><span className="font-bold">选项解析：</span>{ai_feedback}</div>
+            </div>
+            <div style={{ flex: '0 0 auto' }}>
+              <button type="button" onClick={() => setShowAsk(s => !s)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
+                <img src={askAiImg} alt="问问AI" style={{ display: 'block', width: 160, height: 48, objectFit: 'contain' }} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

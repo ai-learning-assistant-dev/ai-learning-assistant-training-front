@@ -5,6 +5,7 @@ import { useParams } from "react-router";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { aiChatServer } from "@/server/training-server";
 import { Button } from "@/components/ui/button";
+import { Key } from 'lucide-react';
 
 type ShortAnswerProps = {
   id?: string;
@@ -119,7 +120,7 @@ export default function ShortAnswer({
       )}
 
       {explanation && (
-        <>
+        <div style={{ position: 'relative', paddingTop: 8 }}>
           <div>
             <span className="font-bold">参考答案为：</span>{answerKey}
           </div>
@@ -129,20 +130,8 @@ export default function ShortAnswer({
           <div>
             <span className="font-bold">AI批改：</span>{ai_feedback}
           </div>
-        </>
+        </div>
       )}
-
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-        <div style={{ color: error ? "#e55353" : "#666", fontSize: 12 }}>
-          {error ?? (maxLength ? `${value.length}/${maxLength}` : `${value.length} 字符`)}
-        </div>
-        {/* AI ask button */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <Button type="button" size="sm" variant="outline" onClick={() => setShowAsk(s => !s)} disabled={disabled}>
-            向AI提问
-          </Button>
-        </div>
-      </div>
 
       {showAsk && (
         <div style={{ marginTop: 8, borderTop: '1px dashed #eee', paddingTop: 8 }}>
