@@ -19,7 +19,15 @@ export function SectionHeader() {
   const courseId = params.courseId;
   const { data: course } = useAutoCache(courseServer.getById, [{course_id: courseId}]);
   const { data: section } = useAutoCache(sectionsServer.getById, [{section_id: sectionId}]);
-  const { data: chapter } = useAutoCache(chapterServer.getById, [{chapter_id: section?.data.chapter_id}]);
+  // Only fetch chapter when we actually have a chapter_id from section
+  const chapterId = section?.data?.chapter_id;
+  const noopFetch = async () => {
+    return undefined as any;
+  };
+  const { data: chapter } = useAutoCache(
+    chapterId ? chapterServer.getById : noopFetch,
+    chapterId ? [{ chapter_id: chapterId }] : []
+  );
   return (
     <Item variant='outline'>
       <ItemMedia >
