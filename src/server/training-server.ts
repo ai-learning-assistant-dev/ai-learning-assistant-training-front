@@ -1,6 +1,7 @@
 import { HttpClient } from "@/lib/http-client";
 
-export const serverHost = 'http://localhost:3000';
+//export const serverHost = 'http://localhost:3000';
+export const serverHost = window.location.protocol + "//" + window.location.host + "/api";
 
 const modelEnum = [
   '/courses',
