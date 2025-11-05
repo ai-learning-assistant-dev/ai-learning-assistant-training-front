@@ -10,7 +10,7 @@ function replaceParamInPath(path: string, params: Readonly<Params<string>>): str
     const replacement = value ?? "";
     replacedPath = replacedPath.replace(`:${key}`, replacement);
   }
-  return replacedPath;
+  return "#" + replacedPath;
 }
 
 export function SiteHeader() {
