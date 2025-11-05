@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createBrowserRouter, createContext, createHashRouter, redirect, RouterContextProvider } from "react-router";
+import { createBrowserRouter, createContext, createHashRouter, Outlet, redirect, RouterContextProvider } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import './index.css'
 import App from './pages/app/index.tsx'
@@ -12,34 +12,36 @@ import { authMiddleware } from './containers/auth-middleware/index.tsx';
 
 const router = createHashRouter([
   {
-    path: "/",
+    index: true,
+    Component: UserList,
+  },
+  {
+    path: "/userList",
+    Component: UserList,
+  },
+  {
+    path: "/app",
+    Component: App,
+    middleware: [authMiddleware],
     children: [
       {
-        path: "/userList",
         index: true,
-        Component: UserList,
+        Component: CourseList,
       },
       {
-        path: "/app",
-        Component: App,
-        middleware: [authMiddleware],
-        children: [
-          {
-            path: "courseList",
-            Component: CourseList,
-          },
-          {
-            path: "courseList/courseDetail/:courseId",
-            Component: CourseDetail,
-          },
-          {
-            path: "courseList/courseDetail/:courseId/sectionDetail/:sectionId",
-            Component: SectionDetail,
-          }
-        ],
+        path: "courseList",
+        Component: CourseList,
       },
+      {
+        path: "courseList/courseDetail/:courseId",
+        Component: CourseDetail,
+      },
+      {
+        path: "courseList/courseDetail/:courseId/sectionDetail/:sectionId",
+        Component: SectionDetail,
+      }
     ],
-  }
+  },
 ]);
 
 createRoot(document.getElementById('root')!).render(
