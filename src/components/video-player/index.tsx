@@ -5,9 +5,19 @@ import { uniqueId } from 'lodash';
 import { serverHost } from '@/server/training-server';
 
 export function getBilibiliProxy(bilibiliUrl: string): string {
-  const s = bilibiliUrl.split('/');
-  const bvid = s[s.length - 2];
-  return `${serverHost}/proxy/bilibili/video-manifest?bvid=${bvid}`;
+  if (!bilibiliUrl) return `${serverHost}/proxy/bilibili/video-manifest?bvid=`;
+  try {
+    // Prefer using the URL API to correctly extract the pathname segments
+    const urlObj = new URL(bilibiliUrl);
+    const parts = urlObj.pathname.split('/').filter(Boolean);
+    const bvid = parts.length > 0 ? parts[parts.length - 1] : '';
+    return `${serverHost}/proxy/bilibili/video-manifest?bvid=${encodeURIComponent(bvid)}`;
+  } catch (e) {
+    // Fallback for relative URLs or non-standard inputs
+    const parts = bilibiliUrl.split('/').filter(Boolean);
+    const bvid = parts.length > 0 ? parts[parts.length - 1] : '';
+    return `${serverHost}/proxy/bilibili/video-manifest?bvid=${encodeURIComponent(bvid)}`;
+  }
 }
 
 
