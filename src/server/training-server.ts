@@ -206,6 +206,11 @@ interface SessionHistoryResponse {
   history: HistoryMessage[];
 }
 
+// 每日聊天，上下文存储于内存中，用于主页会话。
+export interface DailyChatRequest {
+  message: string;
+}
+
 /**
  * AI流式聊天响应
  */
