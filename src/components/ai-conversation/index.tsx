@@ -522,16 +522,7 @@ const AiConversation = () => {
             className="h-8 px-2"
           >
             <PlusIcon className="size-4" />
-            <span className="ml-1">New Chat</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleReset}
-            className="h-8 px-2"
-          >
-            <RotateCcwIcon className="size-4" />
-            <span className="ml-1">Reset</span>
+            <span className="ml-1">新建聊天</span>
           </Button>
         </div>
       </div>
