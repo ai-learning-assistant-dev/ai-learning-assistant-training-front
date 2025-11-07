@@ -1,4 +1,5 @@
 import { VideoPlayer } from "@/components/video-player";
+import type { VideoPlayerHandle } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
 import { exerciseResultServer, sectionsServer } from "@/server/training-server";
 import { useParams } from "react-router";
@@ -7,7 +8,7 @@ import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
 import { Examination } from "@/components/examination";
 import type { Stage } from "@/components/section-stage";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -20,6 +21,8 @@ export function SectionDetail() {
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
+  // ref 用于按需获取播放进度（由用户手动触发）
+  const playerRef = useRef<VideoPlayerHandle | null>(null);
   if (loading) {
     return <div>loading...</div>
   }
@@ -53,12 +56,22 @@ export function SectionDetail() {
       <div className="flex flex-col gap-4 px-6">
         <SectionHeader />
         <SectionStage stage={stage} onClick={changeStage} />
-        {stage !== 'examination' && <VideoPlayer url={section.video_url} />}
+        {stage !== 'examination' && <>
+          <VideoPlayer url={section.video_url} ref={playerRef} />
+        </>}
         {stage !== 'examination' && (<Tabs defaultValue="doc">
-          <TabsList>
-            <TabsTrigger value="doc">知识点文案</TabsTrigger>
-            {stage === 'compare' && <TabsTrigger value="examination">随堂测验</TabsTrigger>}
-          </TabsList>
+          <div className="flex w-full items-center justify-between">
+            <TabsList className="flex-1">
+              <TabsTrigger value="doc">知识点文案</TabsTrigger>
+              {stage === 'compare' && <TabsTrigger value="examination">随堂测验</TabsTrigger>}
+            </TabsList>
+            <div className="flex-none" style={{ marginLeft: 12 }}>
+              <button type="button" onClick={() => {
+                const p = playerRef.current?.getProgress();
+                console.log('用户手动获取播放进度：', p);
+              }} className="px-3 py-1 border rounded bg-white">获取播放进度</button>
+            </div>
+          </div>
           <TabsContent value="doc">
             <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>
           </TabsContent>
