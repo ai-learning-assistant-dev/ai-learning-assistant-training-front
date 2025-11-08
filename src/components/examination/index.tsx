@@ -34,6 +34,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
   const params = useParams();
   const [explanation, setExplanation] = useState(false);
   const [trigger, setTrigger] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
   const [resultDialogShow, setResultDialogShow] = useState(false);
   const {data} = useAutoCache(exerciseServer.getExercisesWithOptionsBySection, [{section_id: params.sectionId}]);
   const {data: exerciseResult } = useAutoCache(
@@ -90,9 +91,14 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
         user_answer: isArray(values[key]) ?  values[key].join(';') : values[key],
       });
     }
-    await exerciseResultServer.saveExerciseResults(formData);
-    setTrigger(trigger + 1);
-    setResultDialogShow(true);
+    try{
+      setSubmitting(true);
+      await exerciseResultServer.saveExerciseResults(formData);
+      setTrigger(trigger + 1);
+      setResultDialogShow(true);
+    }finally{
+      setSubmitting(false);
+    }
   }, [params.sectionId, setTrigger]);
   
 
@@ -157,7 +163,21 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
               return null;
             })
           }
-          {!explanation&&<Button type="submit">交卷</Button>}
+          {!explanation&&
+            <Button type="submit" disabled={submitting}>
+              {submitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                  </svg>
+                  AI批改中
+                </span>
+              ) : (
+                '交卷'
+              )}
+            </Button>
+          }
           {explanation && exerciseResult?.data.pass && <Button onClick={()=> {setExplanation(false);onPass&&onPass(exerciseResult)}} type="button">进入对照学习</Button>}
           {explanation && !(exerciseResult?.data.pass) && <Button onClick={()=>{setExplanation(false);onFail&&onFail(exerciseResult)}} type="button">返回视频学习</Button>}
         </form>

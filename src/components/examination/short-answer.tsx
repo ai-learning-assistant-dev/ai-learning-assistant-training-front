@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
+import { useParams } from "react-router";
+import { getLoginUser } from "@/containers/auth-middleware";
+import { aiChatServer } from "@/server/training-server";
+import { Button } from "@/components/ui/button";
+import { Key } from 'lucide-react';
 
 type ShortAnswerProps = {
   id?: string;
@@ -73,14 +78,17 @@ export default function ShortAnswer({
 
   const textColor = explanation ? (user_score < score ? 'text-red-700': 'text-lime-400'): '';
 
+  const params = useParams();
+
+  // Ask AI states
+  const [showAsk, setShowAsk] = useState(false);
+  const [askText, setAskText] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   return (
-    <div
-      style={{
-        // border: "1px solid #e6e6e6",
-        // borderRadius: 6,
-        maxWidth: 720,
-      }}
-    >
+    <div style={{ maxWidth: 720 }}>
       <label htmlFor={textareaId} style={{ display: "block", marginBottom: 8}} className="font-semibold">
         <div className="flex w-full items-start justify-between">
           <div>{question}</div>
@@ -91,26 +99,28 @@ export default function ShortAnswer({
         {image ? <img src={image} alt="" style={imgStyle} /> : null}
       </label>
 
-      {!explanation && <textarea
-        id={textareaId}
-        value={value}
-        onChange={handleChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        aria-invalid={!!error}
-        rows={12}
-        style={{
-          width: "100%",
-          resize: "vertical",
-          padding: 8,
-          borderRadius: 4,
-          border: error ? "1px solid #e55353" : "1px solid #ccc",
-          fontSize: 14,
-        }}
-      />}
+      {!explanation && (
+        <textarea
+          id={textareaId}
+          value={value}
+          onChange={handleChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          aria-invalid={!!error}
+          rows={12}
+          style={{
+            width: "100%",
+            resize: "vertical",
+            padding: 8,
+            borderRadius: 4,
+            border: error ? "1px solid #e55353" : "1px solid #ccc",
+            fontSize: 14,
+          }}
+        />
+      )}
 
-      {explanation&&(
-        <>
+      {explanation && (
+        <div style={{ position: 'relative', paddingTop: 8 }}>
           <div>
             <span className="font-bold">参考答案为：</span>{answerKey}
           </div>
@@ -120,14 +130,70 @@ export default function ShortAnswer({
           <div>
             <span className="font-bold">AI批改：</span>{ai_feedback}
           </div>
-        </>
+        </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-        <div style={{ color: error ? "#e55353" : "#666", fontSize: 12 }}>
-          {error ?? (maxLength ? `${value.length}/${maxLength}` : `${value.length} 字符`)}
+      {showAsk && (
+        <div style={{ marginTop: 8, borderTop: '1px dashed #eee', paddingTop: 8 }}>
+          <div style={{ marginBottom: 6 }} className="font-medium">向AI提问（可就本题提问）</div>
+          <textarea
+            value={askText}
+            onChange={(e) => setAskText(e.target.value)}
+            placeholder="请输入你想问AI的问题"
+            rows={3}
+            style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <Button type="button" size="sm" onClick={async () => {
+              if (!askText.trim()) return;
+              setAiLoading(true);
+              setAiError(null);
+              setAiAnswer(null);
+              try {
+                const user = getLoginUser();
+                const userId = user?.user_id || '';
+                const sectionId = params.sectionId || undefined;
+
+                // compose message: include the question and reference answer (if any) to provide context
+                const composedMessage = `[inner]对于这个问题学生有疑问，请给出你的解答。\n\n # 问题原文：${question}\n${answerKey ? `## 参考答案：${answerKey}\n` : ''} # 学生的疑问：${askText}\n`;
+
+                const payload: any = {
+                  userId,
+                  sectionId,
+                  message: composedMessage,
+                };
+
+                const resp = await aiChatServer.chat(payload as any);
+                const anyResp: any = resp;
+                const data = anyResp?.data?.data ?? anyResp?.data ?? anyResp;
+                const aiResp = data?.ai_response ?? data?.content ?? anyResp?.ai_response ?? null;
+                if (aiResp) {
+                  setAiAnswer(String(aiResp));
+                } else {
+                  setAiError('未收到AI回复');
+                }
+              } catch (e: any) {
+                setAiError(e?.message || '请求失败');
+              } finally {
+                setAiLoading(false);
+              }
+            }} disabled={aiLoading}>
+              {aiLoading ? '询问中...' : '发送'}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => { setAskText(''); setAiAnswer(null); setAiError(null); }}>
+              清空
+            </Button>
+          </div>
+
+          {aiError && <div style={{ color: '#e55353', marginTop: 8 }}>{aiError}</div>}
+          {aiAnswer && (
+            <div style={{ marginTop: 8, padding: 8, background: '#fafafa', borderRadius: 6, border: '1px solid #eee' }}>
+              <div className="font-medium">AI 的回答：</div>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{aiAnswer}</div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }

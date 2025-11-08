@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { MicIcon, PaperclipIcon, PlusIcon, RotateCcwIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
-import { type FormEventHandler, useCallback, useEffect, useState } from 'react';
+import { type FormEventHandler, useCallback, useEffect, useRef, useState } from 'react';
 import { aiChatServer, sectionsServer } from '@/server/training-server';
 import { useAutoCache } from '@/containers/auto-cache';
 import { useParams } from 'react-router';
@@ -107,6 +107,7 @@ const AiConversation = () => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
   const sectionId = params.sectionId ? params.sectionId : "4c4f637b-f088-4000-96d4-384411de2761";
 
@@ -129,7 +130,7 @@ const AiConversation = () => {
         setCurrentSessionId(sessionId);
         
         // 3. 获取并加载历史记录
-        const historyResponse = await aiChatServer.getSessionHistory(sessionId);
+        const historyResponse = await aiChatServer.getSessionHistory(sessionId, true);
         console.log('会话历史记录:', historyResponse.data);
         
         // 将历史记录转换为ChatMessage格式
@@ -186,6 +187,32 @@ const AiConversation = () => {
   useEffect(() => {
     loadChatHistory();
   }, [loadChatHistory]);
+
+  // Listen for external insert requests (e.g., from SectionDetail) to prefill the input
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent)?.detail;
+        const text = detail?.text;
+        if (typeof text === 'string') {
+          setInputValue(text);
+          // Try to focus the textarea inside this component
+          const textarea = containerRef.current?.querySelector('textarea[name="message"]') as HTMLTextAreaElement | null;
+          if (textarea) {
+            textarea.focus();
+            // move cursor to end
+            const len = textarea.value.length;
+            textarea.setSelectionRange(len, len);
+          }
+        }
+      } catch (err) {
+        console.warn('ai-insert-text handler error', err);
+      }
+    };
+
+    window.addEventListener('ai-insert-text', handler as EventListener);
+    return () => window.removeEventListener('ai-insert-text', handler as EventListener);
+  }, []);
   
   const processStreamResponse = useCallback(async (messageId: string, stream: ReadableStream) => {
     const reader = stream.getReader();
@@ -474,7 +501,7 @@ const AiConversation = () => {
   }, []);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
+    <div ref={containerRef} className="flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between border-b bg-muted/50 px-4 py-3">
         <div className="flex items-center gap-3">
@@ -495,16 +522,7 @@ const AiConversation = () => {
             className="h-8 px-2"
           >
             <PlusIcon className="size-4" />
-            <span className="ml-1">New Chat</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleReset}
-            className="h-8 px-2"
-          >
-            <RotateCcwIcon className="size-4" />
-            <span className="ml-1">Reset</span>
+            <span className="ml-1">新建聊天</span>
           </Button>
         </div>
       </div>

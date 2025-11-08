@@ -3,6 +3,11 @@ import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import "./selection.css";
 import { shuffle } from "lodash";
+import { useParams } from "react-router";
+import { getLoginUser } from "@/containers/auth-middleware";
+import { aiChatServer } from "@/server/training-server";
+import { Button } from "@/components/ui/button";
+import askAiImg from './ask_ai.png';
 
 export type Option = {
   id: string; // unique id for React keys
@@ -127,6 +132,14 @@ export default function Selection({
   }, [JSON.stringify(options)]);
 
   const textColor = explanation ? (user_score < score ? 'text-red-700': 'text-lime-400'): '';
+  const params = useParams();
+
+  // Ask AI states (UI only)
+  const [showAsk, setShowAsk] = useState(false);
+  const [askText, setAskText] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
@@ -173,10 +186,81 @@ export default function Selection({
           </label>
         );
       })}
+      {showAsk && (
+        <div style={{ marginTop: 8, borderTop: '1px dashed #eee', paddingTop: 8,  width: '100%' }}>
+          <div style={{ marginBottom: 6 }} className="font-medium">向AI提问（可就本题提问）</div>
+          <textarea
+            value={askText}
+            onChange={(e) => setAskText(e.target.value)}
+            placeholder="请输入你想问AI的问题"
+            rows={3}
+            style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            <Button type="button" size="sm" onClick={async () => {
+              if (!askText.trim()) return;
+              setAiLoading(true);
+              setAiError(null);
+              setAiAnswer(null);
+              try {
+                const user = getLoginUser();
+                const userId = user?.user_id || '';
+                const sectionId = params.sectionId || undefined;
+
+                // compose message: include the question, the options text, and reference answer (if any)
+                const optionsText = (options ?? []).map((o, i) => `${selectionNames[i] || i + 1}. ${String(o.label)}`).join('\n');
+                const composedMessage = `${String(question)}\n选项：\n${optionsText}\n${answerKey ? `参考答案：${answerKey}\n` : ''}学生问题：${askText}`;
+
+                const payload: any = {
+                  userId,
+                  sectionId,
+                  message: composedMessage,
+                };
+
+                const resp = await aiChatServer.chat(payload as any);
+                const anyResp: any = resp;
+                const data = anyResp?.data?.data ?? anyResp?.data ?? anyResp;
+                const aiResp = data?.ai_response ?? data?.content ?? anyResp?.ai_response ?? null;
+                if (aiResp) {
+                  setAiAnswer(String(aiResp));
+                } else {
+                  setAiError('未收到AI回复');
+                }
+              } catch (e: any) {
+                setAiError(e?.message || '请求失败');
+              } finally {
+                setAiLoading(false);
+              }
+            }} disabled={aiLoading}>
+              {aiLoading ? '询问中...' : '发送'}
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => { setAskText(''); setAiAnswer(null); setAiError(null); }}>
+              清空
+            </Button>
+          </div>
+
+          {aiError && <div style={{ color: '#e55353', marginTop: 8 }}>{aiError}</div>}
+          {aiAnswer && (
+            <div style={{ marginTop: 8, padding: 8, background: '#fafafa', borderRadius: 6, border: '1px solid #eee' }}>
+              <div className="font-medium">AI 的回答：</div>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{aiAnswer}</div>
+            </div>
+          )}
+        </div>
+      )}
       {explanation && (
-        <div>
-          <div><span className="font-bold">正确答案为：</span>{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
-          <div><span className="font-bold">选项解析：</span>{ai_feedback}</div>
+        <div style={{ paddingTop: 8,  width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div><span className="font-bold">正确答案为：</span>{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
+              <div><span className="font-bold">选项解析：</span>{ai_feedback}</div>
+            </div>
+            <div style={{ flex: '0 0 auto', marginLeft: 'auto'  }}>
+              <button type="button" onClick={() => setShowAsk(s => !s)} style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}>
+                <img src={askAiImg} alt="问问AI" style={{ display: 'block', width: 120, height: 36, objectFit: 'contain' }} />
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
