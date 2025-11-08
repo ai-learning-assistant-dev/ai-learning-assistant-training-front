@@ -2,6 +2,8 @@ import * as dashjs from 'dashjs';
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { uniqueId } from 'lodash';
 import { serverHost } from '@/server/training-server';
+import aiVideoAssistantImg from './ai_video_assistant.png'
+import questionHereImg from './question_here.png'
 
 export function getBilibiliProxy(bilibiliUrl: string): string {
   if (!bilibiliUrl) return `${serverHost}/proxy/bilibili/video-manifest?bvid=`;
@@ -50,7 +52,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle | null, VideoPlayerProps
     const cleanup = () => {
       try {
         if (playerRef.current) {
-          try { playerRef.current.reset(); } catch (_) {}
+          try { playerRef.current.reset(); } catch (_) { }
           playerRef.current = null;
         }
         if (mpdUrlRef.current) {
@@ -94,20 +96,55 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle | null, VideoPlayerProps
     };
   }, [props.url]);
 
-  useImperativeHandle(ref, () => ({
-    getProgress: () => {
-      const el = videoElRef.current;
-      if (!el) {
-        return { currentTime: 0, duration: 0, paused: true, ended: false };
-      }
-      return {
-        currentTime: Number(el.currentTime || 0),
-        duration: Number(el.duration || 0),
-        paused: el.paused,
-        ended: el.ended,
-      };
+  const getProgress = () => {
+    const el = videoElRef.current;
+    if (!el) {
+      return { currentTime: 0, duration: 0, paused: true, ended: false };
     }
-  }), []);
+    return {
+      currentTime: Number(el.currentTime || 0),
+      duration: Number(el.duration || 0),
+      paused: el.paused,
+      ended: el.ended,
+    };
+  }
 
-  return <video id={playerIdRef.current} controls style={{ width: '100%', borderRadius: '1em', ...props.style }} className={props.className}></video>;
+  const askAI = () => {
+    const p = getProgress();
+    console.log('用户手动获取播放进度：', p);
+
+    // Use player's current playback progress (seconds) and format as HH:MM:SS
+    const progress = getProgress();
+    const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const hh = pad(Math.floor(currentSeconds / 3600));
+    const mm = pad(Math.floor((currentSeconds % 3600) / 60));
+    const ss = pad(currentSeconds % 60);
+    const timeStr = `${hh}:${mm}:${ss}`;
+    const text = `对于当前时间点：${timeStr}，我有以下问题：\n`;
+
+    try {
+      const ev = new CustomEvent('ai-insert-text', { detail: { text } });
+      window.dispatchEvent(ev);
+      console.log('Dispatched ai-insert-text event:', text);
+    } catch (e) {
+      console.warn('Could not dispatch ai-insert-text event', e);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <video id={playerIdRef.current} controls style={{ width: '100%', borderRadius: '1em', ...props.style }} className={props.className}></video>
+      <div className="flex gap-4 justify-end">
+        {/* Empty AI assistant button (left) */}
+        <button type="button" className="w-24 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none">
+          <img src={aiVideoAssistantImg} alt="AI视频助手" className="max-w-full max-h-full" />
+        </button>
+        {/* Progress button replaced by image (right) */}
+        <button type="button" className="w-20 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none" onClick={askAI}>
+          <img src={questionHereImg} alt="这里不懂" className="max-w-full max-h-full" />
+        </button>
+      </div>
+    </div>
+  );
 });
