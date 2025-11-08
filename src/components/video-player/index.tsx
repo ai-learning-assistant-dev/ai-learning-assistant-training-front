@@ -141,7 +141,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle | null, VideoPlayerProps
           <img src={aiVideoAssistantImg} alt="AI视频助手" className="max-w-full max-h-full" />
         </button>
         {/* Progress button replaced by image (right) */}
-        <button type="button" className="w-20 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none" onClick={askAI}>
+        <button type="button" className="w-22 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none" onClick={askAI}>
           <img src={questionHereImg} alt="这里不懂" className="max-w-full max-h-full" />
         </button>
       </div>
