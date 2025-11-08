@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button";
 import { NavLink, useParams } from "react-router";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Lock } from "lucide-react";
 
 export function CourseDetail() {
   let params = useParams();
@@ -45,7 +45,16 @@ export function CourseDetail() {
                 chapter?.sections?.map((section)=>(
                   <TableRow key={section.section_id}>
                     <TableCell className="font-medium">{section.title}</TableCell>
-                    <TableCell><NavLink to={`/app/courseList/courseDetail/${course.course_id}/sectionDetail/${section.section_id}`}><Button>学习</Button></NavLink></TableCell>
+                    <TableCell>
+                      {
+                        section.unlocked === 0 ? (
+                          <Lock/>
+                        ) : (
+                          <NavLink to={`/app/courseList/courseDetail/${course.course_id}/sectionDetail/${section.section_id}`}>
+                            <Button>{section.unlocked === 1 ? '学习' : '复习'}</Button>
+                          </NavLink>
+                        )
+                      }</TableCell>
                   </TableRow>
                 ))
               }

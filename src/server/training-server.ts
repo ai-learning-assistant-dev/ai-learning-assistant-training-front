@@ -88,6 +88,8 @@ export interface ChapterResponse {
   course_id: string;
   title: string;
   chapter_order: number;
+  /** 0: lock, 1: learning, 2: pass */
+  unlocked: number;
   sections?: SectionResponse[];
 }
 
@@ -109,6 +111,8 @@ export type SectionResponse = {
   knowledge_content?: string;
   estimated_time?: number;
   section_order: number;
+  /** 0: lock, 1: learning, 2: pass */
+  unlocked: number;
 }
 
 /** 调用课程节数据接口的类，继承了基本增删改查的接口 */
