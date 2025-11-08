@@ -11,6 +11,7 @@ import type { Stage } from "@/components/section-stage";
 import { useState, useRef } from "react";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 export function SectionDetail() {
   let params = useParams();
@@ -37,15 +38,20 @@ export function SectionDetail() {
   }
 
   const changeStage = async (nextStage: Stage) => {
-    if(stage === 'video'){
-      if(nextStage === 'examination'){
-        setStage(nextStage)
+    if(data.data.unlocked === 2){
+      setStage(nextStage);
+    }else{
+      if(stage === 'video'){
+        if(nextStage === 'examination'){
+          setStage(nextStage)
+        }
+      }else if(stage === 'examination'){
+
+      }else if(stage === 'compare'){
+
       }
-    }else if(stage === 'examination'){
-
-    }else if(stage === 'compare'){
-
     }
+    
   }
 
   if (loading === false && error == null) {
@@ -72,6 +78,7 @@ export function SectionDetail() {
           )}
         </Tabs>)}
         {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} />}
+        {stage === 'compare' && <Button>学习下一节课程</Button>}
       </div>
     )
   }
