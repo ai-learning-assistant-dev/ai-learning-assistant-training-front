@@ -85,7 +85,7 @@ function getUserId(){
   return user?user.user_id:"04cdc3f7-8c08-4231-9719-67e7f523e845";
 };
 
-async function testAIChatStream(message: string, sessionId: string, sectionId: string){
+async function testAIChatStream(message: string, sessionId: string, sectionId?: string){
   // 发送消息并获取流式响应
   const stream = await aiChatServer.chatStream({
     userId: getUserId(),
@@ -109,7 +109,7 @@ const AiConversation = () => {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
-  const sectionId = params.sectionId ? params.sectionId : "4c4f637b-f088-4000-96d4-384411de2761";
+  const sectionId = params.sectionId;
 
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {

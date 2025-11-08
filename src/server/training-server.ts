@@ -128,7 +128,7 @@ export const sectionsServer = new SectionServer();
  */
 interface CreateSessionRequest {
   userId: string;
-  sectionId: string;
+  sectionId?: string;
   personaId?: string;
 }
 
@@ -145,7 +145,7 @@ interface SessionInfo {
  */
 interface ChatRequest {
   userId: string;
-  sectionId: string;
+  sectionId?: string;
   message: string;
   personaId?: string;
   sessionId?: string;
@@ -264,7 +264,7 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
   /**
    * 获取用户在指定章节的所有会话列表
    */
-  getSessionsByUserAndSection = async (userId: string, sectionId: string) => {
+  getSessionsByUserAndSection = async (userId: string, sectionId?: string) => {
     return this.http.get<Status<UserSectionSessionsResponse>>(
       '/sessionID/by-user-section', 
       { 
