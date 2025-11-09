@@ -74,20 +74,22 @@ export function SectionDetail() {
         {stage !== 'examination' && <>
           <VideoPlayer url={section.video_url} />
         </>}
-        {stage !== 'examination' && (<Tabs defaultValue="doc">
-          <TabsList>
-            <TabsTrigger value="doc">知识点文案</TabsTrigger>
-            {stage === 'compare' && <TabsTrigger value="examination">随堂测验</TabsTrigger>}
-          </TabsList>
-          <TabsContent value="doc">
-            <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>
-          </TabsContent>
-          {stage === 'compare' && (
-            <TabsContent value="examination">
-              <Examination onPass={onPass} onFail={onFail} />
+        {stage !== 'examination' && (
+          <Tabs defaultValue="doc">
+            <TabsList>
+              <TabsTrigger value="doc">知识点文案</TabsTrigger>
+              {stage === 'compare' && <TabsTrigger value="examination">随堂测验</TabsTrigger>}
+            </TabsList>
+            <TabsContent value="doc">
+              <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>
             </TabsContent>
-          )}
-        </Tabs>)}
+            {stage === 'compare' && (
+              <TabsContent value="examination">
+                <Examination onPass={onPass} onFail={onFail} />
+              </TabsContent>
+            )}
+          </Tabs>
+        )}
         {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} />}
         {stage === 'compare' && <Button onClick={goToNextSection}>学习下一节课程</Button>}
       </div>

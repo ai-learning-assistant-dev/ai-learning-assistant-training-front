@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button";
 import { NavLink, useParams } from "react-router";
-import { ArrowDown, Lock } from "lucide-react";
+import { ArrowDown, CirclePlay, Clock, Lock, Play } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+
+const unlockState = ['待完成', '待完成', '已完成'];
 
 export function CourseDetail() {
   let params = useParams();
@@ -26,42 +30,45 @@ export function CourseDetail() {
   if (loading === false && error == null) {
     const course = data.data;
     return (
-      <Table>
-        <TableCaption>章节列表</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[100px]">章节名称</TableHead>
-            <TableHead>操作</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {course?.chapters?.map((chapter) => (
-            <Fragment key={chapter.chapter_id}>
-              <TableRow key={chapter.chapter_id}>
-                <TableCell className="font-medium">{chapter.title}</TableCell>
-                <TableCell><ArrowDown /></TableCell>
-              </TableRow>
-              {
-                chapter?.sections?.map((section)=>(
-                  <TableRow key={section.section_id}>
-                    <TableCell className="font-medium">{section.title}</TableCell>
-                    <TableCell>
-                      {
-                        section.unlocked === 0 ? (
-                          <Lock/>
-                        ) : (
-                          <NavLink to={`/app/courseList/courseDetail/${course.course_id}/sectionDetail/${section.section_id}`}>
-                            <Button>{section.unlocked === 1 ? '学习' : '复习'}</Button>
-                          </NavLink>
-                        )
-                      }</TableCell>
-                  </TableRow>
-                ))
-              }
-            </Fragment>
-          ))}
-        </TableBody>
-      </Table>
+      <div className="flex p-[24px] w-full">
+        <Tabs defaultValue="sectionList" className="w-full">
+          <TabsList>
+            <TabsTrigger value="sectionList">课程大纲</TabsTrigger>
+          </TabsList>
+          <TabsContent value="sectionList" className="w-full">
+            <Table className="w-full">
+              <TableBody>
+                {course?.chapters?.map((chapter) => (
+                  <Fragment key={chapter.chapter_id}>
+                    <TableRow key={chapter.chapter_id}>
+                      <TableCell className="font-medium">{chapter.title}</TableCell>
+                      <TableCell></TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                    {
+                      chapter?.sections?.map((section)=>(
+                        <TableRow key={section.section_id}>
+                          <TableCell className="font-medium">{section.title}<Badge variant="secondary" className="text-gray-400 m-2">{section.unlocked && unlockState[section.unlocked]}</Badge></TableCell>
+                          <TableCell>
+                            {
+                              section.unlocked !== 0 && (
+                                <NavLink to={`/app/courseList/courseDetail/${course.course_id}/sectionDetail/${section.section_id}`}>
+                                  <Button className={section.unlocked === 1 ? "bg-blue-600" : "bg-gray-500"}><CirclePlay/>{section.unlocked === 1 ? '从这开始' : '复习'}</Button>
+                                </NavLink>
+                              )
+                            }</TableCell>
+                            <TableCell className="font-medium text-right"><Clock className="text-gray-400 m-2 inline"/>{section.estimated_time}</TableCell>
+                        </TableRow>
+                      ))
+                    }
+                  </Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
+        </Tabs>
+        
+      </div>
     )
   }
 }
