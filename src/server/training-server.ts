@@ -80,6 +80,29 @@ export class CourseServer extends TrainingServer<CourseResponse> {
   getCourseChaptersSections = async (data: Partial<CourseResponse>)=>{
     return (await this.http.post<Status<CourseResponse>>('/getCourseChaptersSections', data, { baseURL: this.baseUrl })).data;
   }
+
+  getNextSections = async (courseId?: string, sectionId?: string)=>{
+    if(!courseId || !sectionId){
+      return null;
+    }
+    const course = (await this.http.post<Status<CourseResponse>>('/getCourseChaptersSections', {course_id: courseId}, { baseURL: this.baseUrl })).data;
+    const allSections: SectionResponse[] = [];
+    if(course.data.chapters){
+      for(let chapter of course.data.chapters){
+        if(chapter.sections){
+          for(let section of chapter.sections){
+            allSections.push(section);
+          }
+        }
+      }
+    }
+    const sectionIndex = allSections.findIndex((section)=>section.section_id === sectionId);
+    if(sectionIndex == -1 || sectionIndex >= allSections.length){
+      return null;
+    }else{
+      return allSections[sectionIndex + 1];
+    }
+  }
 }
 export const courseServer = new CourseServer();
 

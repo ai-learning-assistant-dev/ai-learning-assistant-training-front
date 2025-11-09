@@ -1,8 +1,8 @@
 import { VideoPlayer } from "@/components/video-player";
 import type { VideoPlayerHandle } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
-import { exerciseResultServer, sectionsServer } from "@/server/training-server";
-import { useParams } from "react-router";
+import { courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
+import { useNavigate, useParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
@@ -15,9 +15,11 @@ import { Button } from "@/components/ui/button";
 
 export function SectionDetail() {
   let params = useParams();
+  let navigate = useNavigate();
   const [stage, setStage] = useState<Stage>('video');
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
+  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[params.courseId, params.sectionId]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
@@ -54,6 +56,15 @@ export function SectionDetail() {
     
   }
 
+  const goToNextSection = async () => {
+    if(nextSection){
+      navigate(`/app/courseList/courseDetail/${params.courseId}/sectionDetail/${nextSection.section_id}`)
+      setStage('video')
+    }else{
+      navigate(`/app/courseList/courseDetail/${params.courseId}`)
+    }
+  }
+
   if (loading === false && error == null) {
     const section = data.data;
     return (
@@ -78,7 +89,7 @@ export function SectionDetail() {
           )}
         </Tabs>)}
         {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} />}
-        {stage === 'compare' && <Button>学习下一节课程</Button>}
+        {stage === 'compare' && <Button onClick={goToNextSection}>学习下一节课程</Button>}
       </div>
     )
   }
