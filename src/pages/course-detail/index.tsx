@@ -15,12 +15,14 @@ import { NavLink, useParams } from "react-router";
 import { ArrowDown, CirclePlay, Clock, Lock, Play } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { getLoginUser } from "@/containers/auth-middleware";
 
 const unlockState = ['待完成', '待完成', '已完成'];
 
 export function CourseDetail() {
   let params = useParams();
-  const { loading, error, data } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer),[{course_id: params?.courseId}]);
+  const user = getLoginUser();
+  const { loading, error, data } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer),[{course_id: params?.courseId, user_id: user.user_id}]);
   if (loading) {
     return <div>loading...</div>
   }
@@ -49,7 +51,7 @@ export function CourseDetail() {
                       chapter?.sections?.map((section)=>(
                         <TableRow key={section.section_id}>
                           <TableCell className="font-medium">{section.title}<Badge variant="secondary" className="text-gray-400 m-2">{section.unlocked && unlockState[section.unlocked]}</Badge></TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             {
                               section.unlocked !== 0 && (
                                 <NavLink to={`/app/courseList/courseDetail/${course.course_id}/sectionDetail/${section.section_id}`}>

@@ -77,7 +77,7 @@ export class CourseServer extends TrainingServer<CourseResponse> {
     super('/courses');
   }
 
-  getCourseChaptersSections = async (data: Partial<CourseResponse>)=>{
+  getCourseChaptersSections = async (data: Partial<CourseResponse & { user_id?: string }>)=>{
     return (await this.http.post<Status<CourseResponse>>('/getCourseChaptersSections', data, { baseURL: this.baseUrl })).data;
   }
 
