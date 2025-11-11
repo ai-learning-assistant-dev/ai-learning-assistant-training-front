@@ -114,6 +114,10 @@ const AiConversation = () => {
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
     try {
+      if (!sectionId) { 
+        setIsLoadingHistory(true);
+        return; 
+      }
       setIsLoadingHistory(true);
       
       // 1. 获取用户在该章节的所有会话
