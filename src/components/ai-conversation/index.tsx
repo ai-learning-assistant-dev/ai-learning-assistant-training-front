@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/shadcn-io/ai/reasoning';
 import { Source, Sources, SourcesContent, SourcesTrigger } from '@/components/ui/shadcn-io/ai/source';
 import { cn } from '@/lib/utils';
-import { MicIcon, ArrowUpIcon, PhoneIcon } from 'lucide-react';
+import { MicIcon, ArrowUpIcon, PhoneIcon, MicOffIcon, XIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { type FormEventHandler, useCallback, useEffect, useRef, useState } from 'react';
 import { aiChatServer, sectionsServer } from '@/server/training-server';
@@ -93,9 +93,76 @@ const AiConversation = () => {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  const [voiceState, setVoiceState] = useState<'listening' | 'buffering' | 'speaking'>('listening');
+  const [currentMessage, setCurrentMessage] = useState('');
+  const [previousMessage, setPreviousMessage] = useState('欢迎使用语音对话功能');
+  const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
   const sectionId = params.sectionId;
+
+  // 流式文本展示函数
+  const streamText = useCallback((text: string, onComplete?: () => void) => {
+    // 清除之前的定时器
+    if (streamingTimerRef.current) {
+      clearInterval(streamingTimerRef.current);
+    }
+    
+    setCurrentMessage('');
+    let currentIndex = 0;
+    
+    streamingTimerRef.current = window.setInterval(() => {
+      if (currentIndex < text.length) {
+        setCurrentMessage(text.slice(0, currentIndex + 1));
+        currentIndex++;
+      } else {
+        if (streamingTimerRef.current) {
+          clearInterval(streamingTimerRef.current);
+          streamingTimerRef.current = null;
+        }
+        if (onComplete) {
+          onComplete();
+        }
+      }
+    }, 50); // 每50ms添加一个字符
+  }, []);
+
+  // 当voiceState变为listening时，将current移到previous
+  useEffect(() => {
+    if (voiceState === 'listening' && currentMessage) {
+      setPreviousMessage(currentMessage);
+      setCurrentMessage('');
+    }
+  }, [voiceState, currentMessage]);
+
+  // Mock演示函数：模拟用户语音输入和AI回复
+  const triggerMockDemo = useCallback(() => {
+    // 清除之前的定时器
+    if (streamingTimerRef.current) {
+      clearInterval(streamingTimerRef.current);
+    }
+    
+    // 1. 用户输入 (listening)
+    setVoiceState('listening');
+    streamText('用户：请帮我解释一下React的useState是什么？', () => {
+      // 2. 等待1秒，切换到buffering状态
+      setTimeout(() => {
+        setVoiceState('buffering');
+        
+        // 3. 再等待1秒，开始AI回复
+        setTimeout(() => {
+          setVoiceState('speaking');
+          streamText('AI：useState是React的一个Hook，它允许你在函数组件中添加state。它接受初始state作为参数，返回一个包含当前state值和更新state的函数的数组。', () => {
+            // 4. 等待2秒，切换回listening状态（这会触发previous message更新）
+            setTimeout(() => {
+              setVoiceState('listening');
+            }, 2000);
+          });
+        }, 1000);
+      }, 1000);
+    });
+  }, [streamText]);
 
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
@@ -523,6 +590,94 @@ const AiConversation = () => {
           </svg>
         </div>
       </div>
+      
+      {/* Voice Mode or Text Mode */}
+      {isVoiceMode ? (
+        /* Voice Mode UI */
+        <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-50 to-white p-8 relative">
+          {/* Main Voice Interface */}
+          <div className="flex-1 flex flex-col items-center justify-center">
+            {/* Avatar */}
+            <div className={cn(
+              "w-30 h-30 rounded-full mb-8 flex items-center justify-center shadow-lg transition-all duration-500",
+              voiceState === 'listening' && "bg-gradient-to-br from-blue-300 to-blue-400",
+              voiceState === 'buffering' && "bg-gradient-to-br from-yellow-300 to-yellow-400",
+              voiceState === 'speaking' && "bg-gradient-to-br from-green-300 to-green-400"
+            )}>
+              <div className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500",
+                voiceState === 'listening' && "bg-gradient-to-br from-blue-200 to-blue-300",
+                voiceState === 'buffering' && "bg-gradient-to-br from-yellow-200 to-yellow-300",
+                voiceState === 'speaking' && "bg-gradient-to-br from-green-200 to-green-300"
+              )}>
+                <div className="w-20 h-20 rounded-full bg-white/50"></div>
+              </div>
+            </div>
+            
+            {/* Status Text */}
+            <p className="text-gray-500 text-lg mb-8">
+              {voiceState === 'listening' && '正在听......'}
+              {voiceState === 'buffering' && 'AI正在思考......'}
+              {voiceState === 'speaking' && 'AI正在说......'}
+            </p>
+            {/* ASR Text Display Window */}
+            <div className="w-full">
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 min-h-[200px] max-h-[400px] overflow-y-auto">
+                <div className="text-xs text-gray-400 mb-2">聊天记录</div>
+                
+                {/* Previous Message - Gray */}
+                {previousMessage && (
+                  <div className="text-sm text-gray-400 mb-4 pb-4 border-b border-gray-100">
+                    {previousMessage}
+                  </div>
+                )}
+                
+                {/* Current Streaming Message - Black */}
+                <div className="text-sm text-gray-900 whitespace-pre-wrap">
+                  {currentMessage || '等待语音输入...'}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Control Buttons - Fixed at bottom */}
+          <div className="flex gap-2 justify-center pb-4">
+            <button
+              onClick={() => {
+                // 点击发言按钮触发mock演示
+                if (voiceState === 'listening') {
+                  triggerMockDemo();
+                }
+              }}
+              disabled={voiceState !== 'listening'}
+              className={cn(
+                "w-8 h-8 rounded-full bg-transparent hover:bg-gray-200/50 transition-colors flex items-center justify-center",
+                voiceState !== 'listening' && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              {voiceState === 'listening' ? (
+                <MicIcon className="w-4 h-4 text-gray-600" />
+              ) : (
+                <MicOffIcon className="w-4 h-4 text-gray-600" />
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setIsVoiceMode(false);
+                setVoiceState('listening');
+                setCurrentMessage('');
+                setPreviousMessage('');
+              }}
+              className="w-8 h-8 rounded-full bg-transparent hover:bg-red-100/50 transition-colors flex items-center justify-center"
+            >
+              <XIcon className="w-4 h-4 text-red-500" />
+            </button>
+          </div>
+
+        </div>
+      ) : (
+        /* Text Mode - Conversation Area */
+        <>
       {/* Conversation Area */}
       <Conversation className="flex-1">
         <ConversationContent className="space-y-4">
@@ -580,7 +735,7 @@ const AiConversation = () => {
         <ConversationScrollButton />
       </Conversation>
       {/* Input Area */}
-      <div className="px-4 pt-0 pb-4 bg-white">
+      <div className="px-4 pt-1 pb-4 bg-white">
         {/* Toolbar buttons */}
         <div className="flex items-center gap-2 mb-3">
           <button 
@@ -601,6 +756,7 @@ const AiConversation = () => {
             type="button"
             className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
             disabled={isTyping}
+            onClick={() => setIsVoiceMode(true)}
           >
             <PhoneIcon className="size-5 text-muted-foreground" />
           </button>
@@ -640,6 +796,8 @@ const AiConversation = () => {
           </div>
         </form>
       </div>
+      </>
+      )}
     </div>
   );
 };
