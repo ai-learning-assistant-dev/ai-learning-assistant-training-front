@@ -81,7 +81,7 @@ export function SectionDetail() {
               {stage === 'compare' && <TabsTrigger value="examination">随堂测验</TabsTrigger>}
             </TabsList>
             <TabsContent value="doc">
-              <Response className="text-base leading-relaxed">{section.knowledge_content}</Response>
+              <Response className="text-base leading-relaxed">{JSON.stringify(section.knowledge_content)}</Response>
             </TabsContent>
             {stage === 'compare' && (
               <TabsContent value="examination">
