@@ -7,27 +7,13 @@ import {
 import { Loader } from '@/components/ui/shadcn-io/ai/loader';
 import { Message, MessageAvatar, MessageContent } from '@/components/ui/shadcn-io/ai/message';
 import {
-  PromptInput,
-  PromptInputButton,
-  PromptInputModelSelect,
-  PromptInputModelSelectContent,
-  PromptInputModelSelectItem,
-  PromptInputModelSelectTrigger,
-  PromptInputModelSelectValue,
-  PromptInputSubmit,
-  PromptInputTextarea,
-  PromptInputToolbar,
-  PromptInputTools,
-} from '@/components/ui/shadcn-io/ai/prompt-input';
-import {
   Reasoning,
   ReasoningContent,
   ReasoningTrigger,
 } from '@/components/ui/shadcn-io/ai/reasoning';
 import { Source, Sources, SourcesContent, SourcesTrigger } from '@/components/ui/shadcn-io/ai/source';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { MicIcon, PaperclipIcon, PlusIcon, RotateCcwIcon } from 'lucide-react';
+import { MicIcon, ArrowUpIcon, PhoneIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { type FormEventHandler, useCallback, useEffect, useRef, useState } from 'react';
 import { aiChatServer, sectionsServer } from '@/server/training-server';
@@ -508,26 +494,33 @@ const AiConversation = () => {
     <div ref={containerRef} className="flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between border-b bg-muted/50 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="size-2 rounded-full bg-green-500" />
-            <span className="font-medium text-sm">AI Assistant</span>
-          </div>
-          <div className="h-4 w-px bg-border" />
-          <span className="text-muted-foreground text-xs">
-            {models.find(m => m.id === selectedModel)?.name}
-          </span>
-        </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleNewSession}
-            className="h-8 px-2"
-          >
-            <PlusIcon className="size-4" />
-            <span className="ml-1">新建聊天</span>
-          </Button>
+          <svg className="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 10H16M8 14H11M6 20H18C19.1046 20 20 19.1046 20 18V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          <span className="font-medium text-base">AI对话框</span>
+        </div>
+      </div>
+      
+      {/* AI Settings and Model Selection */}
+      <div className="flex items-center gap-2 border-b px-4 py-3">
+        <div className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 flex-1">
+          <svg className="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2"/>
+            <path d="M12 6V3M12 21V18M18 12H21M3 12H6M16.95 16.95L19.07 19.07M4.93 4.93L7.05 7.05M7.05 16.95L4.93 19.07M19.07 4.93L16.95 7.05" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          <span className="text-sm">AI人设</span>
+          <span className="font-medium text-sm ml-auto">暴躁老师傅</span>
+          <svg className="size-4 text-muted-foreground ml-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+        
+        <div className="rounded-lg border bg-white px-3 py-2 flex items-center gap-2 min-w-[140px]">
+          <span className="text-sm">{models.find(m => m.id === selectedModel)?.name || 'deepseek'}</span>
+          <svg className="size-4 text-muted-foreground ml-auto" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
       </div>
       {/* Conversation Area */}
@@ -587,46 +580,65 @@ const AiConversation = () => {
         <ConversationScrollButton />
       </Conversation>
       {/* Input Area */}
-      <div className="border-t p-4">
-        <PromptInput onSubmit={handleSubmit}>
-          <PromptInputTextarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Ask me anything about development, coding, or technology..."
+      <div className="px-4 pt-0 pb-4 bg-white">
+        {/* Toolbar buttons */}
+        <div className="flex items-center gap-2 mb-3">
+          <button 
+            type="button"
+            className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
             disabled={isTyping}
-          />
-          <PromptInputToolbar>
-            <PromptInputTools>
-              <PromptInputButton disabled={isTyping}>
-                <PaperclipIcon size={16} />
-              </PromptInputButton>
-              <PromptInputButton disabled={isTyping}>
-                <MicIcon size={16} />
-                <span>Voice</span>
-              </PromptInputButton>
-              <PromptInputModelSelect 
-                value={selectedModel} 
-                onValueChange={setSelectedModel}
-                disabled={isTyping}
-              >
-                <PromptInputModelSelectTrigger>
-                  <PromptInputModelSelectValue />
-                </PromptInputModelSelectTrigger>
-                <PromptInputModelSelectContent>
-                  {models.map((model) => (
-                    <PromptInputModelSelectItem key={model.id} value={model.id}>
-                      {model.name}
-                    </PromptInputModelSelectItem>
-                  ))}
-                </PromptInputModelSelectContent>
-              </PromptInputModelSelect>
-            </PromptInputTools>
-            <PromptInputSubmit 
-              disabled={!inputValue.trim() || isTyping}
-              status={isTyping ? 'streaming' : 'ready'}
+          >
+            <MicIcon className="size-5 text-muted-foreground" />
+          </button>
+          <button 
+            type="button"
+            className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
+            disabled={isTyping}
+          >
+            <ArrowUpIcon className="size-5 text-muted-foreground" />
+          </button>
+          <button 
+            type="button"
+            className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
+            disabled={isTyping}
+          >
+            <PhoneIcon className="size-5 text-muted-foreground" />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          {/* Text input with embedded send button */}
+          <div className="relative">
+            <textarea
+              name="message"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  if (inputValue.trim() && !isTyping) {
+                    handleSubmit(e as any);
+                  }
+                }
+              }}
+              placeholder="输入你的问题......"
+              disabled={isTyping}
+              className="w-full resize-none rounded-lg border bg-white px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[120px] max-h-[300px]"
+              rows={1}
             />
-          </PromptInputToolbar>
-        </PromptInput>
+            
+            {/* Send button inside input */}
+            <button
+              type="submit"
+              disabled={!inputValue.trim() || isTyping}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <svg className="size-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M5 12L19 12M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
