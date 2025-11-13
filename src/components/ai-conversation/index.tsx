@@ -77,7 +77,8 @@ async function testAIChatStream(message: string, sessionId: string, sectionId?: 
     userId: getUserId(),
     sectionId: sectionId ?? "",
     message,
-    sessionId
+    sessionId,
+    daily: !sectionId // 如果sectionId为空，设置daily=true
   });
   
   console.log('开始接收AI流式响应...');
@@ -167,10 +168,19 @@ const AiConversation = () => {
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
     try {
+      // 如果sectionId为空，不读取历史记录，直接显示欢迎消息
       if (!sectionId) { 
-        setIsLoadingHistory(true);
+        console.log('sectionId为空，跳过加载历史记录（日常对话模式）');
+        setMessages([{
+          id: nanoid(),
+          content: "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
+          role: 'assistant',
+          timestamp: new Date(),
+        }]);
+        setIsLoadingHistory(false);
         return; 
       }
+      
       setIsLoadingHistory(true);
       
       // 1. 获取用户在该章节的所有会话
@@ -238,12 +248,14 @@ const AiConversation = () => {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, []);
+  }, [sectionId]);
 
-  // 组件挂载时加载历史记录
+  // 当 sectionId 变更时，加载对应的历史记录
   useEffect(() => {
+    // 清空当前会话ID，以便为新的section重新创建或加载会话
+    setCurrentSessionId(null);
     loadChatHistory();
-  }, [loadChatHistory]);
+  }, [sectionId, loadChatHistory]);
 
   // Listen for external insert requests (e.g., from SectionDetail) to prefill the input
   useEffect(() => {
@@ -470,7 +482,7 @@ const AiConversation = () => {
           console.log('创建新会话...');
           const response = await aiChatServer.new({
             userId: getUserId(),
-            sectionId: sectionId,
+            sectionId: sectionId ?? "",
           });
           sessionId = response.data.data.session_id;
           setCurrentSessionId(sessionId);
@@ -531,7 +543,7 @@ const AiConversation = () => {
       // 调用后端创建新会话
       const response = await aiChatServer.new({
         userId: getUserId(),
-        sectionId: sectionId,
+        sectionId: sectionId ?? "",
       });
       
       console.log('新会话创建成功:', response.data);
@@ -555,7 +567,7 @@ const AiConversation = () => {
     } catch (error) {
       console.error('创建新会话失败:', error);
     }
-  }, []);
+  }, [sectionId]);
 
   return (
     <div ref={containerRef} className="flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
