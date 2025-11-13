@@ -18,7 +18,7 @@ import { useNavigate } from "react-router";
 export default function UserList() {
   let navigate = useNavigate();
   const [trigger, setTrigger] = useState(1);
-  const {data: userList} = useAutoCache(userServer.search, [], undefined, trigger);
+  const {data: userList} = useAutoCache(userServer.search, [{limit: 1000, page: 1}], undefined, trigger);
   async function loginOnSubmit(user_id: string){
     try{
       await loginUser(user_id);

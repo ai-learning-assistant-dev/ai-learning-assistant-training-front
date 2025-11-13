@@ -9,7 +9,7 @@ import "./index.css"
 import { Image } from "@/components/ui/shadcn-io/ai/image";
 
 export function CourseList() {
-  const { loading, error, data } = useAutoCache(courseServer.search.bind(courseServer), [{ limit: 10, page: 1 }]);
+  const { loading, error, data } = useAutoCache(courseServer.search.bind(courseServer), [{ limit: 1000, page: 1 }]);
   if (loading) {
     return <div>loading...</div>
   }
