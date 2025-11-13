@@ -75,7 +75,7 @@ async function testAIChatStream(message: string, sessionId: string, sectionId?: 
   // 发送消息并获取流式响应
   const stream = await aiChatServer.chatStream({
     userId: getUserId(),
-    sectionId: sectionId,
+    sectionId: sectionId ?? "",
     message,
     sessionId
   });

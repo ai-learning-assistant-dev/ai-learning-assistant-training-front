@@ -168,14 +168,17 @@ interface SessionInfo {
 }
 
 /**
- * AI聊天接口请求体
+ * AI聊天接口请求体，日常聊天复用该结构体
  */
 interface ChatRequest {
   userId: string;
-  sectionId?: string;
+  sectionId: string;
   message: string;
   personaId?: string;
   sessionId?: string;
+  useAudio?: boolean;
+  ttsOption?: string[];
+  daily?: boolean;
 }
 
 /**
@@ -232,11 +235,6 @@ interface SessionHistoryResponse {
   session_id: string;
   message_count: number;
   history: HistoryMessage[];
-}
-
-// 每日聊天，上下文存储于内存中，用于主页会话。
-export interface DailyChatRequest {
-  message: string;
 }
 
 /**
