@@ -1,97 +1,105 @@
-'use client';
+"use client";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
-} from '@/components/ui/shadcn-io/ai/conversation';
-import { Loader } from '@/components/ui/shadcn-io/ai/loader';
-import { Message, MessageAvatar, MessageContent } from '@/components/ui/shadcn-io/ai/message';
+} from "@/components/ui/shadcn-io/ai/conversation";
+import { Loader } from "@/components/ui/shadcn-io/ai/loader";
+import {
+  Message,
+  MessageAvatar,
+  MessageContent,
+} from "@/components/ui/shadcn-io/ai/message";
 import {
   Reasoning,
   ReasoningContent,
   ReasoningTrigger,
-} from '@/components/ui/shadcn-io/ai/reasoning';
-import { Source, Sources, SourcesContent, SourcesTrigger } from '@/components/ui/shadcn-io/ai/source';
-import { cn } from '@/lib/utils';
-import { MicIcon, ArrowUpIcon, PhoneIcon, MicOffIcon, XIcon } from 'lucide-react';
-import { nanoid } from 'nanoid';
-import { type FormEventHandler, useCallback, useEffect, useRef, useState } from 'react';
-import { aiChatServer, sectionsServer, type AiPersona } from '@/server/training-server';
-import { useAutoCache } from '@/containers/auto-cache';
-import { useParams } from 'react-router';
-import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
-import { getLoginUser } from '@/containers/auth-middleware';
+} from "@/components/ui/shadcn-io/ai/reasoning";
+import {
+  Source,
+  Sources,
+  SourcesContent,
+  SourcesTrigger,
+} from "@/components/ui/shadcn-io/ai/source";
+import { cn } from "@/lib/utils";
+import {
+  MicIcon,
+  ArrowUpIcon,
+  PhoneIcon,
+  MicOffIcon,
+  XIcon,
+  FileTextIcon,
+  SunDimIcon,
+  ArrowRightIcon,
+} from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { nanoid } from "nanoid";
+import {
+  type FormEventHandler,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { aiChatServer, sectionsServer } from "@/server/training-server";
+import { useAutoCache } from "@/containers/auto-cache";
+import { useParams } from "react-router";
+import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
+import { getLoginUser } from "@/containers/auth-middleware";
+import type hookFetch from "hook-fetch";
+import { match, P } from "ts-pattern";
+import { VoiceUI } from "./voice";
 
 type ChatMessage = {
   id: string;
   content: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   timestamp: Date;
   reasoning?: string;
   sources?: Array<{ title: string; url: string }>;
   isStreaming?: boolean;
 };
 const models = [
-  { id: 'gpt-4o', name: 'GPT-4o' },
-  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
-  { id: 'llama-3.1-70b', name: 'Llama 3.1 70B' },
-  { id: 'deepseek-v3.1', name: 'DeepSeek V3.1' },
+  { id: "gpt-4o", name: "GPT-4o" },
+  { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet" },
+  { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
+  { id: "llama-3.1-70b", name: "Llama 3.1 70B" },
+  { id: "deepseek-v3.1", name: "DeepSeek V3.1" },
 ];
-const sampleResponses = [
-  {
-    content: "I'd be happy to help you with that! React is a powerful JavaScript library for building user interfaces. What specific aspect would you like to explore?",
-    reasoning: "The user is asking about React, which is a broad topic. I should provide a helpful overview while asking for more specific information to give a more targeted response.",
-    sources: [
-      { title: "React Official Documentation", url: "https://react.dev" },
-      { title: "React Developer Tools", url: "https://react.dev/learn" }
-    ]
-  },
-  {
-    content: "Next.js is an excellent framework built on top of React that provides server-side rendering, static site generation, and many other powerful features out of the box.",
-    reasoning: "The user mentioned Next.js, so I should explain its relationship to React and highlight its key benefits for modern web development.",
-    sources: [
-      { title: "Next.js Documentation", url: "https://nextjs.org/docs" },
-      { title: "Vercel Next.js Guide", url: "https://vercel.com/guides/nextjs" }
-    ]
-  },
-  {
-    content: "TypeScript adds static type checking to JavaScript, which helps catch errors early and improves code quality. It's particularly valuable in larger applications.",
-    reasoning: "TypeScript is becoming increasingly important in modern development. I should explain its benefits while keeping the explanation accessible.",
-    sources: [
-      { title: "TypeScript Handbook", url: "https://www.typescriptlang.org/docs" },
-      { title: "TypeScript with React", url: "https://react.dev/learn/typescript" }
-    ]
-  }
+
+const characters = [
+  { id: "character1", name: "暴躁老师傅" },
+  { id: "character2", name: "温柔助手" },
+  { id: "character3", name: "严谨教授" },
 ];
 
 // 用户和章节ID配置
-function getUserId(){
+function getUserId() {
   const user = getLoginUser();
-  return user?user.user_id:"04cdc3f7-8c08-4231-9719-67e7f523e845";
-};
-
-async function testAIChatStream(message: string, sessionId: string, sectionId?: string){
-  // 发送消息并获取流式响应
-  const stream = await aiChatServer.chatStream({
-    userId: getUserId(),
-    sectionId: sectionId ?? "",
-    message,
-    sessionId,
-    daily: !sectionId // 如果sectionId为空，设置daily=true
-  });
-  
-  console.log('开始接收AI流式响应...');
-  return stream;
+  return user ? user.user_id : "04cdc3f7-8c08-4231-9719-67e7f523e845";
 }
 
+// WebRTC 服务器地址配置
+const getWebRTCServerUrl = () => {
+  // 根据实际部署情况配置
+  // return window.location.protocol + "//" + window.location.host + "/api";
+  return "http://localhost:8989";
+};
 
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [selectedModel, setSelectedModel] = useState(models[0].id);
   const [isTyping, setIsTyping] = useState(false);
-  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
+    null
+  );
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
@@ -241,82 +249,99 @@ const AiConversation = () => {
   const loadChatHistory = useCallback(async () => {
     try {
       // 如果sectionId为空，不读取历史记录，直接显示欢迎消息
-      if (!sectionId) { 
-        console.log('sectionId为空，跳过加载历史记录（日常对话模式）');
-        setMessages([{
-          id: nanoid(),
-          content: "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
-          role: 'assistant',
-          timestamp: new Date(),
-        }]);
+      if (!sectionId) {
+        console.log("sectionId为空，跳过加载历史记录（日常对话模式）");
+        setMessages([
+          {
+            id: nanoid(),
+            content:
+              "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
+            role: "assistant",
+            timestamp: new Date(),
+          },
+        ]);
         setIsLoadingHistory(false);
-        return; 
+        return;
       }
-      
+
       setIsLoadingHistory(true);
-      
+
       // 1. 获取用户在该章节的所有会话
-      const sessionsResponse = await aiChatServer.getSessionsByUserAndSection(getUserId(), sectionId);
-      console.log('用户章节会话列表:', sessionsResponse.data);
-      
+      const sessionsResponse = await aiChatServer.getSessionsByUserAndSection(
+        getUserId(),
+        sectionId
+      );
+      console.log("用户章节会话列表:", sessionsResponse.data);
+
       let sessionId: string;
       let historyMessages: ChatMessage[] = [];
-      
+
       // 2. 如果有现有会话，使用最新的
-      if (sessionsResponse.data.data.sessions && sessionsResponse.data.data.sessions.length > 0) {
+      if (
+        sessionsResponse.data.data.sessions &&
+        sessionsResponse.data.data.sessions.length > 0
+      ) {
         sessionId = sessionsResponse.data.data.sessions[0].session_id;
-        console.log('使用最新的会话ID:', sessionId);
+        console.log("使用最新的会话ID:", sessionId);
         setCurrentSessionId(sessionId);
-        
+
         // 3. 获取并加载历史记录
-        const historyResponse = await aiChatServer.getSessionHistory(sessionId, true);
-        console.log('会话历史记录:', historyResponse.data);
-        
+        const historyResponse = await aiChatServer.getSessionHistory(
+          sessionId,
+          true
+        );
+        console.log("会话历史记录:", historyResponse.data);
+
         // 将历史记录转换为ChatMessage格式
         historyMessages = historyResponse.data.data.history.flatMap((msg) => {
           const userMsg: ChatMessage = {
             id: nanoid(),
             content: msg.user_message,
-            role: 'user',
+            role: "user",
             timestamp: new Date(msg.query_time),
           };
-          
+
           const aiMsg: ChatMessage = {
             id: nanoid(),
             content: msg.ai_response,
-            role: 'assistant',
+            role: "assistant",
             timestamp: new Date(msg.query_time),
           };
-          
+
           return [userMsg, aiMsg];
         });
-        
+
         console.log(`加载了 ${historyMessages.length / 2} 条历史对话`);
       } else {
-        console.log('没有找到现有会话，将在发送第一条消息时创建');
+        console.log("没有找到现有会话，将在发送第一条消息时创建");
         // 显示欢迎消息
-        historyMessages = [{
-          id: nanoid(),
-          content: "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
-          role: 'assistant',
-          timestamp: new Date(),
-          sources: [
-            { title: "Getting Started Guide", url: "#" },
-            { title: "API Documentation", url: "#" }
-          ]
-        }];
+        historyMessages = [
+          {
+            id: nanoid(),
+            content:
+              "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
+            role: "assistant",
+            timestamp: new Date(),
+            sources: [
+              { title: "Getting Started Guide", url: "#" },
+              { title: "API Documentation", url: "#" },
+            ],
+          },
+        ];
       }
-      
+
       setMessages(historyMessages);
     } catch (error) {
-      console.error('加载历史记录失败:', error);
+      console.error("加载历史记录失败:", error);
       // 显示错误提示或默认消息
-      setMessages([{
-        id: nanoid(),
-        content: "Hello! I'm your AI assistant. What would you like to know?",
-        role: 'assistant',
-        timestamp: new Date(),
-      }]);
+      setMessages([
+        {
+          id: nanoid(),
+          content: "Hello! I'm your AI assistant. What would you like to know?",
+          role: "assistant",
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsLoadingHistory(false);
     }
@@ -351,10 +376,12 @@ const AiConversation = () => {
       try {
         const detail = (e as CustomEvent)?.detail;
         const text = detail?.text;
-        if (typeof text === 'string') {
+        if (typeof text === "string") {
           setInputValue(text);
           // Try to focus the textarea inside this component
-          const textarea = containerRef.current?.querySelector('textarea[name="message"]') as HTMLTextAreaElement | null;
+          const textarea = containerRef.current?.querySelector(
+            'textarea[name="message"]'
+          ) as HTMLTextAreaElement | null;
           if (textarea) {
             textarea.focus();
             // move cursor to end
@@ -363,12 +390,13 @@ const AiConversation = () => {
           }
         }
       } catch (err) {
-        console.warn('ai-insert-text handler error', err);
+        console.warn("ai-insert-text handler error", err);
       }
     };
 
-    window.addEventListener('ai-insert-text', handler as EventListener);
-    return () => window.removeEventListener('ai-insert-text', handler as EventListener);
+    window.addEventListener("ai-insert-text", handler as EventListener);
+    return () =>
+      window.removeEventListener("ai-insert-text", handler as EventListener);
   }, []);
   
   const processStreamResponse = useCallback(async (messageId: string, stream: ReadableStream) => {
@@ -423,108 +451,119 @@ const AiConversation = () => {
     }
   }, []);
 
-  const simulateTyping = useCallback((messageId: string, content: string, reasoning?: string, sources?: Array<{ title: string; url: string }>) => {
-    let currentIndex = 0;
-    const typeInterval = setInterval(() => {
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === messageId) {
-          const currentContent = content.slice(0, currentIndex);
-          return {
-            ...msg,
-            content: currentContent,
-            isStreaming: currentIndex < content.length,
-            reasoning: currentIndex >= content.length ? reasoning : undefined,
-            sources: currentIndex >= content.length ? sources : undefined,
+  const simulateTyping = useCallback(
+    (
+      messageId: string,
+      content: string,
+      reasoning?: string,
+      sources?: Array<{ title: string; url: string }>
+    ) => {
+      let currentIndex = 0;
+      const typeInterval = setInterval(() => {
+        setMessages((prev) =>
+          prev.map((msg) => {
+            if (msg.id === messageId) {
+              const currentContent = content.slice(0, currentIndex);
+              return {
+                ...msg,
+                content: currentContent,
+                isStreaming: currentIndex < content.length,
+                reasoning:
+                  currentIndex >= content.length ? reasoning : undefined,
+                sources: currentIndex >= content.length ? sources : undefined,
+              };
+            }
+            return msg;
+          })
+        );
+        currentIndex += Math.random() > 0.1 ? 1 : 0; // Simulate variable typing speed
+
+        if (currentIndex >= content.length) {
+          clearInterval(typeInterval);
+          setIsTyping(false);
+          setStreamingMessageId(null);
+        }
+      }, 50);
+      return () => clearInterval(typeInterval);
+    },
+    []
+  );
+  const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
+    async (event) => {
+      event.preventDefault();
+
+      if (!inputValue.trim() || isTyping) return;
+
+      const currentInput = inputValue.trim();
+
+      // Add user message
+      const userMessage: ChatMessage = {
+        id: nanoid(),
+        content: currentInput,
+        role: "user",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setInputValue("");
+      setIsTyping(true);
+
+      // Process AI response with real streaming
+      setTimeout(async () => {
+        try {
+          // 如果没有sessionId，先创建一个
+          let sessionId = currentSessionId;
+          if (!sessionId) {
+            console.log("创建新会话...");
+            const response = await aiChatServer.new({
+              userId: getUserId(),
+              sectionId: sectionId ?? "",
+            });
+            sessionId = response.data.data.session_id;
+            setCurrentSessionId(sessionId);
+            console.log("新会话创建成功:", sessionId);
+          }
+
+          const assistantMessageId = nanoid();
+
+          const assistantMessage: ChatMessage = {
+            id: assistantMessageId,
+            content: "",
+            role: "assistant",
+            timestamp: new Date(),
+            isStreaming: true,
           };
-        }
-        return msg;
-      }));
-      currentIndex += Math.random() > 0.1 ? 1 : 0; // Simulate variable typing speed
-      
-      if (currentIndex >= content.length) {
-        clearInterval(typeInterval);
-        setIsTyping(false);
-        setStreamingMessageId(null);
-      }
-    }, 50);
-    return () => clearInterval(typeInterval);
-  }, []);
-  const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(async (event) => {
-    event.preventDefault();
-    
-    if (!inputValue.trim() || isTyping) return;
-    
-    const currentInput = inputValue.trim();
-    
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: nanoid(),
-      content: currentInput,
-      role: 'user',
-      timestamp: new Date(),
-    };
-    setMessages(prev => [...prev, userMessage]);
-    setInputValue('');
-    setIsTyping(true);
-    
-    // Process AI response with real streaming
-    setTimeout(async () => {
-      try {
-        // 如果没有sessionId，先创建一个
-        let sessionId = currentSessionId;
-        if (!sessionId) {
-          console.log('创建新会话...');
-          const response = await aiChatServer.new({
-            userId: getUserId(),
-            sectionId: sectionId ?? "",
+          setMessages((prev) => [...prev, assistantMessage]);
+          setStreamingMessageId(assistantMessageId);
+
+          // Start real stream processing
+          await processStreamResponse(assistantMessageId, {
+            message: currentInput,
+            sessionId,
+            sectionId,
           });
-          sessionId = response.data.data.session_id;
-          setCurrentSessionId(sessionId);
-          console.log('新会话创建成功:', sessionId);
+        } catch (error) {
+          console.error("AI Chat Error:", error);
+          setIsTyping(false);
+          setStreamingMessageId(null);
+
+          // Add error message
+          const errorMessage: ChatMessage = {
+            id: nanoid(),
+            content: "Sorry, I encountered an error. Please try again.",
+            role: "assistant",
+            timestamp: new Date(),
+            isStreaming: false,
+          };
+          setMessages((prev) => [...prev, errorMessage]);
         }
-        
-        const stream = await testAIChatStream(currentInput, sessionId, sectionId);
-        
-        if (!stream) {
-          throw new Error('No stream received from server');
-        }
-        
-        const assistantMessageId = nanoid();
-        
-        const assistantMessage: ChatMessage = {
-          id: assistantMessageId,
-          content: '',
-          role: 'assistant',
-          timestamp: new Date(),
-          isStreaming: true,
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-        setStreamingMessageId(assistantMessageId);
-        
-        // Start real stream processing
-        await processStreamResponse(assistantMessageId, stream);
-        
-      } catch (error) {
-        console.error('AI Chat Error:', error);
-        setIsTyping(false);
-        setStreamingMessageId(null);
-        
-        // Add error message
-        const errorMessage: ChatMessage = {
-          id: nanoid(),
-          content: 'Sorry, I encountered an error. Please try again.',
-          role: 'assistant',
-          timestamp: new Date(),
-          isStreaming: false,
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      }
-    }, 300);
-  }, [inputValue, isTyping, currentSessionId, processStreamResponse]);
-  
+      }, 300);
+    },
+    [inputValue, isTyping, currentSessionId, processStreamResponse]
+  );
+
   const handleReset = useCallback(() => {
     loadChatHistory();
-    setInputValue('');
+    setInputValue("");
     setIsTyping(false);
     setStreamingMessageId(null);
   }, [loadChatHistory]);
@@ -532,49 +571,50 @@ const AiConversation = () => {
   // 新建会话
   const handleNewSession = useCallback(async () => {
     try {
-      console.log('创建新会话...');
-      
+      console.log("创建新会话...");
+
       // 调用后端创建新会话
       const response = await aiChatServer.new({
         userId: getUserId(),
         sectionId: sectionId ?? "",
       });
-      
-      console.log('新会话创建成功:', response.data);
+
+      console.log("新会话创建成功:", response.data);
       const newSessionId = response.data.data.session_id;
-      
+
       // 清空当前消息并设置新的会话ID
       setCurrentSessionId(newSessionId);
       setMessages([
         {
           id: nanoid(),
-          content: 'Hello! I\'m your AI assistant. How can I help you today?',
-          role: 'assistant',
+          content: "Hello! I'm your AI assistant. How can I help you today?",
+          role: "assistant",
           timestamp: new Date(),
-        }
+        },
       ]);
-      setInputValue('');
+      setInputValue("");
       setIsTyping(false);
       setStreamingMessageId(null);
-      
-      console.log('已切换到新会话:', newSessionId);
+
+      console.log("已切换到新会话:", newSessionId);
     } catch (error) {
-      console.error('创建新会话失败:', error);
+      console.error("创建新会话失败:", error);
     }
   }, [sectionId]);
 
   return (
-    <div ref={containerRef} className="flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm">
+    <div
+      ref={containerRef}
+      className="flex h-full w-full flex-col overflow-hidden rounded-xl border bg-background shadow-sm"
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b bg-muted/50 px-4 py-3">
         <div className="flex items-center gap-2">
-          <svg className="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 10H16M8 14H11M6 20H18C19.1046 20 20 19.1046 20 18V6C20 4.89543 19.1046 4 18 4H6C4.89543 4 4 4.89543 4 6V18C4 19.1046 4.89543 20 6 20Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
+          <FileTextIcon />
           <span className="font-medium text-base">AI对话框</span>
         </div>
       </div>
-      
+
       {/* AI Settings and Model Selection */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
         <div className="persona-dropdown-container relative flex items-center gap-2 rounded-lg border bg-white px-3 py-2 flex-1">
@@ -624,221 +664,170 @@ const AiConversation = () => {
             </div>
           )}
         </div>
-        
+
         <div className="rounded-lg border bg-white px-3 py-2 flex items-center gap-2 min-w-[140px]">
-          <span className="text-sm">{models.find(m => m.id === selectedModel)?.name || 'deepseek'}</span>
-          <svg className="size-4 text-muted-foreground ml-auto" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <Select value={selectedModel} onValueChange={setSelectedModel}>
+            <SelectTrigger className="w-full border-0 bg-transparent p-0 h-auto shadow-none focus:ring-0">
+              <SelectValue placeholder="未选择" />
+            </SelectTrigger>
+            <SelectContent>
+              {models.map((model) => (
+                <SelectItem key={model.id} value={model.id}>
+                  {model.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
-      
+
       {/* Voice Mode or Text Mode */}
       {isVoiceMode ? (
-        /* Voice Mode UI */
-        <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-50 to-white p-8 relative">
-          {/* Main Voice Interface */}
-          <div className="flex-1 flex flex-col items-center justify-center">
-            {/* Avatar */}
-            <div className={cn(
-              "w-30 h-30 rounded-full mb-8 flex items-center justify-center shadow-lg transition-all duration-500",
-              voiceState === 'listening' && "bg-gradient-to-br from-blue-300 to-blue-400",
-              voiceState === 'buffering' && "bg-gradient-to-br from-yellow-300 to-yellow-400",
-              voiceState === 'speaking' && "bg-gradient-to-br from-green-300 to-green-400"
-            )}>
-              <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500",
-                voiceState === 'listening' && "bg-gradient-to-br from-blue-200 to-blue-300",
-                voiceState === 'buffering' && "bg-gradient-to-br from-yellow-200 to-yellow-300",
-                voiceState === 'speaking' && "bg-gradient-to-br from-green-200 to-green-300"
-              )}>
-                <div className="w-20 h-20 rounded-full bg-white/50"></div>
-              </div>
-            </div>
-            
-            {/* Status Text */}
-            <p className="text-gray-500 text-lg mb-8">
-              {voiceState === 'listening' && '正在听......'}
-              {voiceState === 'buffering' && 'AI正在思考......'}
-              {voiceState === 'speaking' && 'AI正在说......'}
-            </p>
-            {/* ASR Text Display Window */}
-            <div className="w-full">
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 min-h-[200px] max-h-[400px] overflow-y-auto">
-                <div className="text-xs text-gray-400 mb-2">聊天记录</div>
-                
-                {/* Previous Message - Gray */}
-                {previousMessage && (
-                  <div className="text-sm text-gray-400 mb-4 pb-4 border-b border-gray-100">
-                    {previousMessage}
-                  </div>
-                )}
-                
-                {/* Current Streaming Message - Black */}
-                <div className="text-sm text-gray-900 whitespace-pre-wrap">
-                  {currentMessage || '等待语音输入...'}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Control Buttons - Fixed at bottom */}
-          <div className="flex gap-2 justify-center pb-4">
-            <button
-              onClick={() => {
-                // 点击发言按钮触发mock演示
-                if (voiceState === 'listening') {
-                  triggerMockDemo();
-                }
-              }}
-              disabled={voiceState !== 'listening'}
-              className={cn(
-                "w-8 h-8 rounded-full bg-transparent hover:bg-gray-200/50 transition-colors flex items-center justify-center",
-                voiceState !== 'listening' && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              {voiceState === 'listening' ? (
-                <MicIcon className="w-4 h-4 text-gray-600" />
-              ) : (
-                <MicOffIcon className="w-4 h-4 text-gray-600" />
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setIsVoiceMode(false);
-                setVoiceState('listening');
-                setCurrentMessage('');
-                setPreviousMessage('');
-              }}
-              className="w-8 h-8 rounded-full bg-transparent hover:bg-red-100/50 transition-colors flex items-center justify-center"
-            >
-              <XIcon className="w-4 h-4 text-red-500" />
-            </button>
-          </div>
-
-        </div>
+        <VoiceUI
+          userId={getUserId()}
+          sessionId={currentSessionId || ""}
+          sectionId={sectionId || ""}
+          personaId={undefined}
+          serverUrl={getWebRTCServerUrl()}
+          onClose={() => {
+            setIsVoiceMode(false);
+          }}
+        />
       ) : (
         /* Text Mode - Conversation Area */
         <>
-      {/* Conversation Area */}
-      <Conversation className="flex-1">
-        <ConversationContent className="space-y-4">
-          {isLoadingHistory && (
-            <div className="flex items-center justify-center py-4">
-              <Loader size={16} />
-              <span className="ml-2 text-muted-foreground text-sm">Loading chat history...</span>
-            </div>
-          )}
-          {messages.map((message) => (
-            <div key={message.id} className="space-y-3">
-              <Message from={message.role}>
-                <MessageContent>
-                  {message.isStreaming && message.content === '' ? (
-                    <div className="flex items-center gap-2">
-                      <Loader size={14} />
-                      <span className="text-muted-foreground text-sm">Thinking...</span>
+          {/* Conversation Area */}
+          <Conversation className="flex-1">
+            <ConversationContent className="space-y-4">
+              {isLoadingHistory && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader size={16} />
+                  <span className="ml-2 text-muted-foreground text-sm">
+                    Loading chat history...
+                  </span>
+                </div>
+              )}
+              {messages.map((message) => (
+                <div key={message.id} className="space-y-3">
+                  <Message from={message.role}>
+                    <MessageContent>
+                      {message.isStreaming && message.content === "" ? (
+                        <div className="flex items-center gap-2">
+                          <Loader size={14} />
+                          <span className="text-muted-foreground text-sm">
+                            Thinking...
+                          </span>
+                        </div>
+                      ) : message.role === "assistant" ? (
+                        <MarkdownRenderer content={message.content} />
+                      ) : (
+                        <p className="leading-7">{message.content}</p>
+                      )}
+                    </MessageContent>
+                    <MessageAvatar
+                      src={
+                        message.role === "user"
+                          ? "https://github.com/dovazencot.png"
+                          : "https://github.com/vercel.png"
+                      }
+                      name={message.role === "user" ? "User" : "AI"}
+                    />
+                  </Message>
+                  {/* Reasoning */}
+                  {message.reasoning && (
+                    <div className="ml-10">
+                      <Reasoning
+                        isStreaming={message.isStreaming}
+                        defaultOpen={false}
+                      >
+                        <ReasoningTrigger />
+                        <ReasoningContent>{message.reasoning}</ReasoningContent>
+                      </Reasoning>
                     </div>
-                  ) : message.role === 'assistant' ? (
-                    <MarkdownRenderer content={message.content} />
-                  ) : (
-                    <p className="leading-7">{message.content}</p>
                   )}
-                </MessageContent>
-                <MessageAvatar 
-                  src={message.role === 'user' ? 'https://github.com/dovazencot.png' : 'https://github.com/vercel.png'} 
-                  name={message.role === 'user' ? 'User' : 'AI'} 
-                />
-              </Message>
-              {/* Reasoning */}
-              {message.reasoning && (
-                <div className="ml-10">
-                  <Reasoning isStreaming={message.isStreaming} defaultOpen={false}>
-                    <ReasoningTrigger />
-                    <ReasoningContent>{message.reasoning}</ReasoningContent>
-                  </Reasoning>
+                  {/* Sources */}
+                  {message.sources && message.sources.length > 0 && (
+                    <div className="ml-10">
+                      <Sources>
+                        <SourcesTrigger count={message.sources.length} />
+                        <SourcesContent>
+                          {message.sources.map((source, index) => (
+                            <Source
+                              key={index}
+                              href={source.url}
+                              title={source.title}
+                            />
+                          ))}
+                        </SourcesContent>
+                      </Sources>
+                    </div>
+                  )}
                 </div>
-              )}
-              {/* Sources */}
-              {message.sources && message.sources.length > 0 && (
-                <div className="ml-10">
-                  <Sources>
-                    <SourcesTrigger count={message.sources.length} />
-                    <SourcesContent>
-                      {message.sources.map((source, index) => (
-                        <Source key={index} href={source.url} title={source.title} />
-                      ))}
-                    </SourcesContent>
-                  </Sources>
-                </div>
-              )}
+              ))}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
+          {/* Input Area */}
+          <div className="px-4 pt-1 pb-4 bg-white">
+            {/* Toolbar buttons */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                type="button"
+                className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
+                disabled={isTyping}
+              >
+                <MicIcon className="size-5 text-muted-foreground" />
+              </button>
+              <button
+                type="button"
+                className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
+                disabled={isTyping}
+              >
+                <ArrowUpIcon className="size-5 text-muted-foreground" />
+              </button>
+              <button
+                type="button"
+                className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
+                disabled={isTyping}
+                onClick={() => setIsVoiceMode(true)}
+              >
+                <PhoneIcon className="size-5 text-muted-foreground" />
+              </button>
             </div>
-          ))}
-        </ConversationContent>
-        <ConversationScrollButton />
-      </Conversation>
-      {/* Input Area */}
-      <div className="px-4 pt-1 pb-4 bg-white">
-        {/* Toolbar buttons */}
-        <div className="flex items-center gap-2 mb-3">
-          <button 
-            type="button"
-            className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
-            disabled={isTyping}
-          >
-            <MicIcon className="size-5 text-muted-foreground" />
-          </button>
-          <button 
-            type="button"
-            className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
-            disabled={isTyping}
-          >
-            <ArrowUpIcon className="size-5 text-muted-foreground" />
-          </button>
-          <button 
-            type="button"
-            className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
-            disabled={isTyping}
-            onClick={() => setIsVoiceMode(true)}
-          >
-            <PhoneIcon className="size-5 text-muted-foreground" />
-          </button>
-        </div>
-        
-        <form onSubmit={handleSubmit}>
-          {/* Text input with embedded send button */}
-          <div className="relative">
-            <textarea
-              name="message"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  if (inputValue.trim() && !isTyping) {
-                    handleSubmit(e as any);
-                  }
-                }
-              }}
-              placeholder="输入你的问题......"
-              disabled={isTyping}
-              className="w-full resize-none rounded-lg border bg-white px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[120px] max-h-[300px]"
-              rows={1}
-            />
-            
-            {/* Send button inside input */}
-            <button
-              type="submit"
-              disabled={!inputValue.trim() || isTyping}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <svg className="size-6" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M5 12L19 12M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+
+            <form onSubmit={handleSubmit}>
+              {/* Text input with embedded send button */}
+              <div className="relative">
+                <textarea
+                  name="message"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (inputValue.trim() && !isTyping) {
+                        handleSubmit(e as any);
+                      }
+                    }
+                  }}
+                  placeholder="输入你的问题......"
+                  disabled={isTyping}
+                  className="w-full resize-none rounded-lg border bg-white px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[120px] max-h-[300px]"
+                  rows={1}
+                />
+
+                {/* Send button inside input */}
+                <button
+                  type="submit"
+                  disabled={!inputValue.trim() || isTyping}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ArrowRightIcon />
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
-      </>
+        </>
       )}
     </div>
   );
