@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { MicIcon, ArrowUpIcon, PhoneIcon, MicOffIcon, XIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { type FormEventHandler, useCallback, useEffect, useRef, useState } from 'react';
-import { aiChatServer, sectionsServer } from '@/server/training-server';
+import { aiChatServer, sectionsServer, type AiPersona } from '@/server/training-server';
 import { useAutoCache } from '@/containers/auto-cache';
 import { useParams } from 'react-router';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
@@ -98,6 +98,9 @@ const AiConversation = () => {
   const [voiceState, setVoiceState] = useState<'listening' | 'buffering' | 'speaking'>('listening');
   const [currentMessage, setCurrentMessage] = useState('');
   const [previousMessage, setPreviousMessage] = useState('欢迎使用语音对话功能');
+  const [personas, setPersonas] = useState<AiPersona[]>([]);
+  const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(null);
+  const [isPersonaDropdownOpen, setIsPersonaDropdownOpen] = useState(false);
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
@@ -136,6 +139,75 @@ const AiConversation = () => {
       setCurrentMessage('');
     }
   }, [voiceState, currentMessage]);
+
+  // 加载人设列表
+  const loadPersonas = useCallback(async () => {
+    try {
+      const response = await aiChatServer.getPersonas();
+      const personaList = response.data.data;
+      setPersonas(personaList);
+      
+      // 设置默认人设
+      const defaultPersona = personaList.find(p => p.is_default_template) || personaList[0];
+      if (defaultPersona) {
+        setSelectedPersona(defaultPersona);
+      }
+    } catch (error) {
+      console.error('加载人设列表失败:', error);
+    }
+  }, []);
+
+  // 切换人设
+  const handlePersonaSwitch = useCallback(async (persona: AiPersona) => {
+    if (!currentSessionId) {
+      // 如果没有会话，直接切换选中的人设
+      setSelectedPersona(persona);
+      setIsPersonaDropdownOpen(false);
+      return;
+    }
+
+    try {
+      const response = await aiChatServer.switchPersona({
+        sessionId: currentSessionId,
+        personaId: persona.persona_id
+      });
+      
+      if (response.data.data.success) {
+        setSelectedPersona(persona);
+        setIsPersonaDropdownOpen(false);
+        
+        // 添加系统消息提示用户人设已切换
+        const systemMessage: ChatMessage = {
+          id: nanoid(),
+          content: `已切换到人设：${persona.name}`,
+          role: 'assistant',
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, systemMessage]);
+      }
+    } catch (error) {
+      console.error('切换人设失败:', error);
+      alert('切换人设失败，请重试');
+    }
+  }, [currentSessionId]);
+
+  // 根据 sectionId 决定是否加载人设列表
+  useEffect(() => {
+    if (!sectionId) {
+      // daily 模式：不请求人设列表，使用默认展示人设
+      setPersonas([]);
+      setSelectedPersona({
+        persona_id: 'daily-default',
+        name: '信心十足的教育家',
+        prompt: '',
+        is_default_template: false,
+      });
+      return;
+    }
+
+    // 有 sectionId 时加载真实的人设列表
+    loadPersonas();
+  }, [sectionId, loadPersonas]);
 
   // Mock演示函数：模拟用户语音输入和AI回复
   const triggerMockDemo = useCallback(() => {
@@ -255,7 +327,23 @@ const AiConversation = () => {
     // 清空当前会话ID，以便为新的section重新创建或加载会话
     setCurrentSessionId(null);
     loadChatHistory();
-  }, [sectionId, loadChatHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectionId]);
+
+  // Close persona dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isPersonaDropdownOpen && containerRef.current) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.persona-dropdown-container')) {
+          setIsPersonaDropdownOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isPersonaDropdownOpen]);
 
   // Listen for external insert requests (e.g., from SectionDetail) to prefill the input
   useEffect(() => {
@@ -286,7 +374,6 @@ const AiConversation = () => {
   const processStreamResponse = useCallback(async (messageId: string, stream: ReadableStream) => {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
     
     console.log('Starting stream processing...');
     
@@ -298,114 +385,21 @@ const AiConversation = () => {
           break;
         }
         
-        // 解码数据块
+        // 解码数据块并直接追加到消息（后端返回纯文本流）
         const chunk = decoder.decode(value, { stream: true });
         console.log('Received chunk:', chunk);
-        buffer += chunk;
         
-        // 尝试按行分割处理
-        const lines = buffer.split('\n');
-        
-        // 保留最后一个可能不完整的行
-        buffer = lines.pop() || '';
-        
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          
-          console.log('Processing line:', line);
-          
-          try {
-            // 尝试解析为JSON
-            const parsed = JSON.parse(line);
-            console.log('Parsed JSON:', parsed);
-            
-            // 处理不同的响应格式
-            let textChunk = '';
-            
-            if (parsed.data && typeof parsed.data.ai_response === 'string') {
-              // 格式: {"success":true,"data":{"ai_response":"文本内容"}}
-              textChunk = parsed.data.ai_response;
-              console.log('Found ai_response in data:', textChunk);
-            } else if (typeof parsed.ai_response === 'string') {
-              // 格式: {"ai_response":"文本内容"}
-              textChunk = parsed.ai_response;
-              console.log('Found ai_response:', textChunk);
-            } else if (typeof parsed.content === 'string') {
-              // 格式: {"content":"文本内容"}
-              textChunk = parsed.content;
-              console.log('Found content:', textChunk);
-            } else if (typeof parsed === 'string') {
-              // 纯文本
-              textChunk = parsed;
-              console.log('Using raw string:', textChunk);
-            } else if (parsed.choices && parsed.choices[0]?.delta?.content) {
-              // OpenAI格式: {"choices":[{"delta":{"content":"文本"}}]}
-              textChunk = parsed.choices[0].delta.content;
-              console.log('Found OpenAI format:', textChunk);
-            } else {
-              console.log('No recognized format, parsed object:', parsed);
+        if (chunk) {
+          setMessages(prev => prev.map(msg => {
+            if (msg.id === messageId) {
+              return {
+                ...msg,
+                content: msg.content + chunk,
+                isStreaming: true,
+              };
             }
-            
-            if (textChunk) {
-              setMessages(prev => prev.map(msg => {
-                if (msg.id === messageId) {
-                  return {
-                    ...msg,
-                    content: msg.content + textChunk,
-                    isStreaming: true,
-                  };
-                }
-                return msg;
-              }));
-            }
-          } catch (e) {
-            console.log('Not JSON, treating as plain text:', line);
-            // 如果不是JSON，直接作为文本处理
-            if (line.trim()) {
-              setMessages(prev => prev.map(msg => {
-                if (msg.id === messageId) {
-                  return {
-                    ...msg,
-                    content: msg.content + line + '\n',
-                    isStreaming: true,
-                  };
-                }
-                return msg;
-              }));
-            }
-          }
-        }
-      }
-      
-      // 处理剩余的buffer
-      if (buffer.trim()) {
-        console.log('Processing remaining buffer:', buffer);
-        try {
-          const parsed = JSON.parse(buffer);
-          let textChunk = '';
-          
-          if (parsed.data && typeof parsed.data.ai_response === 'string') {
-            textChunk = parsed.data.ai_response;
-          } else if (typeof parsed.ai_response === 'string') {
-            textChunk = parsed.ai_response;
-          } else if (typeof parsed.content === 'string') {
-            textChunk = parsed.content;
-          }
-          
-          if (textChunk) {
-            setMessages(prev => prev.map(msg => {
-              if (msg.id === messageId) {
-                return {
-                  ...msg,
-                  content: msg.content + textChunk,
-                  isStreaming: true,
-                };
-              }
-              return msg;
-            }));
-          }
-        } catch (e) {
-          console.log('Buffer is not valid JSON, ignoring');
+            return msg;
+          }));
         }
       }
       
@@ -583,16 +577,52 @@ const AiConversation = () => {
       
       {/* AI Settings and Model Selection */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <div className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 flex-1">
+        <div className="persona-dropdown-container relative flex items-center gap-2 rounded-lg border bg-white px-3 py-2 flex-1">
           <svg className="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2"/>
             <path d="M12 6V3M12 21V18M18 12H21M3 12H6M16.95 16.95L19.07 19.07M4.93 4.93L7.05 7.05M7.05 16.95L4.93 19.07M19.07 4.93L16.95 7.05" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
           <span className="text-sm">AI人设</span>
-          <span className="font-medium text-sm ml-auto">暴躁老师傅</span>
-          <svg className="size-4 text-muted-foreground ml-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <button
+            onClick={() => !sectionId ? null : setIsPersonaDropdownOpen(!isPersonaDropdownOpen)}
+            className={cn(
+              "flex items-center gap-2 ml-auto transition-opacity",
+              !sectionId ? "cursor-default" : "hover:opacity-70 cursor-pointer"
+            )}
+            disabled={isTyping || !sectionId}
+          >
+            <span className="font-medium text-sm">
+              {!sectionId ? '信心十足的教育家' : (selectedPersona?.name || '加载中...')}
+            </span>
+            {sectionId && (
+              <svg className="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </button>
+          
+          {/* Persona Dropdown */}
+          {isPersonaDropdownOpen && sectionId && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+              {personas.map((persona) => (
+                <button
+                  key={persona.persona_id}
+                  onClick={() => handlePersonaSwitch(persona)}
+                  className={cn(
+                    "w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors",
+                    selectedPersona?.persona_id === persona.persona_id && "bg-blue-50"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{persona.name}</span>
+                    {persona.is_default_template && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">默认</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         
         <div className="rounded-lg border bg-white px-3 py-2 flex items-center gap-2 min-w-[140px]">

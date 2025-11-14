@@ -251,6 +251,32 @@ interface ChatStreamResponse {
   persona_id_in_use?: string;
 }
 
+/**
+ * AI人设信息
+ */
+export interface AiPersona {
+  persona_id: string;
+  name: string;
+  prompt: string;
+  is_default_template: boolean;
+}
+
+/**
+ * 切换人设请求
+ */
+interface SwitchPersonaRequest {
+  sessionId: string;
+  personaId: string;
+}
+
+/**
+ * 切换人设响应
+ */
+interface SwitchPersonaResponse {
+  success: boolean;
+  message: string;
+}
+
 export class AIChatServer extends TrainingServer<SessionInfo> {
   constructor() {
     super('/ai-chat');
@@ -306,6 +332,30 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
     return this.http.get<Status<SessionHistoryResponse>>(
       `/history/${sessionId}`, 
       { baseURL: this.baseUrl, params: { withoutInner } }
+    );
+  }
+
+  /**
+   * 获取当前课程所有人设列表
+   */
+  getPersonas = async (courseId?: string) => {
+    return this.http.get<Status<AiPersona[]>>(
+      '/personas',
+      {
+        baseURL: this.baseUrl,
+        params: courseId ? { courseId } : undefined
+      }
+    );
+  }
+
+  /**
+   * 切换当前会话的人设
+   */
+  switchPersona = async (data: SwitchPersonaRequest) => {
+    return this.http.post<Status<SwitchPersonaResponse>>(
+      '/switch-persona',
+      data,
+      { baseURL: this.baseUrl }
     );
   }
 }
