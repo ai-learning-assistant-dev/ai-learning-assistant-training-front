@@ -47,7 +47,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { aiChatServer, sectionsServer } from "@/server/training-server";
+import { aiChatServer, sectionsServer, type AiPersona } from "@/server/training-server";
 import { useAutoCache } from "@/containers/auto-cache";
 import { useParams } from "react-router";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
@@ -398,58 +398,107 @@ const AiConversation = () => {
     return () =>
       window.removeEventListener("ai-insert-text", handler as EventListener);
   }, []);
-  
-  const processStreamResponse = useCallback(async (messageId: string, stream: ReadableStream) => {
-    const reader = stream.getReader();
-    const decoder = new TextDecoder();
-    
-    console.log('Starting stream processing...');
-    
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          console.log('Stream completed');
-          break;
+  const processStreamResponse = useCallback(
+    async (
+      messageId: string,
+      opts: {
+        message: string;
+        sessionId: string;
+        sectionId: string | undefined;
+      }
+    ) => {
+      const response = (await aiChatServer.chatStream({
+        userId: getUserId(),
+        ...opts,
+        sectionId: opts.sectionId ?? "",
+        daily: !sectionId, // 如果sectionId为空，设置daily=true
+      })) as ReturnType<typeof hookFetch.post>;
+
+      try {
+        for await (const res of response.stream()) {
+          if (res.error) {
+            console.error("AI Chat Stream Error:", res.error);
+            continue;
+          }
+
+          // 使用 ts-pattern 进行模式匹配处理响应格式
+          const textChunk = match(res.result)
+            .with({ data: { ai_response: P.select(P.string) } }, (str) => {
+              console.log("Found ai_response in data:", str);
+              return str;
+            })
+            .with({ ai_response: P.select(P.string) }, (str) => {
+              console.log("Found ai_response:", str);
+              return str;
+            })
+            .with({ content: P.select(P.string) }, (str) => {
+              console.log("Found content:", str);
+              return str;
+            })
+            .with(
+              {
+                choices: [
+                  { delta: { content: P.select(P.string) } },
+                  ...P.array(),
+                ],
+              },
+              (str) => {
+                console.log("Found OpenAI format:", str);
+                return str;
+              }
+            )
+            .with(P.string.startsWith("data: "), (dataStr) => {
+              const str = dataStr.replace("data: ", "");
+              console.log("Using 'data: ' content:", str);
+              return str;
+            })
+            .with(P.string, (str) => {
+              console.log("Using raw string:", str);
+              return str.replace("data: ", "");
+            })
+            // 未匹配到的格式
+            .otherwise((data) => {
+              console.log("No recognized format, parsed object:", data);
+              return null;
+            });
+
+          if (textChunk) {
+            setMessages((prev) =>
+              prev.map((msg) => {
+                if (msg.id === messageId) {
+                  return {
+                    ...msg,
+                    content: msg.content + textChunk,
+                    isStreaming: true,
+                  };
+                }
+                return msg;
+              })
+            );
+          }
         }
-        
-        // 解码数据块并直接追加到消息（后端返回纯文本流）
-        const chunk = decoder.decode(value, { stream: true });
-        console.log('Received chunk:', chunk);
-        
-        if (chunk) {
-          setMessages(prev => prev.map(msg => {
+
+        // Mark streaming as complete
+        setMessages((prev) =>
+          prev.map((msg) => {
             if (msg.id === messageId) {
               return {
                 ...msg,
-                content: msg.content + chunk,
-                isStreaming: true,
+                isStreaming: false,
               };
             }
             return msg;
-          }));
-        }
+          })
+        );
+      } catch (error) {
+        console.error("Stream processing error:", error);
+      } finally {
+        setIsTyping(false);
+        setStreamingMessageId(null);
       }
-      
-      // Mark streaming as complete
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === messageId) {
-          return {
-            ...msg,
-            isStreaming: false,
-          };
-        }
-        return msg;
-      }));
-      
-    } catch (error) {
-      console.error('Stream processing error:', error);
-    } finally {
-      setIsTyping(false);
-      setStreamingMessageId(null);
-      reader.releaseLock();
-    }
-  }, []);
+    },
+    [sectionId]
+  );
 
   const simulateTyping = useCallback(
     (
