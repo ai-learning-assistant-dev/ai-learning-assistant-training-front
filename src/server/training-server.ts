@@ -346,8 +346,12 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
     });
   };
 
-  chatStream = async (data: ChatRequest) => {
-    return this.apiClient.post(`${this.baseUrl}/chat/stream`, data);
+  chatStream = (data: ChatRequest) => {
+    return this.apiClient.post(`${this.baseUrl}/chat/stream`, data, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   };
 
   /**

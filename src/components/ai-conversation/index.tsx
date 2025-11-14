@@ -405,17 +405,20 @@ const AiConversation = () => {
         message: string;
         sessionId: string;
         sectionId: string | undefined;
+        personaId?: string;
       }
     ) => {
-      const response = (await aiChatServer.chatStream({
+      const request = aiChatServer.chatStream({
         userId: getUserId(),
-        ...opts,
+        message: opts.message,
+        sessionId: opts.sessionId,
         sectionId: opts.sectionId ?? "",
+        personaId: opts.personaId,
         daily: !sectionId, // 如果sectionId为空，设置daily=true
-      })) as ReturnType<typeof hookFetch.post>;
+      });
 
       try {
-        for await (const res of response.stream()) {
+        for await (const res of request.stream()) {
           if (res.error) {
             console.error("AI Chat Stream Error:", res.error);
             continue;
@@ -448,13 +451,13 @@ const AiConversation = () => {
               }
             )
             .with(P.string.startsWith("data: "), (dataStr) => {
-              const str = dataStr.replace("data: ", "");
+              const str = dataStr?.replace("data: ", "") ?? "";
               console.log("Using 'data: ' content:", str);
               return str;
             })
             .with(P.string, (str) => {
               console.log("Using raw string:", str);
-              return str.replace("data: ", "");
+              return str?.replace("data: ", "") ?? "";
             })
             // 未匹配到的格式
             .otherwise((data) => {
@@ -589,6 +592,7 @@ const AiConversation = () => {
             message: currentInput,
             sessionId,
             sectionId,
+            personaId: selectedPersona?.persona_id,
           });
         } catch (error) {
           console.error("AI Chat Error:", error);
@@ -607,7 +611,7 @@ const AiConversation = () => {
         }
       }, 300);
     },
-    [inputValue, isTyping, currentSessionId, processStreamResponse]
+    [inputValue, isTyping, currentSessionId, sectionId, processStreamResponse]
   );
 
   const handleReset = useCallback(() => {
