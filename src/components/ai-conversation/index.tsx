@@ -670,7 +670,7 @@ const AiConversation = () => {
 
       {/* AI Settings and Model Selection */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <div className="persona-dropdown-container relative flex items-center gap-2 rounded-lg border bg-white px-3 py-2 flex-1">
+        <div className="persona-dropdown-container relative flex items-center gap-2 rounded-lg border bg-white px-3 py-2.5 flex-1 h-10">
           <svg className="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2"/>
             <path d="M12 6V3M12 21V18M18 12H21M3 12H6M16.95 16.95L19.07 19.07M4.93 4.93L7.05 7.05M7.05 16.95L4.93 19.07M19.07 4.93L16.95 7.05" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -718,7 +718,7 @@ const AiConversation = () => {
           )}
         </div>
 
-        <div className="rounded-lg border bg-white px-3 py-2 flex items-center gap-2 min-w-[140px]">
+        <div className="rounded-lg border bg-white px-3 py-2.5 flex items-center gap-2 min-w-[140px] h-10">
           <Select value={selectedModel} onValueChange={setSelectedModel}>
             <SelectTrigger className="w-full border-0 bg-transparent p-0 h-auto shadow-none focus:ring-0">
               <SelectValue placeholder="未选择" />
