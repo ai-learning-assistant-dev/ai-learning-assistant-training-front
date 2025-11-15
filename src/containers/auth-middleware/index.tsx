@@ -19,6 +19,9 @@ export async function loginUser(user_id: string) {
 export function getLoginUser(): UserResponse {
   const userString = localStorage.getItem(USER_STORAGE_KEY);
   const user = userString ? JSON.parse(userString) as UserResponse : null;
+  if (!user?.user_id) {
+    console.error("没有登录用户");
+  }
   // @ts-ignore
   return user;
 }

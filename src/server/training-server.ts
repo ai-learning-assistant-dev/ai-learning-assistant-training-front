@@ -380,12 +380,15 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
   /**
    * 获取当前课程所有人设列表
    */
-  getPersonas = async (courseId?: string) => {
+  getPersonas = async (courseId?: string, userId?: string) => {
     return this.http.get<Status<AiPersona[]>>(
       '/personas',
       {
         baseURL: this.baseUrl,
-        params: courseId ? { courseId } : undefined
+        params: { 
+          ...(courseId ? { courseId } : {}),
+          ...(userId ? { userId } : {})
+        }
       }
     );
   }
