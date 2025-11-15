@@ -52,9 +52,10 @@ import { useAutoCache } from "@/containers/auto-cache";
 import { useParams } from "react-router";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
 import { getLoginUser } from "@/containers/auth-middleware";
-import type hookFetch from "hook-fetch";
 import { match, P } from "ts-pattern";
 import { VoiceUI } from "./voice";
+import { Textarea } from "../ui/textarea";
+import { Button } from "../ui/button";
 
 type ChatMessage = {
   id: string;
@@ -106,9 +107,7 @@ const AiConversation = () => {
   const [voiceState, setVoiceState] = useState<'listening' | 'buffering' | 'speaking'>('listening');
   const [currentMessage, setCurrentMessage] = useState('');
   const [previousMessage, setPreviousMessage] = useState('欢迎使用语音对话功能');
-  const [personas, setPersonas] = useState<AiPersona[]>([]);
   const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(null);
-  const [isPersonaDropdownOpen, setIsPersonaDropdownOpen] = useState(false);
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
@@ -148,29 +147,15 @@ const AiConversation = () => {
     }
   }, [voiceState, currentMessage]);
 
-  // 加载人设列表
-  const loadPersonas = useCallback(async () => {
-    try {
-      const response = await aiChatServer.getPersonas();
-      const personaList = response.data.data;
-      setPersonas(personaList);
-      
-      // 设置默认人设
-      const defaultPersona = personaList.find(p => p.is_default_template) || personaList[0];
-      if (defaultPersona) {
-        setSelectedPersona(defaultPersona);
-      }
-    } catch (error) {
-      console.error('加载人设列表失败:', error);
-    }
-  }, []);
+  const { data: personasResponse } = useAutoCache(aiChatServer.getPersonas, []);
+  const personas = personasResponse?.data || [];
 
   // 切换人设
-  const handlePersonaSwitch = useCallback(async (persona: AiPersona) => {
+  const handlePersonaSwitch = useCallback(async (personaId: string) => {
+    const persona = personas.filter(persona => persona.persona_id === personaId)[0];
     if (!currentSessionId) {
       // 如果没有会话，直接切换选中的人设
       setSelectedPersona(persona);
-      setIsPersonaDropdownOpen(false);
       return;
     }
 
@@ -180,9 +165,8 @@ const AiConversation = () => {
         personaId: persona.persona_id
       });
       
-      if (response.data.data.success) {
+      if (response.data.success) {
         setSelectedPersona(persona);
-        setIsPersonaDropdownOpen(false);
         
         // 添加系统消息提示用户人设已切换
         const systemMessage: ChatMessage = {
@@ -199,23 +183,6 @@ const AiConversation = () => {
     }
   }, [currentSessionId]);
 
-  // 根据 sectionId 决定是否加载人设列表
-  useEffect(() => {
-    if (!sectionId) {
-      // daily 模式：不请求人设列表，使用默认展示人设
-      setPersonas([]);
-      setSelectedPersona({
-        persona_id: 'daily-default',
-        name: '信心十足的教育家',
-        prompt: '',
-        is_default_template: false,
-      });
-      return;
-    }
-
-    // 有 sectionId 时加载真实的人设列表
-    loadPersonas();
-  }, [sectionId, loadPersonas]);
 
   // Mock演示函数：模拟用户语音输入和AI回复
   const triggerMockDemo = useCallback(() => {
@@ -354,21 +321,6 @@ const AiConversation = () => {
     loadChatHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId]);
-
-  // Close persona dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isPersonaDropdownOpen && containerRef.current) {
-        const target = event.target as HTMLElement;
-        if (!target.closest('.persona-dropdown-container')) {
-          setIsPersonaDropdownOpen(false);
-        }
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isPersonaDropdownOpen]);
 
   // Listen for external insert requests (e.g., from SectionDetail) to prefill the input
   useEffect(() => {
@@ -670,57 +622,24 @@ const AiConversation = () => {
 
       {/* AI Settings and Model Selection */}
       <div className="flex items-center gap-2 border-b px-4 py-3">
-        <div className="persona-dropdown-container relative flex items-center gap-2 rounded-lg border bg-white px-3 py-2.5 flex-1 h-10">
-          <svg className="size-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" strokeWidth="2"/>
-            <path d="M12 6V3M12 21V18M18 12H21M3 12H6M16.95 16.95L19.07 19.07M4.93 4.93L7.05 7.05M7.05 16.95L4.93 19.07M19.07 4.93L16.95 7.05" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          <span className="text-sm">AI人设</span>
-          <button
-            onClick={() => !sectionId ? null : setIsPersonaDropdownOpen(!isPersonaDropdownOpen)}
-            className={cn(
-              "flex items-center gap-2 ml-auto transition-opacity",
-              !sectionId ? "cursor-default" : "hover:opacity-70 cursor-pointer"
-            )}
-            disabled={isTyping || !sectionId}
-          >
-            <span className="font-medium text-sm">
-              {!sectionId ? '信心十足的教育家' : (selectedPersona?.name || '加载中...')}
-            </span>
-            {sectionId && (
-              <svg className="size-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            )}
-          </button>
-          
-          {/* Persona Dropdown */}
-          {isPersonaDropdownOpen && sectionId && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+        <div className="flex items-center flex-1 h-10">
+          <Select value={selectedPersona?.persona_id} onValueChange={handlePersonaSwitch}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="默认人设" />
+            </SelectTrigger>
+            <SelectContent>
               {personas.map((persona) => (
-                <button
-                  key={persona.persona_id}
-                  onClick={() => handlePersonaSwitch(persona)}
-                  className={cn(
-                    "w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors",
-                    selectedPersona?.persona_id === persona.persona_id && "bg-blue-50"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{persona.name}</span>
-                    {persona.is_default_template && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">默认</span>
-                    )}
-                  </div>
-                </button>
+                <SelectItem key={persona.persona_id} value={persona.persona_id}>
+                  {persona.name}
+                </SelectItem>
               ))}
-            </div>
-          )}
+            </SelectContent>
+          </Select>
         </div>
 
-        <div className="rounded-lg border bg-white px-3 py-2.5 flex items-center gap-2 min-w-[140px] h-10">
+        <div className="flex items-center min-w-[140px] h-10">
           <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className="w-full border-0 bg-transparent p-0 h-auto shadow-none focus:ring-0">
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="未选择" />
             </SelectTrigger>
             <SelectContent>
@@ -824,34 +743,31 @@ const AiConversation = () => {
           <div className="px-4 pt-1 pb-4 bg-white">
             {/* Toolbar buttons */}
             <div className="flex items-center gap-2 mb-3">
-              <button
-                type="button"
-                className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
+              <Button
+                variant={'outline'}
                 disabled={isTyping}
               >
                 <MicIcon className="size-5 text-muted-foreground" />
-              </button>
-              <button
-                type="button"
-                className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
+              </Button>
+              <Button
+                variant={'outline'}
                 disabled={isTyping}
               >
                 <ArrowUpIcon className="size-5 text-muted-foreground" />
-              </button>
-              <button
-                type="button"
-                className="px-4 py-1.5 hover:bg-muted rounded-2xl transition-colors border border-gray-200/50 bg-gray-50/30"
+              </Button>
+              <Button
+                variant={'outline'}
                 disabled={isTyping}
                 onClick={() => setIsVoiceMode(true)}
               >
                 <PhoneIcon className="size-5 text-muted-foreground" />
-              </button>
+              </Button>
             </div>
 
             <form onSubmit={handleSubmit}>
-              {/* Text input with embedded send button */}
+              {/* Text input with embedded send Button */}
               <div className="relative">
-                <textarea
+                <Textarea
                   name="message"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
@@ -865,18 +781,19 @@ const AiConversation = () => {
                   }}
                   placeholder="输入你的问题......"
                   disabled={isTyping}
-                  className="w-full resize-none rounded-lg border bg-white px-4 py-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[120px] max-h-[300px]"
+                  className="w-full min-h-[120px] max-h-[300px]"
                   rows={1}
                 />
 
-                {/* Send button inside input */}
-                <button
+                {/* Send Button inside input */}
+                <Button
                   type="submit"
+                  variant="ghost"
                   disabled={!inputValue.trim() || isTyping}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:opacity-80 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
                 >
                   <ArrowRightIcon />
-                </button>
+                </Button>
               </div>
             </form>
           </div>

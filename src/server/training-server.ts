@@ -381,7 +381,7 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
    * 获取当前课程所有人设列表
    */
   getPersonas = async (courseId?: string, userId?: string) => {
-    return this.http.get<Status<AiPersona[]>>(
+    return (await this.http.get<Status<AiPersona[]>>(
       '/personas',
       {
         baseURL: this.baseUrl,
@@ -390,18 +390,18 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
           ...(userId ? { userId } : {})
         }
       }
-    );
+    )).data;
   }
 
   /**
    * 切换当前会话的人设
    */
   switchPersona = async (data: SwitchPersonaRequest) => {
-    return this.http.post<Status<SwitchPersonaResponse>>(
+    return (await this.http.post<Status<SwitchPersonaResponse>>(
       '/switch-persona',
       data,
       { baseURL: this.baseUrl }
-    );
+    )).data;
   }
 }
 
