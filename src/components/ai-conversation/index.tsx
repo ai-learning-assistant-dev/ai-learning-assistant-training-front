@@ -31,6 +31,7 @@ import {
   FileTextIcon,
   SunDimIcon,
   ArrowRightIcon,
+  Fingerprint,
 } from "lucide-react";
 import {
   Select,
@@ -56,6 +57,14 @@ import { match, P } from "ts-pattern";
 import { VoiceUI } from "./voice";
 import { Textarea } from "../ui/textarea";
 import { Button } from "../ui/button";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item"
 
 type ChatMessage = {
   id: string;
@@ -119,10 +128,10 @@ const AiConversation = () => {
     if (streamingTimerRef.current) {
       clearInterval(streamingTimerRef.current);
     }
-    
+
     setCurrentMessage('');
     let currentIndex = 0;
-    
+
     streamingTimerRef.current = window.setInterval(() => {
       if (currentIndex < text.length) {
         setCurrentMessage(text.slice(0, currentIndex + 1));
@@ -164,10 +173,10 @@ const AiConversation = () => {
         sessionId: currentSessionId,
         personaId: persona.persona_id
       });
-      
+
       if (response.data.success) {
         setSelectedPersona(persona);
-        
+
         // 添加系统消息提示用户人设已切换
         const systemMessage: ChatMessage = {
           id: nanoid(),
@@ -190,14 +199,14 @@ const AiConversation = () => {
     if (streamingTimerRef.current) {
       clearInterval(streamingTimerRef.current);
     }
-    
+
     // 1. 用户输入 (listening)
     setVoiceState('listening');
     streamText('用户：请帮我解释一下React的useState是什么？', () => {
       // 2. 等待1秒，切换到buffering状态
       setTimeout(() => {
         setVoiceState('buffering');
-        
+
         // 3. 再等待1秒，开始AI回复
         setTimeout(() => {
           setVoiceState('speaking');
@@ -620,54 +629,66 @@ const AiConversation = () => {
         </div>
       </div>
 
-      {/* AI Settings and Model Selection */}
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <div className="flex items-center flex-1 h-10">
-          <Select value={selectedPersona?.persona_id} onValueChange={handlePersonaSwitch}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="默认人设" />
-            </SelectTrigger>
-            <SelectContent>
-              {personas.map((persona) => (
-                <SelectItem key={persona.persona_id} value={persona.persona_id}>
-                  {persona.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center min-w-[140px] h-10">
-          <Select value={selectedModel} onValueChange={setSelectedModel}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="未选择" />
-            </SelectTrigger>
-            <SelectContent>
-              {models.map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  {model.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       {/* Voice Mode or Text Mode */}
       {isVoiceMode ? (
-        <VoiceUI
-          userId={getUserId()}
-          sessionId={currentSessionId || ""}
-          sectionId={sectionId || ""}
-          personaId={undefined}
-          serverUrl={getWebRTCServerUrl()}
-          onClose={() => {
-            setIsVoiceMode(false);
-          }}
-        />
+        <>
+          <Item variant="outline" className="m-4 mb-0" size="sm">
+            <ItemMedia>
+              <Fingerprint className="size-5" />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle>{selectedPersona ? selectedPersona.name : '默认人设'}</ItemTitle>
+            </ItemContent>
+            <ItemActions>
+              AI人设
+            </ItemActions>
+          </Item>
+          <VoiceUI
+            userId={getUserId()}
+            sessionId={currentSessionId || ""}
+            sectionId={sectionId || ""}
+            personaId={selectedPersona?.persona_id}
+            serverUrl={getWebRTCServerUrl()}
+            onClose={() => {
+              setIsVoiceMode(false);
+            }}
+          />
+        </>
       ) : (
         /* Text Mode - Conversation Area */
         <>
+          {/* AI Settings and Model Selection */}
+          <div className="flex items-center gap-2 border-b px-4 py-3">
+            <div className="flex items-center flex-1 h-10">
+              <Select value={selectedPersona?.persona_id} onValueChange={handlePersonaSwitch}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="默认人设" />
+                </SelectTrigger>
+                <SelectContent>
+                  {personas.map((persona) => (
+                    <SelectItem key={persona.persona_id} value={persona.persona_id}>
+                      {persona.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center min-w-[140px] h-10">
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="未选择" />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           {/* Conversation Area */}
           <Conversation className="flex-1">
             <ConversationContent className="space-y-4">

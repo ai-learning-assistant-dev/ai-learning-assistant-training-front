@@ -207,9 +207,9 @@ export const VoiceUI = ({
   const stateInfo = getStateInfo();
 
   return (
-    <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-50 to-white p-8 relative">
+    <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-50 to-white pl-8 pr-8 relative">
       {/* Main Voice Interface */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-8">
+      <div className="flex-1 flex flex-col items-center justify-between gap-1">
         {/* AI 语音输出可视化圆球 (背景透明) */}
         <div className="relative">
           <div className={cn("w-40 h-40 flex items-center justify-center")}>
@@ -240,35 +240,35 @@ export const VoiceUI = ({
             </div>
           </div>
         </div>
-      </div>
 
-      {/* 控制按钮 - Fixed at bottom */}
-      <div className="flex gap-3 justify-center pb-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={toggleMute}
-          disabled={!isConnected}
-          className={cn(
-            "w-12 h-12 rounded-full",
-            isMuted && "bg-red-100 hover:bg-red-200"
-          )}
-        >
-          {isMuted ? (
-            <MicOffIcon className="h-5 w-5 text-red-600" />
-          ) : (
-            <MicIcon className="h-5 w-5" />
-          )}
-        </Button>
+        {/* 控制按钮 - Fixed at bottom */}
+        <div className="flex gap-3 justify-center pb-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleMute}
+            disabled={!isConnected}
+            className={cn(
+              "w-12 h-12 rounded-full",
+              isMuted && "bg-red-100 hover:bg-red-200"
+            )}
+          >
+            {isMuted ? (
+              <MicOffIcon className="h-5 w-5 text-red-600" />
+            ) : (
+              <MicIcon className="h-5 w-5" />
+            )}
+          </Button>
 
-        <Button
-          variant="destructive"
-          size="icon"
-          onClick={onClose}
-          className="w-12 h-12 rounded-full"
-        >
-          <XIcon className="h-5 w-5" />
-        </Button>
+          <Button
+            variant="destructive"
+            size="icon"
+            onClick={onClose}
+            className="w-12 h-12 rounded-full"
+          >
+            <XIcon className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
