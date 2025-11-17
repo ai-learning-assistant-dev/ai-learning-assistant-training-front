@@ -403,6 +403,22 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
       { baseURL: this.baseUrl }
     )).data;
   }
+
+  /**
+   * 生成学习总结评语
+   */
+  learningReview = async (data: { userId: string; sectionId: string; sessionId: string }) => {
+    return this.http.post<Status<{
+      strengths: string[];
+      weaknesses: string[];
+      recommendations: string[];
+      overallComment: string;
+    }>>(
+      '/learning-review',
+      data,
+      { baseURL: this.baseUrl }
+    );
+  }
 }
 
 export const aiChatServer = new AIChatServer();

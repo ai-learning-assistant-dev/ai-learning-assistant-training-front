@@ -260,6 +260,10 @@ const AiConversation = () => {
         sessionId = sessionsResponse.data.data.sessions[0].session_id;
         console.log("使用最新的会话ID:", sessionId);
         setCurrentSessionId(sessionId);
+        // 保存到 localStorage
+        if (sectionId) {
+          localStorage.setItem(`ai-session-${sectionId}`, sessionId);
+        }
 
         // 3. 获取并加载历史记录
         const historyResponse = await aiChatServer.getSessionHistory(
@@ -359,6 +363,17 @@ const AiConversation = () => {
     return () =>
       window.removeEventListener("ai-insert-text", handler as EventListener);
   }, []);
+
+  // Listen for chat history refresh requests
+  useEffect(() => {
+    const handler = () => {
+      loadChatHistory();
+    };
+
+    window.addEventListener("ai-refresh-history", handler as EventListener);
+    return () =>
+      window.removeEventListener("ai-refresh-history", handler as EventListener);
+  }, [loadChatHistory]);
   const processStreamResponse = useCallback(
     async (
       messageId: string,
@@ -533,6 +548,10 @@ const AiConversation = () => {
             });
             sessionId = response.data.data.session_id;
             setCurrentSessionId(sessionId);
+            // 保存到 localStorage
+            if (sectionId) {
+              localStorage.setItem(`ai-session-${sectionId}`, sessionId);
+            }
             console.log("新会话创建成功:", sessionId);
           }
 
@@ -598,6 +617,10 @@ const AiConversation = () => {
 
       // 清空当前消息并设置新的会话ID
       setCurrentSessionId(newSessionId);
+      // 保存到 localStorage
+      if (sectionId) {
+        localStorage.setItem(`ai-session-${sectionId}`, newSessionId);
+      }
       setMessages([
         {
           id: nanoid(),

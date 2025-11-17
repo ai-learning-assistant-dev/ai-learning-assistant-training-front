@@ -1,7 +1,7 @@
 import { VideoPlayer } from "@/components/video-player";
 import type { VideoPlayerHandle } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
-import { courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
+import { courseServer, exerciseResultServer, sectionsServer, aiChatServer } from "@/server/training-server";
 import { useNavigate, useParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
@@ -42,6 +42,28 @@ export function SectionDetail() {
   const changeStage = async (nextStage: Stage) => {
     if(data.data.unlocked === 2){
       setStage(nextStage);
+      
+      // 切换到对照学习阶段时调用学习总结评语
+      if(nextStage === 'compare'){
+        try {
+          const user = getLoginUser();
+          // 获取当前会话ID（从localStorage或其他地方）
+          const sessionId = localStorage.getItem(`ai-session-${params.sectionId}`) || '';
+          
+          if(user?.user_id && params.sectionId && sessionId) {
+            await aiChatServer.learningReview({
+              userId: user.user_id,
+              sectionId: params.sectionId as string,
+              sessionId: sessionId
+            });
+            
+            // 刷新聊天历史记录
+            window.dispatchEvent(new CustomEvent('ai-refresh-history'));
+          }
+        } catch (error) {
+          console.error('学习总结评语生成失败:', error);
+        }
+      }
     }else{
       if(stage === 'video'){
         if(nextStage === 'examination'){
