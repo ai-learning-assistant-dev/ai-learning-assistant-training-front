@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { serverHost } from '@/server/training-server';
+import { X } from 'lucide-react';
 
 interface CaptchaData {
   geetest_seccode: string;
@@ -105,7 +106,7 @@ const BilibiliLoginModal: React.FC<SmsLoginModalProps> = ({ visible, onClose, on
   const isPhoneValid = useMemo(() => {
     const valid = /^(1[3-9]\d{9})$/.test(phone);
     return valid;
-  }, [phone]); 
+  }, [phone]);
 
   const handlePhoneInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '');
@@ -345,10 +346,13 @@ const BilibiliLoginModal: React.FC<SmsLoginModalProps> = ({ visible, onClose, on
         className="bg-white shadow-lg overflow-hidden animate-fade-in animate-zoom-in p-[52px_65px_29px_65px] rounded-lg box-border w-[520px] select-none relative"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
-        <div
-          className="absolute top-5 right-5 w-8 h-8 bg-[url('https://s1.hdslb.com/bfs/seed/jinkela/short/mini-login-v2/img/close.a35a1809.svg')] bg-cover cursor-pointer z-[2]"
+        <button
+          className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 transition-colors z-[2]"
           onClick={handleClose}
-        ></div>
+          aria-label="关闭"
+        >
+          <X className="w-5 h-5" />
+        </button>
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
           <h3 className="text-xl font-semibold text-gray-800">B站短信登录</h3>
         </div>
