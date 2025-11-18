@@ -407,17 +407,12 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
   /**
    * 生成学习总结评语
    */
-  learningReview = async (data: { userId: string; sectionId: string; sessionId: string }) => {
-    return this.http.post<Status<{
-      strengths: string[];
-      weaknesses: string[];
-      recommendations: string[];
-      overallComment: string;
-    }>>(
-      '/learning-review',
-      data,
-      { baseURL: this.baseUrl }
-    );
+  learningReview = (data: { userId: string; sectionId: string; sessionId: string }) => {
+    return this.apiClient.post(`${this.baseUrl}/learning-review`, data, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }
 

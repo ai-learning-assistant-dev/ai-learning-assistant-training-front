@@ -374,34 +374,40 @@ const AiConversation = () => {
     return () =>
       window.removeEventListener("ai-refresh-history", handler as EventListener);
   }, [loadChatHistory]);
+
   const processStreamResponse = useCallback(
     async (
       messageId: string,
       opts: {
-        message: string;
         sessionId: string;
-        sectionId: string | undefined;
+        sectionId?: string;
         personaId?: string;
+        message?: string;
+        customRequest?: { stream: () => AsyncIterable<any> };
       }
     ) => {
-      const request = aiChatServer.chatStream({
-        userId: getUserId(),
-        message: opts.message,
-        sessionId: opts.sessionId,
-        sectionId: opts.sectionId ?? "",
-        personaId: opts.personaId,
-        daily: !sectionId, // 如果sectionId为空，设置daily=true
-      });
+      const request =
+        opts.customRequest ??
+        aiChatServer.chatStream({
+          userId: getUserId(),
+          message: opts.message ?? "",
+          sessionId: opts.sessionId,
+          sectionId: opts.sectionId ?? "",
+          personaId: opts.personaId,
+          daily: !sectionId, // 如果sectionId为空，设置daily=true
+        });
 
       try {
         for await (const res of request.stream()) {
-          if (res.error) {
-            console.error("AI Chat Stream Error:", res.error);
+          if ((res as any)?.error) {
+            console.error("AI Chat Stream Error:", (res as any).error);
             continue;
           }
 
+          const payload = (res as any)?.result ?? res;
+
           // 使用 ts-pattern 进行模式匹配处理响应格式
-          const textChunk = match(res.result)
+          const textChunk = match(payload)
             .with({ data: { ai_response: P.select(P.string) } }, (str) => {
               console.log("Found ai_response in data:", str);
               return str;
@@ -441,20 +447,36 @@ const AiConversation = () => {
               return null;
             });
 
-          if (textChunk) {
-            setMessages((prev) =>
-              prev.map((msg) => {
-                if (msg.id === messageId) {
-                  return {
-                    ...msg,
-                    content: msg.content + textChunk,
-                    isStreaming: true,
-                  };
-                }
-                return msg;
-              })
-            );
+          if (!textChunk) {
+            continue;
           }
+
+          setMessages((prev) =>
+            prev.map((msg) => {
+              if (msg.id !== messageId) {
+                return msg;
+              }
+
+              const segments = textChunk
+                .split(/(?<=\n)/)
+                .filter((segment) => segment.length > 0);
+
+              const updatedContent = segments.reduce((acc, segment) => {
+                const trimmedSegment = segment.trimStart();
+                if (trimmedSegment.startsWith("#") || trimmedSegment.startsWith("-") || trimmedSegment.startsWith("*") || /^\d+\.\s/.test(trimmedSegment)) {
+                  const separator = acc.endsWith("\n") ? "" : "\n";
+                  return acc + separator + trimmedSegment;
+                }
+                return acc + segment;
+              }, msg.content);
+
+              return {
+                ...msg,
+                content: updatedContent,
+                isStreaming: true,
+              };
+            })
+          );
         }
 
         // Mark streaming as complete
@@ -478,6 +500,82 @@ const AiConversation = () => {
     },
     [sectionId]
   );
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail as
+        | {
+            userId?: string;
+            sectionId?: string;
+            sessionId?: string;
+          }
+        | undefined;
+
+      if (!detail) {
+        return;
+      }
+
+      const resolvedSectionId = detail.sectionId ?? sectionId ?? "";
+      const resolvedSessionId =
+        detail.sessionId ??
+        currentSessionId ??
+        (resolvedSectionId ? localStorage.getItem(`ai-session-${resolvedSectionId}`) : null);
+
+      const resolvedUserId = detail.userId ?? getUserId();
+
+      if (!resolvedSessionId || !resolvedUserId) {
+        console.warn("[learning-review] missing identifiers", {
+          resolvedSessionId,
+          resolvedUserId,
+          resolvedSectionId,
+        });
+        return;
+      }
+
+      if (resolvedSessionId !== currentSessionId) {
+        setCurrentSessionId(resolvedSessionId);
+      }
+
+      const summaryPrompt = "请针对课程学习情况进行总结";
+      const userMessage: ChatMessage = {
+        id: nanoid(),
+        content: summaryPrompt,
+        role: "user",
+        timestamp: new Date(),
+      };
+
+      const assistantMessageId = nanoid();
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        content: "",
+        role: "assistant",
+        timestamp: new Date(),
+        isStreaming: true,
+      };
+
+      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      setIsTyping(true);
+      setStreamingMessageId(assistantMessageId);
+
+      const reviewRequest = aiChatServer.learningReview({
+        userId: resolvedUserId,
+        sectionId: resolvedSectionId,
+        sessionId: resolvedSessionId,
+      });
+
+      void processStreamResponse(assistantMessageId, {
+        sessionId: resolvedSessionId,
+        sectionId: resolvedSectionId,
+        customRequest: reviewRequest,
+      });
+    };
+
+    window.addEventListener("ai-learning-review", handler as EventListener);
+
+    return () => {
+      window.removeEventListener("ai-learning-review", handler as EventListener);
+    };
+  }, [currentSessionId, sectionId, processStreamResponse]);
 
   const simulateTyping = useCallback(
     (
@@ -650,6 +748,14 @@ const AiConversation = () => {
           <FileTextIcon />
           <span className="font-medium text-base">AI对话框</span>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleNewSession}
+          disabled={isTyping}
+        >
+          新建对话
+        </Button>
       </div>
 
       {/* Voice Mode or Text Mode */}
