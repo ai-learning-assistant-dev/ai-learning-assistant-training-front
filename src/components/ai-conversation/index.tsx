@@ -66,6 +66,15 @@ import {
   ItemTitle,
 } from "@/components/ui/item"
 
+export const SEND_TO_AI = 'send-to-ai';
+
+export function sendToAI(message: string){
+  const event = new CustomEvent(SEND_TO_AI, {
+    detail: message
+  });
+  window.dispatchEvent(event);
+}
+
 type ChatMessage = {
   id: string;
   content: string;
@@ -121,6 +130,16 @@ const AiConversation = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
   const sectionId = params.sectionId;
+
+  // ai-conversation组件中监听事件
+  useEffect(() => {
+    const handler = (e: Event) => {
+      setInputValue((e as CustomEvent).detail);
+    };
+    
+    window.addEventListener(SEND_TO_AI, handler);
+    return () => window.removeEventListener(SEND_TO_AI, handler);
+  }, []);
 
   // 流式文本展示函数
   const streamText = useCallback((text: string, onComplete?: () => void) => {
