@@ -6,7 +6,8 @@ import {
   VolumeX,
   Maximize,
   Minimize,
-  PictureInPicture2
+  PictureInPicture2,
+  Subtitles
 } from 'lucide-react';
 import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
@@ -108,8 +109,6 @@ interface PlaybackSpeedMenuProps {
   onSpeedChange: (speed: number) => void;
 }
 
-
-
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 const PlaybackSpeedMenu: React.FC<PlaybackSpeedMenuProps> = ({ currentSpeed, onSpeedChange }) => {
@@ -137,6 +136,57 @@ const PlaybackSpeedMenu: React.FC<PlaybackSpeedMenuProps> = ({ currentSpeed, onS
               onClick={() => onSpeedChange(speed)}
             >
               <span>{speed}x</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Subtitle Menu Component
+interface SubtitleMenuProps {
+  showSubtitles: boolean;
+  hasSubtitles: boolean;
+  onSubtitleToggle: (show: boolean) => void;
+}
+
+const SubtitleMenu: React.FC<SubtitleMenuProps> = ({ showSubtitles, hasSubtitles, onSubtitleToggle }) => {
+  const [showMenu, setShowMenu] = useState(false);
+
+  // 如果没有字幕，不显示菜单
+  if (!hasSubtitles) {
+    return null;
+  }
+
+  const subtitleOptions = [
+    { label: '无', value: false },
+    { label: '中文', value: true }
+  ];
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setShowMenu(true)}
+      onMouseLeave={() => setShowMenu(false)}
+    >
+      <button
+        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+        title={showSubtitles ? '字幕: 中文' : '字幕: 无'}
+      >
+        <Subtitles className={`w-6 h-6 ${showSubtitles ? 'text-[#00AEEC]' : ''}`} />
+      </button>
+      {showMenu && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-sm rounded-[8px] p-[5px_0] text-[14px] shadow-xl min-w-[100px]">
+          {subtitleOptions.map((option) => (
+            <div
+              key={option.label}
+              className={`px-[16px] h-[32px] whitespace-nowrap cursor-pointer flex justify-between items-center hover:bg-white/10 transition-colors ${option.value === showSubtitles ? 'text-[#00a1d6] bg-white/5' : 'text-white'
+                }`}
+              onClick={() => onSubtitleToggle(option.value)}
+            >
+              <span>{option.label}</span>
+              {option.value === showSubtitles && <span className="text-[#00a1d6] ml-2">✓</span>}
             </div>
           ))}
         </div>
@@ -245,6 +295,8 @@ interface VideoControlsProps {
   currentQuality: string;
   currentAutoQuality: string;
   showControls: boolean;
+  showSubtitles: boolean;
+  hasSubtitles: boolean;
   onTogglePlay: () => void;
   onSeek: (e: React.MouseEvent<HTMLDivElement>) => void;
   onVolumeChange: (volume: number) => void;
@@ -254,6 +306,7 @@ interface VideoControlsProps {
   onLoginClick: (quality: Quality) => void;
   onToggleFullscreen: () => void;
   onTogglePiP: () => void;
+  onSubtitleToggle: (show: boolean) => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -272,6 +325,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   currentQuality,
   currentAutoQuality,
   showControls,
+  showSubtitles,
+  hasSubtitles,
   onTogglePlay,
   onSeek,
   onVolumeChange,
@@ -280,7 +335,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onQualityChange,
   onLoginClick,
   onToggleFullscreen,
-  onTogglePiP
+  onTogglePiP,
+  onSubtitleToggle
 }) => {
   const formatTime = (seconds: number): string => {
     if (!isFinite(seconds)) return '00:00';
@@ -323,6 +379,12 @@ const VideoControls: React.FC<VideoControlsProps> = ({
         </div>
 
         <div className="flex items-center gap-[10px]">
+          <SubtitleMenu
+            showSubtitles={showSubtitles}
+            hasSubtitles={hasSubtitles}
+            onSubtitleToggle={onSubtitleToggle}
+          />
+
           <QualityMenu
             qualities={qualities}
             currentQualityIndex={currentQualityIndex}
@@ -336,8 +398,6 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             currentSpeed={currentSpeed}
             onSpeedChange={onSpeedChange}
           />
-
-
 
           {isPiPSupported && (
             <button

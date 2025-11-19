@@ -34,7 +34,7 @@ interface PlayerProps {
   autoPlay?: boolean;
   width?: string;
   height?: string;
-  subtitles?: Subtitle[] | undefined;
+  subtitles?: Subtitle[];
   onError?: (error: Error) => void;
   onLoaded?: (player: MediaPlayerClass) => void;
   onPlay?: () => void;
@@ -103,6 +103,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
     const [isPiPSupported] = useState<boolean>('pictureInPictureEnabled' in document);
     const [currentSubtitle, setCurrentSubtitle] = useState<string>('');
+    const [showSubtitles, setShowSubtitles] = useState<boolean>(true);
 
     // Refs
     const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
@@ -114,7 +115,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
     // 处理字幕数据，预先转换时间为秒数
     const processedSubtitles = useMemo(() => {
-      if (!subtitles) return [];
       return subtitles.map(sub => ({
         ...sub,
         startTime: parseTimeToSeconds(sub.start),
@@ -233,6 +233,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       if (videoPlayerRef.current) {
         videoPlayerRef.current.playbackRate = speed;
       }
+    };
+
+    const handleSubtitleToggle = (show: boolean) => {
+      setShowSubtitles(show);
     };
 
     const toggleFullscreen = () => {
@@ -615,9 +619,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             onClick={togglePlay}
           />
 
-          {currentSubtitle && (
-            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-full max-w-[90%] flex justify-center items-center pointer-events-none px-4 z-20">
-              <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-md text-base md:text-lg lg:text-xl font-sans leading-relaxed max-w-3xl text-center shadow-md border border-white/20 whitespace-pre-wrap break-words select-none">
+          {/* 字幕显示 */}
+          {showSubtitles && currentSubtitle && (
+            <div className="absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4">
+              <div className="bg-black/80 backdrop-blur-sm text-white px-6 py-3 rounded-lg text-lg font-medium max-w-4xl text-center shadow-lg">
                 {currentSubtitle}
               </div>
             </div>
@@ -645,6 +650,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             currentQuality={currentQuality}
             currentAutoQuality={currentAutoQuality}
             showControls={showControls}
+            showSubtitles={showSubtitles}
+            hasSubtitles={subtitles !== undefined && subtitles.length > 0}
             onTogglePlay={togglePlay}
             onSeek={seek}
             onVolumeChange={handleVolumeChange}
@@ -654,6 +661,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             onLoginClick={() => setShowLoginModal(true)}
             onToggleFullscreen={toggleFullscreen}
             onTogglePiP={togglePiP}
+            onSubtitleToggle={handleSubtitleToggle}
           />
         </div>
         <div className="flex gap-4 justify-end">
