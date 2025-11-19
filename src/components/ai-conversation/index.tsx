@@ -65,12 +65,13 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item"
+import { Response } from "@/components/ui/shadcn-io/ai/response";
 
-export const SEND_TO_AI = 'send-to-ai';
+export const SEND_TO_AI = "ai-insert-text";
 
 export function sendToAI(message: string){
   const event = new CustomEvent(SEND_TO_AI, {
-    detail: message
+    detail: { text: message }
   });
   window.dispatchEvent(event);
 }
@@ -130,16 +131,6 @@ const AiConversation = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
   const sectionId = params.sectionId;
-
-  // ai-conversation组件中监听事件
-  useEffect(() => {
-    const handler = (e: Event) => {
-      setInputValue((e as CustomEvent).detail);
-    };
-    
-    window.addEventListener(SEND_TO_AI, handler);
-    return () => window.removeEventListener(SEND_TO_AI, handler);
-  }, []);
 
   // 流式文本展示函数
   const streamText = useCallback((text: string, onComplete?: () => void) => {
@@ -370,13 +361,13 @@ const AiConversation = () => {
           }
         }
       } catch (err) {
-        console.warn("ai-insert-text handler error", err);
+        console.warn(`${SEND_TO_AI} handler error`, err);
       }
     };
 
-    window.addEventListener("ai-insert-text", handler as EventListener);
+    window.addEventListener(SEND_TO_AI, handler);
     return () =>
-      window.removeEventListener("ai-insert-text", handler as EventListener);
+      window.removeEventListener(SEND_TO_AI, handler);
   }, []);
   const processStreamResponse = useCallback(
     async (
@@ -731,7 +722,7 @@ const AiConversation = () => {
                           </span>
                         </div>
                       ) : message.role === "assistant" ? (
-                        <MarkdownRenderer content={message.content} />
+                        <Response>{message.content}</Response>
                       ) : (
                         <p className="leading-7">{message.content}</p>
                       )}

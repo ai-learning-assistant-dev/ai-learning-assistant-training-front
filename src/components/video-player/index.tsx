@@ -4,6 +4,7 @@ import { uniqueId } from 'lodash';
 import { serverHost } from '@/server/training-server';
 import aiVideoAssistantImg from './ai_video_assistant.png'
 import questionHereImg from './question_here.png'
+import { sendToAI } from '../ai-conversation';
 
 export function getBilibiliProxy(bilibiliUrl: string): string {
   if (!bilibiliUrl) return `${serverHost}/proxy/bilibili/video-manifest?bvid=`;
@@ -123,13 +124,7 @@ export const VideoPlayer = forwardRef<VideoPlayerHandle | null, VideoPlayerProps
     const timeStr = `${hh}:${mm}:${ss}`;
     const text = `对于当前时间点：${timeStr}，我有以下问题：\n`;
 
-    try {
-      const ev = new CustomEvent('ai-insert-text', { detail: { text } });
-      window.dispatchEvent(ev);
-      console.log('Dispatched ai-insert-text event:', text);
-    } catch (e) {
-      console.warn('Could not dispatch ai-insert-text event', e);
-    }
+    sendToAI(text)
   }
 
   return (
