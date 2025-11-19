@@ -206,18 +206,30 @@ export default function Selection({
                 const user = getLoginUser();
                 const userId = user?.user_id || '';
                 const sectionId = params.sectionId || undefined;
+                if(sectionId == null){
+                  return;
+                }
 
                 // compose message: include the question, the options text, and reference answer (if any)
                 const optionsText = (shuffledOptions ?? []).map((o, i) => `${selectionNames[i] || i + 1}. ${String(o.label)}`).join('\n');
-                const composedMessage = `${String(question)}\n选项：\n${optionsText}\n${answerKey ? `参考答案：${answerKey}\n` : ''}学生问题：${askText}`;
+                const rightAnswer = shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')
+                const myAnswer = shuffledOptions?.map((item, index) => internal.includes(item.value) ? selectionNames[index] : null).filter(item=>item).join('，')
+                const composedMessage = 
+`${String(question)}
+选项：
+${optionsText}
+标准答案：${rightAnswer}
+学生答案：${myAnswer}
+${answerKey ? `题目解析：${answerKey}` : ''}
+学生问题：${askText}`;
 
-                const payload: any = {
+                const payload = {
                   userId,
                   sectionId,
                   message: composedMessage,
                 };
 
-                const resp = await aiChatServer.chat(payload as any);
+                const resp = await aiChatServer.chat(payload);
                 const anyResp: any = resp;
                 const data = anyResp?.data?.data ?? anyResp?.data ?? anyResp;
                 const aiResp = data?.ai_response ?? data?.content ?? anyResp?.ai_response ?? null;
