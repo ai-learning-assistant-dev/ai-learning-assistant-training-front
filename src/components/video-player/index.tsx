@@ -21,11 +21,20 @@ interface FormatItem {
   codecs?: string;
 }
 
+// 字幕接口定义
+export interface Subtitle {
+  end: string;
+  seq: number;
+  text: string;
+  start: string;
+}
+
 interface PlayerProps {
   url?: string;
   autoPlay?: boolean;
   width?: string;
   height?: string;
+  subtitles?: Subtitle[] | undefined;
   onError?: (error: Error) => void;
   onLoaded?: (player: MediaPlayerClass) => void;
   onPlay?: () => void;
@@ -41,6 +50,16 @@ export interface VideoPlayerRef {
   pause: () => void;
 }
 
+// 时间格式转换工具函数
+const parseTimeToSeconds = (timeString: string): number => {
+  // 格式: HH:MM:SS,mmm
+  const [time, milliseconds] = timeString.split(',');
+  const [hours, minutes, seconds] = time.split(':').map(Number);
+  const ms = Number(milliseconds || 0);
+  
+  return hours * 3600 + minutes * 60 + seconds + ms / 1000;
+};
+
 // Main Video Player Component
 export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
   (
@@ -49,6 +68,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       autoPlay = false,
       width = '100%',
       height = 'auto',
+      subtitles = [],
       onError,
       onLoaded,
       onPlay,
@@ -77,11 +97,12 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [availableQualities, setAvailableQualities] = useState<Quality[]>([]);
     const [currentQualityIndex, setCurrentQualityIndex] = useState<number>(-1);
     const [currentQuality, setCurrentQuality] = useState<string>('自动');
-    const [currentAutoQuality, setCurrentAutoQuality] = useState<string>(''); // 存储自动模式下的实际清晰度
+    const [currentAutoQuality, setCurrentAutoQuality] = useState<string>('');
     const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
     const [switchMessage, setSwitchMessage] = useState<string>('');
     const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
     const [isPiPSupported] = useState<boolean>('pictureInPictureEnabled' in document);
+    const [currentSubtitle, setCurrentSubtitle] = useState<string>('');
 
     // Refs
     const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
@@ -90,6 +111,16 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const formatListRef = useRef<FormatItem[]>([]);
     const hideControlsTimer = useRef<number | null>(null);
     const previousBlobUrl = useRef<string | null>(null);
+
+    // 处理字幕数据，预先转换时间为秒数
+    const processedSubtitles = useMemo(() => {
+      if (!subtitles) return [];
+      return subtitles.map(sub => ({
+        ...sub,
+        startTime: parseTimeToSeconds(sub.start),
+        endTime: parseTimeToSeconds(sub.end)
+      }));
+    }, [subtitles]);
 
     // Computed
     const containerWidth = useMemo(() => {
@@ -100,24 +131,34 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       return height.includes('%') || height.includes('px') ? height : `${height}px`;
     }, [height]);
 
+    // 根据当前时间更新字幕
+    useEffect(() => {
+      if (processedSubtitles.length === 0) {
+        setCurrentSubtitle('');
+        return;
+      }
+
+      const currentSub = processedSubtitles.find(
+        sub => currentTime >= sub.startTime && currentTime <= sub.endTime
+      );
+
+      setCurrentSubtitle(currentSub?.text || '');
+    }, [currentTime, processedSubtitles]);
 
     function getBilibiliProxy(bilibiliUrl: string): string {
       if (!bilibiliUrl) return `${serverHost}/proxy/bilibili/video-manifest?bvid=`;
       try {
-        // Prefer using the URL API to correctly extract the pathname segments
         const urlObj = new URL(bilibiliUrl);
         const parts = urlObj.pathname.split('/').filter(Boolean);
         const bvid = parts.length > 0 ? parts[parts.length - 1] : '';
         return `${serverHost}/proxy/bilibili/video-manifest?bvid=${encodeURIComponent(bvid)}`;
       } catch (err: unknown) {
         console.error('Error parsing URL:', err);
-        // Fallback for relative URLs or non-standard inputs
         const parts = bilibiliUrl.split('/').filter(Boolean);
         const bvid = parts.length > 0 ? parts[parts.length - 1] : '';
         return `${serverHost}/proxy/bilibili/video-manifest?bvid=${encodeURIComponent(bvid)}`;
       }
     }
-
 
     useEffect(() => {
       formatListRef.current = formatListTwo;
@@ -141,9 +182,11 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           console.error("Failed to fetch MPD:", error);
         });
     };
+    
     useEffect(() => {
       refetchManifest();
     }, [url]);
+
     // Handlers
     const togglePlay = () => {
       if (!videoPlayerRef.current) return;
@@ -231,20 +274,16 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         return;
       }
 
-      // 查找当前清晰度对应的标签
       const matchingQuality = formatListRef.current.find((quality) => {
         return quality.id === Number(currentRepresentation.id);
       });
 
       if (matchingQuality) {
-        // 从formatList中找到对应的display_desc
         const formatItem = formatListRef.current.find(item => item.id === matchingQuality.id);
-
         const autoDesc = formatItem?.display_desc;
         if (autoDesc) {
           setCurrentAutoQuality(autoDesc);
         }
-        // 自动模式下，currentQuality 只显示"自动"，不包含括号内容
         setCurrentQuality('自动');
       } else {
         setCurrentQuality('自动');
@@ -344,13 +383,13 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       }
     };
 
-
     const revokePreviousBlobUrl = () => {
       if (previousBlobUrl.current) {
         URL.revokeObjectURL(previousBlobUrl.current);
         previousBlobUrl.current = null;
       }
     };
+
     const initPlayer = () => {
       if (!videoPlayerRef.current) {
         onError?.(new Error('视频元素未初始化'));
@@ -418,13 +457,11 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
               setTimeout(() => setSwitchMessage(''), 1500);
             }
           }
-
         }
       });
       playerRef.current.initialize(videoPlayerRef.current, options.src, autoPlay);
       onLoaded?.(playerRef.current);
     };
-
 
     const handleMetadataLoadedAfterQualityChange = () => {
       if (videoPlayerRef.current) {
@@ -432,6 +469,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         videoPlayerRef.current.removeEventListener('loadedmetadata', handleMetadataLoadedAfterQualityChange);
       }
     };
+
     const destroyPlayer = () => {
       if (playerRef.current) {
         playerRef.current.reset();
@@ -459,17 +497,20 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       revokePreviousBlobUrl();
       playerRef.current.attachSource(newSource.src);
     };
+
     useEffect(() => {
       if (options?.src) {
         updateSrc(options);
       }
     }, [options]);
+
     useImperativeHandle(ref, () => ({
       updateSrc,
       getPlayer: () => playerRef.current,
       play: () => videoPlayerRef.current?.play(),
       pause: () => videoPlayerRef.current?.pause(),
     }));
+
     const handleLoginSuccess = () => {
       setShowLoginModal(false);
       onLoginSuccess?.();
@@ -480,10 +521,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     useEffect(() => {
       if (!videoPlayerRef.current) return;
 
-      // Set initial volume
       videoPlayerRef.current.volume = volume;
 
-      // Add event listeners
       const handlePlay = () => {
         setIsPlaying(true);
         onPlay?.();
@@ -526,7 +565,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
     const messagePosition = showControls ? 'bottom-24' : 'bottom-8';
 
-
     const getProgress = () => {
       const el = videoPlayerRef.current;
       if (!el) {
@@ -544,7 +582,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       const p = getProgress();
       console.log('用户手动获取播放进度：', p);
 
-      // Use player's current playback progress (seconds) and format as HH:MM:SS
       const progress = getProgress();
       const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
       const pad = (n: number) => n.toString().padStart(2, '0');
@@ -563,7 +600,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       }
     }
 
-
     return (
       <div className="flex flex-col gap-4">
         <div
@@ -578,6 +614,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             style={{ width: containerWidth, height: containerHeight }}
             onClick={togglePlay}
           />
+
+          {currentSubtitle && (
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-full max-w-[90%] flex justify-center items-center pointer-events-none px-4 z-20">
+              <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-md text-base md:text-lg lg:text-xl font-sans leading-relaxed max-w-3xl text-center shadow-md border border-white/20 whitespace-pre-wrap break-words select-none">
+                {currentSubtitle}
+              </div>
+            </div>
+          )}
 
           {switchMessage && (
             <div className={`absolute ${messagePosition} left-4 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg z-50 transition-all duration-300 shadow-lg`}>
@@ -613,11 +657,9 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           />
         </div>
         <div className="flex gap-4 justify-end">
-          {/* Empty AI assistant button (left) */}
           <button type="button" className="w-24 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none">
             <img src={aiVideoAssistantImg} alt="AI视频助手" className="max-w-full max-h-full" />
           </button>
-          {/* Progress button replaced by image (right) */}
           <button type="button" className="w-22 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none" onClick={askAI}>
             <img src={questionHereImg} alt="这里不懂" className="max-w-full max-h-full" />
           </button>
