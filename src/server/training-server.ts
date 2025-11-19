@@ -217,6 +217,7 @@ interface ChatRequest {
   useAudio?: boolean;
   ttsOption?: string[];
   daily?: boolean;
+  modelName?: string;
 }
 
 /**
@@ -407,8 +408,19 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
   /**
    * 生成学习总结评语
    */
-  learningReview = (data: { userId: string; sectionId: string; sessionId: string }) => {
+  learningReview = (data: { userId: string; sectionId: string; sessionId: string; modelName?: string }) => {
     return this.apiClient.post(`${this.baseUrl}/learning-review`, data, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  /**
+   * 获取所有可用模型列表
+   */
+  getAllModels = (data: {all?: string[]; default?: string}) => {
+    return this.apiClient.get(`${this.baseUrl}/models`, data, {
       headers: {
         'Content-Type': 'application/json',
       },

@@ -48,7 +48,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { aiChatServer, sectionsServer, type AiPersona } from "@/server/training-server";
+import { aiChatServer, type AiPersona } from "@/server/training-server";
 import { useAutoCache } from "@/containers/auto-cache";
 import { useParams } from "react-router";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
@@ -75,19 +75,11 @@ type ChatMessage = {
   sources?: Array<{ title: string; url: string }>;
   isStreaming?: boolean;
 };
-const models = [
-  { id: "gpt-4o", name: "GPT-4o" },
-  { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet" },
-  { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
-  { id: "llama-3.1-70b", name: "Llama 3.1 70B" },
-  { id: "deepseek-v3.1", name: "DeepSeek V3.1" },
-];
-
-const characters = [
-  { id: "character1", name: "暴躁老师傅" },
-  { id: "character2", name: "温柔助手" },
-  { id: "character3", name: "严谨教授" },
-];
+// const characters = [
+//   { id: "character1", name: "暴躁老师傅" },
+//   { id: "character2", name: "温柔助手" },
+//   { id: "character3", name: "严谨教授" },
+// ];
 
 // 用户和章节ID配置
 function getUserId() {
@@ -105,7 +97,9 @@ const getWebRTCServerUrl = () => {
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [selectedModel, setSelectedModel] = useState(models[0].id);
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
     null
@@ -158,6 +152,105 @@ const AiConversation = () => {
 
   const { data: personasResponse } = useAutoCache(aiChatServer.getPersonas, []);
   const personas = personasResponse?.data || [];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const normalizeModel = (entry: any): string | null => {
+      if (!entry) {
+        return null;
+      }
+      if (typeof entry === "string") {
+        return entry;
+      }
+      if (typeof entry === "object") {
+        const id =
+          entry.id ??
+          entry.modelId ??
+          entry.value ??
+          entry.code ??
+          entry.name ??
+          entry.key;
+        if (!id) {
+          return null;
+        }
+        return String(id);
+      }
+      return null;
+    };
+
+    const loadModels = async () => {
+      try {
+        setIsLoadingModels(true);
+        const response = await aiChatServer.getAllModels({});
+        const raw = await (async () => {
+          if (typeof (response as any)?.json === "function") {
+            return await (response as any).json();
+          }
+          return response as any;
+        })();
+
+        const payload = raw?.data ?? raw ?? {};
+        const candidateArrays = [
+          payload?.all,
+          payload?.models,
+          payload?.items,
+          Array.isArray(payload) ? payload : null,
+        ];
+
+        const source = candidateArrays.find((item) => Array.isArray(item)) ?? [];
+        const normalized = Array.from(
+          new Set(
+            (source as any[]) 
+              .map(normalizeModel)
+              .filter((item): item is string => Boolean(item))
+          )
+        );
+
+        if (cancelled || normalized.length === 0) {
+          return;
+        }
+
+        const defaultIdCandidate =
+          payload?.default ??
+          payload?.defaultModel ??
+          payload?.selected ??
+          payload?.preferred ??
+          raw?.default ??
+          normalized[0];
+
+        if (cancelled) {
+          return;
+        }
+
+        setModelOptions(normalized);
+        setSelectedModel((prev) => {
+          if (prev && normalized.includes(prev)) {
+            return prev;
+          }
+          if (
+            defaultIdCandidate &&
+            normalized.includes(String(defaultIdCandidate))
+          ) {
+            return String(defaultIdCandidate);
+          }
+          return normalized[0];
+        });
+      } catch (error) {
+        console.error("加载模型列表失败:", error);
+      } finally {
+        if (!cancelled) {
+          setIsLoadingModels(false);
+        }
+      }
+    };
+
+    void loadModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 切换人设
   const handlePersonaSwitch = useCallback(async (personaId: string) => {
@@ -384,6 +477,7 @@ const AiConversation = () => {
         personaId?: string;
         message?: string;
         customRequest?: { stream: () => AsyncIterable<any> };
+        modelName?: string;
       }
     ) => {
       const request =
@@ -394,6 +488,7 @@ const AiConversation = () => {
           sessionId: opts.sessionId,
           sectionId: opts.sectionId ?? "",
           personaId: opts.personaId,
+          modelName: opts.modelName ?? (selectedModel || undefined),
           daily: !sectionId, // 如果sectionId为空，设置daily=true
         });
 
@@ -498,7 +593,7 @@ const AiConversation = () => {
         setStreamingMessageId(null);
       }
     },
-    [sectionId]
+    [sectionId, selectedModel]
   );
 
   useEffect(() => {
@@ -561,12 +656,14 @@ const AiConversation = () => {
         userId: resolvedUserId,
         sectionId: resolvedSectionId,
         sessionId: resolvedSessionId,
+        modelName: selectedModel || undefined,
       });
 
       void processStreamResponse(assistantMessageId, {
         sessionId: resolvedSessionId,
         sectionId: resolvedSectionId,
         customRequest: reviewRequest,
+        modelName: selectedModel || undefined,
       });
     };
 
@@ -575,7 +672,7 @@ const AiConversation = () => {
     return () => {
       window.removeEventListener("ai-learning-review", handler as EventListener);
     };
-  }, [currentSessionId, sectionId, processStreamResponse]);
+  }, [currentSessionId, sectionId, selectedModel, processStreamResponse]);
 
   const simulateTyping = useCallback(
     (
@@ -671,6 +768,7 @@ const AiConversation = () => {
             sessionId,
             sectionId,
             personaId: selectedPersona?.persona_id,
+            modelName: selectedModel || undefined,
           });
         } catch (error) {
           console.error("AI Chat Error:", error);
@@ -689,7 +787,15 @@ const AiConversation = () => {
         }
       }, 300);
     },
-    [inputValue, isTyping, currentSessionId, sectionId, processStreamResponse]
+    [
+      inputValue,
+      isTyping,
+      currentSessionId,
+      sectionId,
+      selectedPersona,
+      selectedModel,
+      processStreamResponse,
+    ]
   );
 
   const handleReset = useCallback(() => {
@@ -803,15 +909,20 @@ const AiConversation = () => {
               </Select>
             </div>
 
-            <div className="flex items-center min-w-[140px] h-10">
+            <div className="flex items-center min-w-[160px] h-10">
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="未选择" />
+                <SelectTrigger
+                  className="w-full"
+                  disabled={isLoadingModels || modelOptions.length === 0}
+                >
+                  <SelectValue
+                    placeholder={isLoadingModels ? "加载模型..." : "未选择"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {models.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name}
+                  {modelOptions.map((modelId) => (
+                    <SelectItem key={modelId} value={modelId}>
+                      {modelId}
                     </SelectItem>
                   ))}
                 </SelectContent>
