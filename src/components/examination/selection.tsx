@@ -208,7 +208,7 @@ export default function Selection({
                 const sectionId = params.sectionId || undefined;
 
                 // compose message: include the question, the options text, and reference answer (if any)
-                const optionsText = (options ?? []).map((o, i) => `${selectionNames[i] || i + 1}. ${String(o.label)}`).join('\n');
+                const optionsText = (shuffledOptions ?? []).map((o, i) => `${selectionNames[i] || i + 1}. ${String(o.label)}`).join('\n');
                 const composedMessage = `${String(question)}\n选项：\n${optionsText}\n${answerKey ? `参考答案：${answerKey}\n` : ''}学生问题：${askText}`;
 
                 const payload: any = {
