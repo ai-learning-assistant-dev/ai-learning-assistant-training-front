@@ -141,6 +141,54 @@ export default function Selection({
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
+  const askAI = async () => {
+    if (!askText.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiAnswer(null);
+    try {
+      const user = getLoginUser();
+      const userId = user?.user_id || '';
+      const sectionId = params.sectionId || undefined;
+      if(sectionId == null){
+        return;
+      }
+
+      // compose message: include the question, the options text, and reference answer (if any)
+      const optionsText = (shuffledOptions ?? []).map((o, i) => `${selectionNames[i] || i + 1}. ${String(o.label)}`).join('\n');
+      const rightAnswer = shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')
+      const myAnswer = shuffledOptions?.map((item, index) => internal.includes(item.value) ? selectionNames[index] : null).filter(item=>item).join('，')
+      const composedMessage = 
+`${String(question)}
+选项：
+${optionsText}
+标准答案：${rightAnswer}
+学生答案：${myAnswer}
+${answerKey ? `题目解析：${answerKey}` : ''}
+学生问题：${askText}`;
+
+      const payload = {
+        userId,
+        sectionId,
+        message: composedMessage,
+      };
+
+      const resp = await aiChatServer.chat(payload);
+      const anyResp: any = resp;
+      const data = anyResp?.data?.data ?? anyResp?.data ?? anyResp;
+      const aiResp = data?.ai_response ?? data?.content ?? anyResp?.ai_response ?? null;
+      if (aiResp) {
+        setAiAnswer(String(aiResp));
+      } else {
+        setAiError('未收到AI回复');
+      }
+    } catch (e: any) {
+      setAiError(e?.message || '请求失败');
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
       <div className="flex w-full items-start justify-between">
@@ -197,53 +245,7 @@ export default function Selection({
             style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', fontSize: 14 }}
           />
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <Button type="button" size="sm" onClick={async () => {
-              if (!askText.trim()) return;
-              setAiLoading(true);
-              setAiError(null);
-              setAiAnswer(null);
-              try {
-                const user = getLoginUser();
-                const userId = user?.user_id || '';
-                const sectionId = params.sectionId || undefined;
-                if(sectionId == null){
-                  return;
-                }
-
-                // compose message: include the question, the options text, and reference answer (if any)
-                const optionsText = (shuffledOptions ?? []).map((o, i) => `${selectionNames[i] || i + 1}. ${String(o.label)}`).join('\n');
-                const rightAnswer = shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')
-                const myAnswer = shuffledOptions?.map((item, index) => internal.includes(item.value) ? selectionNames[index] : null).filter(item=>item).join('，')
-                const composedMessage = 
-`${String(question)}
-选项：
-${optionsText}
-标准答案：${rightAnswer}
-学生答案：${myAnswer}
-${answerKey ? `题目解析：${answerKey}` : ''}
-学生问题：${askText}`;
-
-                const payload = {
-                  userId,
-                  sectionId,
-                  message: composedMessage,
-                };
-
-                const resp = await aiChatServer.chat(payload);
-                const anyResp: any = resp;
-                const data = anyResp?.data?.data ?? anyResp?.data ?? anyResp;
-                const aiResp = data?.ai_response ?? data?.content ?? anyResp?.ai_response ?? null;
-                if (aiResp) {
-                  setAiAnswer(String(aiResp));
-                } else {
-                  setAiError('未收到AI回复');
-                }
-              } catch (e: any) {
-                setAiError(e?.message || '请求失败');
-              } finally {
-                setAiLoading(false);
-              }
-            }} disabled={aiLoading}>
+            <Button type="button" size="sm" onClick={askAI} disabled={aiLoading}>
               {aiLoading ? '询问中...' : '发送'}
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={() => { setAskText(''); setAiAnswer(null); setAiError(null); }}>
