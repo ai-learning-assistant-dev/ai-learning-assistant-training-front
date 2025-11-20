@@ -56,7 +56,7 @@ const parseTimeToSeconds = (timeString: string): number => {
   const [time, milliseconds] = timeString.split(',');
   const [hours, minutes, seconds] = time.split(':').map(Number);
   const ms = Number(milliseconds || 0);
-  
+
   return hours * 3600 + minutes * 60 + seconds + ms / 1000;
 };
 
@@ -146,18 +146,38 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     }, [currentTime, processedSubtitles]);
 
     function getBilibiliProxy(bilibiliUrl: string): string {
-      if (!bilibiliUrl) return `${serverHost}/proxy/bilibili/video-manifest?bvid=`;
+      const baseUrl = `${serverHost}/proxy/bilibili/video-manifest?bvid=`;
+      if (!bilibiliUrl) return baseUrl;
+
+      let bvid = '';
+      let p: string | null = null;
+      let cid: string | null = null;
+
       try {
         const urlObj = new URL(bilibiliUrl);
         const parts = urlObj.pathname.split('/').filter(Boolean);
-        const bvid = parts.length > 0 ? parts[parts.length - 1] : '';
-        return `${serverHost}/proxy/bilibili/video-manifest?bvid=${encodeURIComponent(bvid)}`;
-      } catch (err: unknown) {
-        console.error('Error parsing URL:', err);
-        const parts = bilibiliUrl.split('/').filter(Boolean);
-        const bvid = parts.length > 0 ? parts[parts.length - 1] : '';
-        return `${serverHost}/proxy/bilibili/video-manifest?bvid=${encodeURIComponent(bvid)}`;
+        bvid = parts.length > 0 ? parts[parts.length - 1] : '';
+        p = urlObj.searchParams.get('p');
+        cid = urlObj.searchParams.get('cid');
+      } catch {
+        const urlParts = bilibiliUrl.split('?');
+        const pathParts = urlParts[0].split('/').filter(Boolean);
+        bvid = pathParts.length > 0 ? pathParts[pathParts.length - 1] : '';
+        if (urlParts.length > 1) {
+          const queryParams = new URLSearchParams(urlParts[1]);
+          p = queryParams.get('p');
+          cid = queryParams.get('cid');
+        }
       }
+
+      let proxyUrl = `${baseUrl}${encodeURIComponent(bvid)}`;
+      if (p !== null) {
+        proxyUrl += `&p=${encodeURIComponent(p)}`;
+      }
+      if (cid !== null) {
+        proxyUrl += `&cid=${encodeURIComponent(cid)}`;
+      }
+      return proxyUrl;
     }
 
     useEffect(() => {
@@ -182,7 +202,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           console.error("Failed to fetch MPD:", error);
         });
     };
-    
+
     useEffect(() => {
       refetchManifest();
     }, [url]);
