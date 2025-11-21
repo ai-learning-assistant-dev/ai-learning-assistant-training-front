@@ -1,65 +1,87 @@
 import { HttpClient } from "@/lib/http-client";
+import hookFetch from "hook-fetch";
+import { sseTextDecoderPlugin } from "hook-fetch/plugins/sse";
 
 //export const serverHost = 'http://localhost:3000';
-export const serverHost = window.location.protocol + "//" + window.location.host + "/api";
+export const serverHost =
+  window.location.protocol + "//" + window.location.host + "/api";
 
 const modelEnum = [
-  '/courses',
-  '/chapters',
-  '/sections',
-  '/health',
-  '/ai-chat',
-  '/exercises',
-  '/exercise-results',
-  '/users',
+  "/courses",
+  "/chapters",
+  "/sections",
+  "/health",
+  "/ai-chat",
+  "/exercises",
+  "/exercise-results",
+  "/users",
 ] as const;
 
 export interface Pagination {
-  totalPages: number,
-  total: number,
-  limit: number,
-  page: number
+  totalPages: number;
+  total: number;
+  limit: number;
+  page: number;
 }
 
 export interface PaginationParam {
-  limit: number,
-  page: number
+  limit: number;
+  page: number;
 }
 
-export interface Status<T>
-{
-  success: boolean,
+export interface Status<T> {
+  success: boolean;
   /** 200是正常 */
-  statusCode: number,
-  data: T,
-  message: string,
-  pagination: Pagination
+  statusCode: number;
+  data: T;
+  message: string;
+  pagination: Pagination;
 }
 
 /** 调用技能培训后端接口的类，提供了基本的增删改查功能 */
 export class TrainingServer<T> {
   http: HttpClient;
-  baseUrl = '';
-  constructor(model: typeof modelEnum[number] = '/health', schema: string = serverHost,) {
-    this.http = new HttpClient()
-    this.baseUrl = schema + model
+  baseUrl = "";
+  constructor(
+    model: (typeof modelEnum)[number] = "/health",
+    schema: string = serverHost
+  ) {
+    this.http = new HttpClient();
+    this.baseUrl = schema + model;
   }
   search = async (data?: Partial<T> & PaginationParam) => {
-    return (await this.http.post<Status<T[]>>('/search', data, { baseURL: this.baseUrl })).data;
-  }
+    return (
+      await this.http.post<Status<T[]>>("/search", data, {
+        baseURL: this.baseUrl,
+      })
+    ).data;
+  };
   getById = async (data: Partial<T>) => {
-    return (await this.http.post<Status<T>>('/getById', data, { baseURL: this.baseUrl })).data;
-  }
+    return (
+      await this.http.post<Status<T>>("/getById", data, {
+        baseURL: this.baseUrl,
+      })
+    ).data;
+  };
   add = async (data: Partial<T>) => {
-    return (await this.http.post<Status<T>>('/add', data, { baseURL: this.baseUrl })).data;
-  }
+    return (
+      await this.http.post<Status<T>>("/add", data, { baseURL: this.baseUrl })
+    ).data;
+  };
   update = async (data: Partial<T>) => {
-    return (await this.http.post<Status<T>>('/update', data, { baseURL: this.baseUrl })).data;
-  }
+    return (
+      await this.http.post<Status<T>>("/update", data, {
+        baseURL: this.baseUrl,
+      })
+    ).data;
+  };
   delete = async (data: Partial<T>) => {
-    return (await this.http.post<Status<T>>('/delete', data, { baseURL: this.baseUrl })).data;
-  }
-
+    return (
+      await this.http.post<Status<T>>("/delete", data, {
+        baseURL: this.baseUrl,
+      })
+    ).data;
+  };
 }
 
 export interface CourseResponse {
@@ -74,35 +96,51 @@ export interface CourseResponse {
 /** 调用课程接口的类，继承了基本增删改查的接口 */
 export class CourseServer extends TrainingServer<CourseResponse> {
   constructor() {
-    super('/courses');
+    super("/courses");
   }
 
-  getCourseChaptersSections = async (data: Partial<CourseResponse & { user_id?: string }>)=>{
-    return (await this.http.post<Status<CourseResponse>>('/getCourseChaptersSections', data, { baseURL: this.baseUrl })).data;
-  }
+  getCourseChaptersSections = async (
+    data: Partial<CourseResponse & { user_id?: string }>
+  ) => {
+    return (
+      await this.http.post<Status<CourseResponse>>(
+        "/getCourseChaptersSections",
+        data,
+        { baseURL: this.baseUrl }
+      )
+    ).data;
+  };
 
-  getNextSections = async (courseId?: string, sectionId?: string)=>{
-    if(!courseId || !sectionId){
+  getNextSections = async (courseId?: string, sectionId?: string) => {
+    if (!courseId || !sectionId) {
       return null;
     }
-    const course = (await this.http.post<Status<CourseResponse>>('/getCourseChaptersSections', {course_id: courseId}, { baseURL: this.baseUrl })).data;
+    const course = (
+      await this.http.post<Status<CourseResponse>>(
+        "/getCourseChaptersSections",
+        { course_id: courseId },
+        { baseURL: this.baseUrl }
+      )
+    ).data;
     const allSections: SectionResponse[] = [];
-    if(course.data.chapters){
-      for(let chapter of course.data.chapters){
-        if(chapter.sections){
-          for(let section of chapter.sections){
+    if (course.data.chapters) {
+      for (let chapter of course.data.chapters) {
+        if (chapter.sections) {
+          for (let section of chapter.sections) {
             allSections.push(section);
           }
         }
       }
     }
-    const sectionIndex = allSections.findIndex((section)=>section.section_id === sectionId);
-    if(sectionIndex == -1 || sectionIndex >= allSections.length){
+    const sectionIndex = allSections.findIndex(
+      (section) => section.section_id === sectionId
+    );
+    if (sectionIndex == -1 || sectionIndex >= allSections.length) {
       return null;
-    }else{
+    } else {
       return allSections[sectionIndex + 1];
     }
-  }
+  };
 }
 export const courseServer = new CourseServer();
 
@@ -119,7 +157,7 @@ export interface ChapterResponse {
 /** 调用课程章接口的类，继承了基本增删改查的接口 */
 export class ChapterServer extends TrainingServer<ChapterResponse> {
   constructor() {
-    super('/chapters');
+    super("/chapters");
   }
 }
 export const chapterServer = new ChapterServer();
@@ -136,17 +174,17 @@ export type SectionResponse = {
   section_order: number;
   /** 0: lock, 1: learning, 2: pass */
   unlocked: number;
-}
+};
 
 /** 调用课程节数据接口的类，继承了基本增删改查的接口 */
 export class SectionServer extends TrainingServer<SectionResponse> {
   constructor() {
-    super('/sections');
+    super("/sections");
   }
   /** 可以这样写调用后端复杂的接口 */
   someApi = async () => {
-    return this.http.get('', { baseURL: this.baseUrl })
-  }
+    return this.http.get("", { baseURL: this.baseUrl });
+  };
 }
 export const sectionsServer = new SectionServer();
 
@@ -168,14 +206,17 @@ interface SessionInfo {
 }
 
 /**
- * AI聊天接口请求体
+ * AI聊天接口请求体，日常聊天复用该结构体
  */
 interface ChatRequest {
   userId: string;
-  sectionId?: string;
+  sectionId: string;
   message: string;
   personaId?: string;
   sessionId?: string;
+  useAudio?: boolean;
+  ttsOption?: string[];
+  daily?: boolean;
 }
 
 /**
@@ -234,11 +275,6 @@ interface SessionHistoryResponse {
   history: HistoryMessage[];
 }
 
-// 每日聊天，上下文存储于内存中，用于主页会话。
-export interface DailyChatRequest {
-  message: string;
-}
-
 /**
  * AI流式聊天响应
  */
@@ -253,62 +289,119 @@ interface ChatStreamResponse {
   persona_id_in_use?: string;
 }
 
+/**
+ * AI人设信息
+ */
+export interface AiPersona {
+  persona_id: string;
+  name: string;
+  prompt: string;
+  is_default_template: boolean;
+}
+
+/**
+ * 切换人设请求
+ */
+interface SwitchPersonaRequest {
+  sessionId: string;
+  personaId: string;
+}
+
+/**
+ * 切换人设响应
+ */
+interface SwitchPersonaResponse {
+  success: boolean;
+  message: string;
+}
+
 export class AIChatServer extends TrainingServer<SessionInfo> {
+  //https://jsonlee12138.github.io/hook-fetch/docs/streaming/#%E4%BD%BF%E7%94%A8-sse-%E6%8F%92%E4%BB%B6
+  apiClient = hookFetch.create({
+    plugins: [
+      sseTextDecoderPlugin({
+        json: true, // 自动解析 JSON
+        prefix: "data: ", // 移除 "data: " 前缀
+        splitSeparator: "\n\n", // 事件分隔符
+        lineSeparator: "\n", // 行分隔符
+        trim: true, // 去除首尾空白
+        doneSymbol: "[DONE]", // 结束标记
+      }),
+    ],
+  });
+
   constructor() {
-    super('/ai-chat');
+    super("/ai-chat");
   }
-  
+
   new = async (data: CreateSessionRequest) => {
-    return this.http.post<Status<SessionInfo>>('/sessions/new', data, { baseURL: this.baseUrl });
-  }
+    return this.http.post<Status<SessionInfo>>("/sessions/new", data, {
+      baseURL: this.baseUrl,
+    });
+  };
 
   chat = async (data: ChatRequest) => {
-    return this.http.post<Status<ChatResponse>>('/chat', data, { baseURL: this.baseUrl });
-  }
+    return this.http.post<Status<ChatResponse>>("/chat", data, {
+      baseURL: this.baseUrl,
+    });
+  };
 
-  chatStream = async (data: ChatRequest) => {
-    // 使用 fetch API 来获取流式响应
-    const response = await fetch(`${this.baseUrl}/chat/stream`, {
-      method: 'POST',
+  chatStream = (data: ChatRequest) => {
+    return this.apiClient.post(`${this.baseUrl}/chat/stream`, data, {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(data),
     });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    if (!response.body) {
-      throw new Error('Response body is null');
-    }
-
-    // 直接返回原始流，让调用方处理
-    return response.body;
-  }
+  };
 
   /**
    * 获取用户在指定章节的所有会话列表
    */
   getSessionsByUserAndSection = async (userId: string, sectionId?: string) => {
     return this.http.get<Status<UserSectionSessionsResponse>>(
-      '/sessionID/by-user-section', 
-      { 
+      "/sessionID/by-user-section",
+      {
         baseURL: this.baseUrl,
-        params: { userId, sectionId }
+        params: { userId, sectionId },
       }
     );
-  }
+  };
 
   /**
    * 获取会话的对话历史
    */
   getSessionHistory = async (sessionId: string, withoutInner: boolean) => {
     return this.http.get<Status<SessionHistoryResponse>>(
-      `/history/${sessionId}`, 
+      `/history/${sessionId}`,
       { baseURL: this.baseUrl, params: { withoutInner } }
     );
+  }
+
+  /**
+   * 获取当前课程所有人设列表
+   */
+  getPersonas = async (courseId?: string, userId?: string) => {
+    return (await this.http.get<Status<AiPersona[]>>(
+      '/personas',
+      {
+        baseURL: this.baseUrl,
+        params: { 
+          ...(courseId ? { courseId } : {}),
+          ...(userId ? { userId } : {})
+        }
+      }
+    )).data;
+  }
+
+  /**
+   * 切换当前会话的人设
+   */
+  switchPersona = async (data: SwitchPersonaRequest) => {
+    return (await this.http.post<Status<SwitchPersonaResponse>>(
+      '/switch-persona',
+      data,
+      { baseURL: this.baseUrl }
+    )).data;
   }
 }
 
@@ -338,16 +431,21 @@ export interface ExerciseOption {
 
 class ExerciseServer extends TrainingServer<ExerciseResponse> {
   constructor() {
-    super('/exercises');
+    super("/exercises");
   }
 
   getExercisesWithOptionsBySection = async (data: Partial<SectionResponse>) => {
-    return (await this.http.post<Status<ExerciseResponse[]>>('/getExercisesWithOptionsBySection', data, { baseURL: this.baseUrl })).data;
-  }
+    return (
+      await this.http.post<Status<ExerciseResponse[]>>(
+        "/getExercisesWithOptionsBySection",
+        data,
+        { baseURL: this.baseUrl }
+      )
+    ).data;
+  };
 }
 
 export const exerciseServer = new ExerciseServer();
-
 
 export interface Test {
   test_id: string;
@@ -385,23 +483,23 @@ const exrciseResultExample = {
   pass: true,
   user_score: 60,
   score: 100,
-  ai_feedback: '',
+  ai_feedback: "",
   results: [
     {
-      exercise_id: 'string',
+      exercise_id: "string",
       user_score: 6,
       core: 10,
-      ai_feedback: 'string',
-      user_answer: 'string',
-    }
-  ]
+      ai_feedback: "string",
+      user_answer: "string",
+    },
+  ],
 };
 
-export type ExrciseResultCompose= typeof exrciseResultExample;
+export type ExrciseResultCompose = typeof exrciseResultExample;
 
 class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
   constructor() {
-    super('/exercise-results');
+    super("/exercise-results");
   }
 
   saveExerciseResults = async (data: {
@@ -411,24 +509,36 @@ class ExerciseResultServer extends TrainingServer<ExerciseResponse> {
     list: {
       exercise_id: string;
       user_answer?: string;
-    }[]
+    }[];
   }) => {
-    return (await this.http.post<Status<ExrciseResultCompose>>('/saveExerciseResults', data, { baseURL: this.baseUrl })).data;
-  }
+    return (
+      await this.http.post<Status<ExrciseResultCompose>>(
+        "/saveExerciseResults",
+        data,
+        { baseURL: this.baseUrl }
+      )
+    ).data;
+  };
 
   getExerciseResults = async (data: {
     user_id: string;
     section_id?: string;
     test_result_id?: string;
-  })=>{
-    return (await this.http.post<Status<ExrciseResultCompose>>('/getExerciseResults', data, { baseURL: this.baseUrl })).data;
-  }
+  }) => {
+    return (
+      await this.http.post<Status<ExrciseResultCompose>>(
+        "/getExerciseResults",
+        data,
+        { baseURL: this.baseUrl }
+      )
+    ).data;
+  };
 }
 
 export const exerciseResultServer = new ExerciseResultServer();
 
 export interface UserResponse {
-  user_id:string;
+  user_id: string;
   name: string;
   avatar_url?: string;
   education_level?: string;
@@ -444,7 +554,7 @@ export interface UserResponse {
 /** 调用课程接口的类，继承了基本增删改查的接口 */
 export class UserServer extends TrainingServer<UserResponse> {
   constructor() {
-    super('/users');
+    super("/users");
   }
 }
 export const userServer = new UserServer();

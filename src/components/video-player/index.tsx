@@ -8,6 +8,7 @@ import VideoControls from '../video-controls';
 import BilibiliLoginModal from '../bilibili-login-modal';
 import aiVideoAssistantImg from './ai_video_assistant.png'
 import questionHereImg from './question_here.png'
+import { sendToAI } from '../ai-conversation';
 
 export interface Source {
   src: string;
@@ -601,28 +602,22 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         ended: el.ended,
       };
     }
+  const askAI = () => {
+    const p = getProgress();
+    console.log('用户手动获取播放进度：', p);
 
-    const askAI = () => {
-      const p = getProgress();
-      console.log('用户手动获取播放进度：', p);
+    // Use player's current playback progress (seconds) and format as HH:MM:SS
+    const progress = getProgress();
+    const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const hh = pad(Math.floor(currentSeconds / 3600));
+    const mm = pad(Math.floor((currentSeconds % 3600) / 60));
+    const ss = pad(currentSeconds % 60);
+    const timeStr = `${hh}:${mm}:${ss}`;
+    const text = `对于当前时间点：${timeStr}，我有以下问题：\n`;
 
-      const progress = getProgress();
-      const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      const hh = pad(Math.floor(currentSeconds / 3600));
-      const mm = pad(Math.floor((currentSeconds % 3600) / 60));
-      const ss = pad(currentSeconds % 60);
-      const timeStr = `${hh}:${mm}:${ss}`;
-      const text = `对于当前时间点：${timeStr}，我有以下问题：\n`;
-
-      try {
-        const ev = new CustomEvent('ai-insert-text', { detail: { text } });
-        window.dispatchEvent(ev);
-        console.log('Dispatched ai-insert-text event:', text);
-      } catch (e) {
-        console.warn('Could not dispatch ai-insert-text event', e);
-      }
-    }
+    sendToAI(text)
+  }
 
     return (
       <div className="flex flex-col gap-4">

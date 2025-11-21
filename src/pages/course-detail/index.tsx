@@ -50,7 +50,7 @@ export function CourseDetail() {
                     {
                       chapter?.sections?.map((section)=>(
                         <TableRow key={section.section_id}>
-                          <TableCell className="font-medium">{section.title}<Badge variant="secondary" className="text-gray-400 m-2">{section.unlocked && unlockState[section.unlocked]}</Badge></TableCell>
+                          <TableCell className="font-medium">{section.title}<Badge variant="secondary" className="text-gray-400 m-2">{section.unlocked !== null && unlockState[section.unlocked]}</Badge></TableCell>
                           <TableCell className="text-center">
                             {
                               section.unlocked !== 0 && (
