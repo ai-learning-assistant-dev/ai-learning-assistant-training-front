@@ -11,6 +11,7 @@ export type {
   FastRTCClientEvents,
   WebRTCError,
   VisualizerConfig,
+  Subtitle,
 } from "./types";
 
 // 音频波形可视化模块

@@ -2,20 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MicIcon, MicOffIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { FastRTCClient } from "@/lib/rtc-client";
-
-// 字幕类型定义（从 rtc-client types 复制）
-type Subtitle =
-  | {
-      type: "request";
-      timestamp: "";
-      text: string;
-    }
-  | {
-      type: "response";
-      timestamp: number;
-      text: string;
-    };
+import { FastRTCClient, type Subtitle } from "@/lib/rtc-client";
 
 type VoiceUIProps = {
   userId: string;
@@ -81,10 +68,9 @@ export const VoiceUI = ({
         const client = new FastRTCClient({
           serverUrl,
           llmMetadata: {
-            userId: "26dd2c68-74d0-4b3f-8da4-3c6ff3bf3313",
-            sessionId:
-              "session_26dd2c68-74d0-4b3f-8da4-3c6ff3bf3313_fa2bbd84-1f87-4327-82ca-69efdd6e0e92_2025-11-12",
-            sectionId: "fa2bbd84-1f87-4327-82ca-69efdd6e0e92",
+            userId,
+            sessionId,
+            sectionId,
             personaId,
           },
           visualizer: {
@@ -183,6 +169,7 @@ export const VoiceUI = ({
   // 处理麦克风静音
   const toggleMute = useCallback(() => {
     if (rtcClientRef.current) {
+      console.log("toggleMute");
       const newMutedState = rtcClientRef.current.toggleMute();
       setIsMuted(newMutedState);
     }
@@ -207,7 +194,7 @@ export const VoiceUI = ({
   const stateInfo = getStateInfo();
 
   return (
-    <div className="flex-1 flex flex-col bg-gradient-to-b from-gray-50 to-white pl-8 pr-8 relative">
+    <div className="flex-1 flex flex-col bg-linear-to-b from-gray-50 to-white pl-8 pr-8 relative">
       {/* Main Voice Interface */}
       <div className="flex-1 flex flex-col items-center justify-between gap-1">
         {/* AI 语音输出可视化圆球 (背景透明) */}
