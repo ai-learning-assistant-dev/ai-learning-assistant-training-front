@@ -132,6 +132,7 @@ export const VoiceUI = ({
         // 监听错误
         client.on("error", (error) => {
           console.error("RTC Error:", error);
+          setCurrentSubtitle("发生错误，请退出重试。");
         });
 
         // 再次检查是否已卸载
@@ -143,6 +144,7 @@ export const VoiceUI = ({
         }
 
         // 连接到服务器
+        setConnectionState("connecting");
         await client.connect();
         console.log("✅ FastRTCClient 已连接到服务器");
       } catch (error) {
@@ -190,7 +192,24 @@ export const VoiceUI = ({
     }
   };
 
-  const stateInfo = getStateInfo();
+  // 监听连接状态变化
+  useEffect(() => {
+    const info = getStateInfo();
+    setCurrentSubtitle(info.text);
+    setSubtitles((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1].text === info.text)
+        return prev;
+
+      const newSubtitle: SubtitleItem = {
+        id: `${Date.now()}-${Math.random()}`,
+        type: "assistant",
+        text: info.text,
+        timestamp: Date.now(),
+      };
+
+      return [...prev, newSubtitle];
+    });
+  }, [connectionState]);
 
   return (
     <div className="flex-1 flex flex-col pl-8 pr-8 relative">

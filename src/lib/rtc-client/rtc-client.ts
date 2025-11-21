@@ -628,7 +628,7 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
    */
   private async sendOfferWithRetry(
     offer: RTCSessionDescriptionInit,
-    maxRetries: number = 3,
+    maxRetries: number = 5,
     retryDelay: number = 1000
   ): Promise<RTCSessionDescriptionInit> {
     let lastError: Error | null = null;
