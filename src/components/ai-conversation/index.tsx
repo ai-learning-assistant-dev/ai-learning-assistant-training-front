@@ -48,7 +48,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { aiChatServer, sectionsServer, type AiPersona } from "@/server/training-server";
+import { aiChatServer, type AiPersona } from "@/server/training-server";
 import { useAutoCache } from "@/containers/auto-cache";
 import { useParams } from "react-router";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
@@ -85,19 +85,11 @@ type ChatMessage = {
   sources?: Array<{ title: string; url: string }>;
   isStreaming?: boolean;
 };
-const models = [
-  { id: "gpt-4o", name: "GPT-4o" },
-  { id: "claude-3-5-sonnet", name: "Claude 3.5 Sonnet" },
-  { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
-  { id: "llama-3.1-70b", name: "Llama 3.1 70B" },
-  { id: "deepseek-v3.1", name: "DeepSeek V3.1" },
-];
-
-const characters = [
-  { id: "character1", name: "暴躁老师傅" },
-  { id: "character2", name: "温柔助手" },
-  { id: "character3", name: "严谨教授" },
-];
+// const characters = [
+//   { id: "character1", name: "暴躁老师傅" },
+//   { id: "character2", name: "温柔助手" },
+//   { id: "character3", name: "严谨教授" },
+// ];
 
 // 用户和章节ID配置
 function getUserId() {
@@ -115,7 +107,9 @@ const getWebRTCServerUrl = () => {
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [selectedModel, setSelectedModel] = useState(models[0].id);
+  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(
     null
@@ -168,6 +162,105 @@ const AiConversation = () => {
 
   const { data: personasResponse } = useAutoCache(aiChatServer.getPersonas, []);
   const personas = personasResponse?.data || [];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const normalizeModel = (entry: any): string | null => {
+      if (!entry) {
+        return null;
+      }
+      if (typeof entry === "string") {
+        return entry;
+      }
+      if (typeof entry === "object") {
+        const id =
+          entry.id ??
+          entry.modelId ??
+          entry.value ??
+          entry.code ??
+          entry.name ??
+          entry.key;
+        if (!id) {
+          return null;
+        }
+        return String(id);
+      }
+      return null;
+    };
+
+    const loadModels = async () => {
+      try {
+        setIsLoadingModels(true);
+        const response = await aiChatServer.getAllModels({});
+        const raw = await (async () => {
+          if (typeof (response as any)?.json === "function") {
+            return await (response as any).json();
+          }
+          return response as any;
+        })();
+
+        const payload = raw?.data ?? raw ?? {};
+        const candidateArrays = [
+          payload?.all,
+          payload?.models,
+          payload?.items,
+          Array.isArray(payload) ? payload : null,
+        ];
+
+        const source = candidateArrays.find((item) => Array.isArray(item)) ?? [];
+        const normalized = Array.from(
+          new Set(
+            (source as any[]) 
+              .map(normalizeModel)
+              .filter((item): item is string => Boolean(item))
+          )
+        );
+
+        if (cancelled || normalized.length === 0) {
+          return;
+        }
+
+        const defaultIdCandidate =
+          payload?.default ??
+          payload?.defaultModel ??
+          payload?.selected ??
+          payload?.preferred ??
+          raw?.default ??
+          normalized[0];
+
+        if (cancelled) {
+          return;
+        }
+
+        setModelOptions(normalized);
+        setSelectedModel((prev) => {
+          if (prev && normalized.includes(prev)) {
+            return prev;
+          }
+          if (
+            defaultIdCandidate &&
+            normalized.includes(String(defaultIdCandidate))
+          ) {
+            return String(defaultIdCandidate);
+          }
+          return normalized[0];
+        });
+      } catch (error) {
+        console.error("加载模型列表失败:", error);
+      } finally {
+        if (!cancelled) {
+          setIsLoadingModels(false);
+        }
+      }
+    };
+
+    void loadModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // 切换人设
   const handlePersonaSwitch = useCallback(async (personaId: string) => {
@@ -270,6 +363,10 @@ const AiConversation = () => {
         sessionId = sessionsResponse.data.data.sessions[0].session_id;
         console.log("使用最新的会话ID:", sessionId);
         setCurrentSessionId(sessionId);
+        // 保存到 localStorage
+        if (sectionId) {
+          localStorage.setItem(`ai-session-${sectionId}`, sessionId);
+        }
 
         // 3. 获取并加载历史记录
         const historyResponse = await aiChatServer.getSessionHistory(
@@ -369,34 +466,53 @@ const AiConversation = () => {
     return () =>
       window.removeEventListener(SEND_TO_AI, handler);
   }, []);
+
+  // Listen for chat history refresh requests
+  useEffect(() => {
+    const handler = () => {
+      loadChatHistory();
+    };
+
+    window.addEventListener("ai-refresh-history", handler as EventListener);
+    return () =>
+      window.removeEventListener("ai-refresh-history", handler as EventListener);
+  }, [loadChatHistory]);
+
   const processStreamResponse = useCallback(
     async (
       messageId: string,
       opts: {
-        message: string;
         sessionId: string;
-        sectionId: string | undefined;
+        sectionId?: string;
         personaId?: string;
+        message?: string;
+        customRequest?: { stream: () => AsyncIterable<any> };
+        modelName?: string;
       }
     ) => {
-      const request = aiChatServer.chatStream({
-        userId: getUserId(),
-        message: opts.message,
-        sessionId: opts.sessionId,
-        sectionId: opts.sectionId ?? "",
-        personaId: opts.personaId,
-        daily: !sectionId, // 如果sectionId为空，设置daily=true
-      });
+      const request =
+        opts.customRequest ??
+        aiChatServer.chatStream({
+          userId: getUserId(),
+          message: opts.message ?? "",
+          sessionId: opts.sessionId,
+          sectionId: opts.sectionId ?? "",
+          personaId: opts.personaId,
+          modelName: opts.modelName ?? (selectedModel || undefined),
+          daily: !sectionId, // 如果sectionId为空，设置daily=true
+        });
 
       try {
         for await (const res of request.stream()) {
-          if (res.error) {
-            console.error("AI Chat Stream Error:", res.error);
+          if ((res as any)?.error) {
+            console.error("AI Chat Stream Error:", (res as any).error);
             continue;
           }
 
+          const payload = (res as any)?.result ?? res;
+
           // 使用 ts-pattern 进行模式匹配处理响应格式
-          const textChunk = match(res.result)
+          const textChunk = match(payload)
             .with({ data: { ai_response: P.select(P.string) } }, (str) => {
               console.log("Found ai_response in data:", str);
               return str;
@@ -436,20 +552,36 @@ const AiConversation = () => {
               return null;
             });
 
-          if (textChunk) {
-            setMessages((prev) =>
-              prev.map((msg) => {
-                if (msg.id === messageId) {
-                  return {
-                    ...msg,
-                    content: msg.content + textChunk,
-                    isStreaming: true,
-                  };
-                }
-                return msg;
-              })
-            );
+          if (!textChunk) {
+            continue;
           }
+
+          setMessages((prev) =>
+            prev.map((msg) => {
+              if (msg.id !== messageId) {
+                return msg;
+              }
+
+              const segments = textChunk
+                .split(/(?<=\n)/)
+                .filter((segment) => segment.length > 0);
+
+              const updatedContent = segments.reduce((acc, segment) => {
+                const trimmedSegment = segment.trimStart();
+                if (trimmedSegment.startsWith("#") || trimmedSegment.startsWith("-") || trimmedSegment.startsWith("*") || /^\d+\.\s/.test(trimmedSegment)) {
+                  const separator = acc.endsWith("\n") ? "" : "\n";
+                  return acc + separator + trimmedSegment;
+                }
+                return acc + segment;
+              }, msg.content);
+
+              return {
+                ...msg,
+                content: updatedContent,
+                isStreaming: true,
+              };
+            })
+          );
         }
 
         // Mark streaming as complete
@@ -471,8 +603,86 @@ const AiConversation = () => {
         setStreamingMessageId(null);
       }
     },
-    [sectionId]
+    [sectionId, selectedModel]
   );
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent)?.detail as
+        | {
+            userId?: string;
+            sectionId?: string;
+            sessionId?: string;
+          }
+        | undefined;
+
+      if (!detail) {
+        return;
+      }
+
+      const resolvedSectionId = detail.sectionId ?? sectionId ?? "";
+      const resolvedSessionId =
+        detail.sessionId ??
+        currentSessionId ??
+        (resolvedSectionId ? localStorage.getItem(`ai-session-${resolvedSectionId}`) : null);
+
+      const resolvedUserId = detail.userId ?? getUserId();
+
+      if (!resolvedSessionId || !resolvedUserId) {
+        console.warn("[learning-review] missing identifiers", {
+          resolvedSessionId,
+          resolvedUserId,
+          resolvedSectionId,
+        });
+        return;
+      }
+
+      if (resolvedSessionId !== currentSessionId) {
+        setCurrentSessionId(resolvedSessionId);
+      }
+
+      const summaryPrompt = "请针对课程学习情况进行总结";
+      const userMessage: ChatMessage = {
+        id: nanoid(),
+        content: summaryPrompt,
+        role: "user",
+        timestamp: new Date(),
+      };
+
+      const assistantMessageId = nanoid();
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        content: "",
+        role: "assistant",
+        timestamp: new Date(),
+        isStreaming: true,
+      };
+
+      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      setIsTyping(true);
+      setStreamingMessageId(assistantMessageId);
+
+      const reviewRequest = aiChatServer.learningReview({
+        userId: resolvedUserId,
+        sectionId: resolvedSectionId,
+        sessionId: resolvedSessionId,
+        modelName: selectedModel || undefined,
+      });
+
+      void processStreamResponse(assistantMessageId, {
+        sessionId: resolvedSessionId,
+        sectionId: resolvedSectionId,
+        customRequest: reviewRequest,
+        modelName: selectedModel || undefined,
+      });
+    };
+
+    window.addEventListener("ai-learning-review", handler as EventListener);
+
+    return () => {
+      window.removeEventListener("ai-learning-review", handler as EventListener);
+    };
+  }, [currentSessionId, sectionId, selectedModel, processStreamResponse]);
 
   const simulateTyping = useCallback(
     (
@@ -543,6 +753,10 @@ const AiConversation = () => {
             });
             sessionId = response.data.data.session_id;
             setCurrentSessionId(sessionId);
+            // 保存到 localStorage
+            if (sectionId) {
+              localStorage.setItem(`ai-session-${sectionId}`, sessionId);
+            }
             console.log("新会话创建成功:", sessionId);
           }
 
@@ -564,6 +778,7 @@ const AiConversation = () => {
             sessionId,
             sectionId,
             personaId: selectedPersona?.persona_id,
+            modelName: selectedModel || undefined,
           });
         } catch (error) {
           console.error("AI Chat Error:", error);
@@ -582,7 +797,15 @@ const AiConversation = () => {
         }
       }, 300);
     },
-    [inputValue, isTyping, currentSessionId, sectionId, processStreamResponse]
+    [
+      inputValue,
+      isTyping,
+      currentSessionId,
+      sectionId,
+      selectedPersona,
+      selectedModel,
+      processStreamResponse,
+    ]
   );
 
   const handleReset = useCallback(() => {
@@ -608,6 +831,10 @@ const AiConversation = () => {
 
       // 清空当前消息并设置新的会话ID
       setCurrentSessionId(newSessionId);
+      // 保存到 localStorage
+      if (sectionId) {
+        localStorage.setItem(`ai-session-${sectionId}`, newSessionId);
+      }
       setMessages([
         {
           id: nanoid(),
@@ -637,6 +864,14 @@ const AiConversation = () => {
           <FileTextIcon />
           <span className="font-medium text-base">AI对话框</span>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleNewSession}
+          disabled={isTyping}
+        >
+          新建对话
+        </Button>
       </div>
 
       {/* Voice Mode or Text Mode */}
@@ -684,15 +919,20 @@ const AiConversation = () => {
               </Select>
             </div>
 
-            <div className="flex items-center min-w-[140px] h-10">
+            <div className="flex items-center min-w-[160px] h-10">
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="未选择" />
+                <SelectTrigger
+                  className="w-full"
+                  disabled={isLoadingModels || modelOptions.length === 0}
+                >
+                  <SelectValue
+                    placeholder={isLoadingModels ? "加载模型..." : "未选择"}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {models.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name}
+                  {modelOptions.map((modelId) => (
+                    <SelectItem key={modelId} value={modelId}>
+                      {modelId}
                     </SelectItem>
                   ))}
                 </SelectContent>
