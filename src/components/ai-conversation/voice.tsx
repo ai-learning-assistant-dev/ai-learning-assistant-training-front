@@ -169,7 +169,6 @@ export const VoiceUI = ({
   // 处理麦克风静音
   const toggleMute = useCallback(() => {
     if (rtcClientRef.current) {
-      console.log("toggleMute");
       const newMutedState = rtcClientRef.current.toggleMute();
       setIsMuted(newMutedState);
     }
@@ -194,7 +193,7 @@ export const VoiceUI = ({
   const stateInfo = getStateInfo();
 
   return (
-    <div className="flex-1 flex flex-col bg-linear-to-b from-gray-50 to-white pl-8 pr-8 relative">
+    <div className="flex-1 flex flex-col pl-8 pr-8 relative">
       {/* Main Voice Interface */}
       <div className="flex-1 flex flex-col items-center justify-between gap-1">
         {/* AI 语音输出可视化圆球 (背景透明) */}
