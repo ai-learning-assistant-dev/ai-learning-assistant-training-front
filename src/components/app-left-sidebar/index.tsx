@@ -19,6 +19,7 @@ import { Progress } from "@/components/ui/progress"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { SiteHeader } from "./site-header"
 import { getLoginUser } from "@/containers/auth-middleware"
+import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 // Menu items.
 const topItems = [
   {
@@ -126,9 +127,11 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
         <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 overflow-y-auto" style={{height: 'calc(100svh - 80px)'}}>
+            <ScrollArea className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 " style={{height: 'calc(100svh - 64px)'}}>
               {children}
-            </div>
+              <ScrollBar orientation="vertical" />
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
           </div>
         </div>
       </SidebarInset>

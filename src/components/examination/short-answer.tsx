@@ -88,7 +88,7 @@ export default function ShortAnswer({
   const [aiError, setAiError] = useState<string | null>(null);
 
   return (
-    <div style={{ maxWidth: 720 }}>
+    <div style={{ width: 720 }}>
       <label htmlFor={textareaId} style={{ display: "block", marginBottom: 8}} className="font-semibold">
         <div className="flex w-full items-start justify-between">
           <div>{question}</div>
