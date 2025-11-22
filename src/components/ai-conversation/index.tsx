@@ -66,6 +66,7 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
+import { Streamdown } from "streamdown";
 
 export const SEND_TO_AI = "ai-insert-text";
 
@@ -150,32 +151,6 @@ const AiConversation = () => {
   const params = useParams();
   const sectionId = params.sectionId;
 
-  // 流式文本展示函数
-  const streamText = useCallback((text: string, onComplete?: () => void) => {
-    // 清除之前的定时器
-    if (streamingTimerRef.current) {
-      clearInterval(streamingTimerRef.current);
-    }
-
-    setCurrentMessage("");
-    let currentIndex = 0;
-
-    streamingTimerRef.current = window.setInterval(() => {
-      if (currentIndex < text.length) {
-        setCurrentMessage(text.slice(0, currentIndex + 1));
-        currentIndex++;
-      } else {
-        if (streamingTimerRef.current) {
-          clearInterval(streamingTimerRef.current);
-          streamingTimerRef.current = null;
-        }
-        if (onComplete) {
-          onComplete();
-        }
-      }
-    }, 50); // 每50ms添加一个字符
-  }, []);
-
   // 当voiceState变为listening时，将current移到previous
   useEffect(() => {
     if (voiceState === "listening" && currentMessage) {
@@ -216,19 +191,11 @@ const AiConversation = () => {
     const loadModels = async () => {
       try {
         setIsLoadingModels(true);
-        const response = await aiChatServer.getAllModels({});
-        const raw = await (async () => {
-          if (typeof (response as any)?.json === "function") {
-            return await (response as any).json();
-          }
-          return response as any;
-        })();
+        const response = await aiChatServer.getAllModels();
+        const payload = response.data?.data ?? {};
 
-        const payload = raw?.data ?? raw ?? {};
         const candidateArrays = [
           payload?.all,
-          payload?.models,
-          payload?.items,
           Array.isArray(payload) ? payload : null,
         ];
 
@@ -246,13 +213,7 @@ const AiConversation = () => {
           return;
         }
 
-        const defaultIdCandidate =
-          payload?.default ??
-          payload?.defaultModel ??
-          payload?.selected ??
-          payload?.preferred ??
-          raw?.default ??
-          normalized[0];
+        const defaultIdCandidate = payload?.default ?? normalized[0];
 
         if (cancelled) {
           return;
@@ -480,110 +441,18 @@ const AiConversation = () => {
   }, [loadChatHistory]);
 
   const processStreamResponse = useCallback(
-    async (
-      messageId: string,
-      opts: {
-        sessionId: string;
-        sectionId?: string;
-        personaId?: string;
-        message?: string;
-        customRequest?: { stream: () => AsyncIterable<any> };
-        modelName?: string;
-      }
-    ) => {
-      const request =
-        opts.customRequest ??
-        aiChatServer.chatStream({
-          userId: getUserId(),
-          message: opts.message ?? "",
-          sessionId: opts.sessionId,
-          sectionId: opts.sectionId ?? "",
-          personaId: opts.personaId,
-          modelName: opts.modelName ?? (selectedModel || undefined),
-          daily: !sectionId, // 如果sectionId为空，设置daily=true
-        });
-
+    async (messageId: string, stream: AsyncIterable<string>) => {
       try {
-        for await (const res of request.stream()) {
-          if ((res as any)?.error) {
-            console.error("AI Chat Stream Error:", (res as any).error);
-            continue;
-          }
-
-          const payload = (res as any)?.result ?? res;
-
-          // 使用 ts-pattern 进行模式匹配处理响应格式
-          const textChunk = match(payload)
-            .with({ data: { ai_response: P.select(P.string) } }, (str) => {
-              console.log("Found ai_response in data:", str);
-              return str;
-            })
-            .with({ ai_response: P.select(P.string) }, (str) => {
-              console.log("Found ai_response:", str);
-              return str;
-            })
-            .with({ content: P.select(P.string) }, (str) => {
-              console.log("Found content:", str);
-              return str;
-            })
-            .with(
-              {
-                choices: [
-                  { delta: { content: P.select(P.string) } },
-                  ...P.array(),
-                ],
-              },
-              (str) => {
-                console.log("Found OpenAI format:", str);
-                return str;
-              }
-            )
-            .with(P.string.startsWith("data: "), (dataStr) => {
-              const str = dataStr?.replace("data: ", "") ?? "";
-              console.log("Using 'data: ' content:", str);
-              return str;
-            })
-            .with(P.string, (str) => {
-              console.log("Using raw string:", str);
-              return str?.replace("data: ", "") ?? "";
-            })
-            // 未匹配到的格式
-            .otherwise((data) => {
-              console.log("No recognized format, parsed object:", data);
-              return null;
-            });
-
-          if (!textChunk) {
-            continue;
-          }
+        for await (const textChunk of stream) {
+          if (!textChunk) continue;
 
           setMessages((prev) =>
             prev.map((msg) => {
-              if (msg.id !== messageId) {
-                return msg;
-              }
-
-              const segments = textChunk
-                .split(/(?<=\n)/)
-                .filter((segment) => segment.length > 0);
-
-              const updatedContent = segments.reduce((acc, segment) => {
-                const trimmedSegment = segment.trimStart();
-                if (
-                  trimmedSegment.startsWith("#") ||
-                  trimmedSegment.startsWith("-") ||
-                  trimmedSegment.startsWith("*") ||
-                  /^\d+\.\s/.test(trimmedSegment)
-                ) {
-                  const separator = acc.endsWith("\n") ? "" : "\n";
-                  return acc + separator + trimmedSegment;
-                }
-                return acc + segment;
-              }, msg.content);
+              if (msg.id !== messageId) return msg;
 
               return {
                 ...msg,
-                content: updatedContent,
+                content: msg.content + textChunk,
                 isStreaming: true,
               };
             })
@@ -670,19 +539,14 @@ const AiConversation = () => {
       setIsTyping(true);
       setStreamingMessageId(assistantMessageId);
 
-      const reviewRequest = aiChatServer.learningReview({
-        userId: resolvedUserId,
-        sectionId: resolvedSectionId,
-        sessionId: resolvedSessionId,
-        modelName: selectedModel || undefined,
-      });
-
-      void processStreamResponse(assistantMessageId, {
-        sessionId: resolvedSessionId,
-        sectionId: resolvedSectionId,
-        customRequest: reviewRequest,
-        modelName: selectedModel || undefined,
-      });
+      aiChatServer
+        .learningReview({
+          userId: resolvedUserId,
+          sectionId: resolvedSectionId,
+          sessionId: resolvedSessionId,
+          modelName: selectedModel || undefined,
+        })
+        .then((res) => processStreamResponse(assistantMessageId, res));
     };
 
     window.addEventListener(AI_LEARNING_REVIEW, handler as EventListener);
@@ -781,13 +645,16 @@ const AiConversation = () => {
           setStreamingMessageId(assistantMessageId);
 
           // Start real stream processing
-          await processStreamResponse(assistantMessageId, {
+          const response = await aiChatServer.textChatStream({
+            userId: getUserId(),
             message: currentInput,
             sessionId,
-            sectionId,
+            sectionId: sectionId ?? "",
             personaId: selectedPersona?.persona_id,
             modelName: selectedModel || undefined,
+            daily: !sectionId, // 如果sectionId为空，设置daily=true
           });
+          await processStreamResponse(assistantMessageId, response);
         } catch (error) {
           console.error("AI Chat Error:", error);
           setIsTyping(false);
@@ -982,7 +849,7 @@ const AiConversation = () => {
                           </span>
                         </div>
                       ) : message.role === "assistant" ? (
-                        <Response>{message.content}</Response>
+                        <Streamdown>{message.content}</Streamdown>
                       ) : (
                         <p className="leading-7">{message.content}</p>
                       )}
