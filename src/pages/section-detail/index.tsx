@@ -1,5 +1,4 @@
 import { VideoPlayer } from "@/components/video-player";
-import type { VideoPlayerHandle } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
 import { courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
 import { useNavigate, useParams } from "react-router";
@@ -13,6 +12,7 @@ import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { aiLearningReview } from "@/components/ai-conversation";
+import { scrollCenterTop } from "@/components/app-left-sidebar";
 
 export function SectionDetail() {
   const params = useParams();
@@ -20,7 +20,7 @@ export function SectionDetail() {
   const [stage, setStage] = useState<Stage>('video');
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
-  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[params.courseId, params.sectionId]);
+  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[getLoginUser()?.user_id, params.courseId, params.sectionId]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
@@ -28,6 +28,17 @@ export function SectionDetail() {
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [isExaminationPassed, setIsExaminationPassed] = useState(false);
   const learningReviewTriggeredRef = useRef(false);
+
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(()=>{
+    if(exerciseResult != null){
+      if(exerciseResult.data.pass){
+        setStage('compare');
+      }
+    }
+
+  },[exerciseResult])
 
   useEffect(() => {
     if (loading || error || !data) {
@@ -82,14 +93,27 @@ export function SectionDetail() {
   };
 
   const changeStage = async (nextStage: Stage) => {
-    // 直接设置阶段，具体的限制逻辑已经在 SectionStage 中处理
-    setStage(nextStage);
-  };
+    if(exerciseResult?.data.pass){
+      setStage(nextStage);
+    }else{
+      if(stage === 'video'){
+        if(nextStage === 'examination'){
+          setStage(nextStage)
+        }
+      }else if(stage === 'examination'){
+        
+      }else if(stage === 'compare'){
+
+      }
+    }
+    
+  }
 
   const goToNextSection = async () => {
     if(nextSection){
       navigate(`/app/courseList/courseDetail/${params.courseId}/sectionDetail/${nextSection.section_id}`)
       setStage('video')
+      scrollCenterTop();
     }else{
       navigate(`/app/courseList/courseDetail/${params.courseId}`)
     }
@@ -98,7 +122,7 @@ export function SectionDetail() {
   if (loading === false && error == null) {
     const section = data.data;
     return (
-      <div className="flex flex-col gap-4 px-6">
+      <div className="flex flex-col gap-4 px-6" ref={rootRef}>
         <SectionHeader />
         <SectionStage 
           stage={stage} 

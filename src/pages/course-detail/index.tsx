@@ -32,7 +32,7 @@ export function CourseDetail() {
   if (loading === false && error == null) {
     const course = data.data;
     return (
-      <div className="flex p-[24px] w-full">
+      <div className="flex pl-[24px] pr-[24px]">
         <Tabs defaultValue="sectionList" className="w-full">
           <TabsList>
             <TabsTrigger value="sectionList">课程大纲</TabsTrigger>
@@ -69,7 +69,6 @@ export function CourseDetail() {
             </Table>
           </TabsContent>
         </Tabs>
-        
       </div>
     )
   }
