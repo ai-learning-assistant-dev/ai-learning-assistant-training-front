@@ -39,8 +39,6 @@ export const VoiceUI = ({
 
   // 初始化 WebRTC 连接
   useEffect(() => {
-    let ignore = false; // 用于处理 React 严格模式的清理
-
     // 防止重复初始化：如果已经有实例，直接返回
     if (rtcClientRef.current) {
       console.log("✅ FastRTCClient 实例已存在，跳过初始化");
@@ -78,13 +76,6 @@ export const VoiceUI = ({
             outputContainerId: "output-visualizer",
           },
         });
-
-        // 如果在创建过程中组件被卸载（React 严格模式），则立即清理
-        if (ignore) {
-          console.log("⚠️ 组件已卸载，放弃初始化并清理");
-          await client.disconnect();
-          return;
-        }
 
         // 先保存实例引用，防止重复创建
         rtcClientRef.current = client;
@@ -132,16 +123,8 @@ export const VoiceUI = ({
         // 监听错误
         client.on("error", (error) => {
           console.error("RTC Error:", error);
-          setCurrentSubtitle("发生错误，请退出重试。");
+          setConnectionState("failed");
         });
-
-        // 再次检查是否已卸载
-        if (ignore) {
-          console.log("⚠️ 组件已卸载，取消连接");
-          await client.disconnect();
-          rtcClientRef.current = null;
-          return;
-        }
 
         // 连接到服务器
         setConnectionState("connecting");
@@ -159,12 +142,6 @@ export const VoiceUI = ({
     // 清理函数 - 只在组件卸载时执行
     return () => {
       console.log("🔴 VoiceUI 组件卸载，清理 FastRTCClient");
-      ignore = true; // 标记为已取消，防止异步操作继续
-
-      if (rtcClientRef.current) {
-        rtcClientRef.current.disconnect();
-        rtcClientRef.current = null;
-      }
     };
   }, []); // 空依赖数组，只在组件挂载时执行一次
 
@@ -186,7 +163,7 @@ export const VoiceUI = ({
       case "disconnected":
         return { text: "未连接" };
       case "failed":
-        return { text: "连接失败" };
+        return { text: "发生错误，请退出重试。" };
       default:
         return { text: connectionState };
     }
@@ -194,6 +171,7 @@ export const VoiceUI = ({
 
   // 监听连接状态变化
   useEffect(() => {
+    // console.log("connectionState", connectionState);
     const info = getStateInfo();
     setCurrentSubtitle(info.text);
     setSubtitles((prev) => {
@@ -210,6 +188,14 @@ export const VoiceUI = ({
       return [...prev, newSubtitle];
     });
   }, [connectionState]);
+
+  const closeVoice = useCallback(async () => {
+    if (rtcClientRef.current) {
+      await rtcClientRef.current.disconnect();
+      rtcClientRef.current = null;
+    }
+    onClose();
+  }, [onClose]);
 
   return (
     <div className="flex-1 flex flex-col pl-8 pr-8 relative">
@@ -268,8 +254,11 @@ export const VoiceUI = ({
           <Button
             variant="destructive"
             size="icon"
-            onClick={onClose}
+            onClick={closeVoice}
             className="w-12 h-12 rounded-full"
+            disabled={
+              !isConnected || !["failed", "connected"].includes(connectionState)
+            }
           >
             <XIcon className="h-5 w-5" />
           </Button>

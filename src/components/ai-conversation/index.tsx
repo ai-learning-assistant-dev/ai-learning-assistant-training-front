@@ -48,7 +48,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { aiChatServer, sectionsServer, type AiPersona } from "@/server/training-server";
+import {
+  aiChatServer,
+  sectionsServer,
+  type AiPersona,
+} from "@/server/training-server";
 import { useAutoCache } from "@/containers/auto-cache";
 import { useParams } from "react-router";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
@@ -64,14 +68,14 @@ import {
   ItemDescription,
   ItemMedia,
   ItemTitle,
-} from "@/components/ui/item"
+} from "@/components/ui/item";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 
 export const SEND_TO_AI = "ai-insert-text";
 
-export function sendToAI(message: string){
+export function sendToAI(message: string) {
   const event = new CustomEvent(SEND_TO_AI, {
-    detail: { text: message }
+    detail: { text: message },
   });
   window.dispatchEvent(event);
 }
@@ -123,10 +127,16 @@ const AiConversation = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const [voiceState, setVoiceState] = useState<'listening' | 'buffering' | 'speaking'>('listening');
-  const [currentMessage, setCurrentMessage] = useState('');
-  const [previousMessage, setPreviousMessage] = useState('欢迎使用语音对话功能');
-  const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(null);
+  const [isVoiceModeAble, setIsVoiceModeAble] = useState(true);
+  const [voiceState, setVoiceState] = useState<
+    "listening" | "buffering" | "speaking"
+  >("listening");
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [previousMessage, setPreviousMessage] =
+    useState("欢迎使用语音对话功能");
+  const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(
+    null
+  );
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
@@ -139,7 +149,7 @@ const AiConversation = () => {
       clearInterval(streamingTimerRef.current);
     }
 
-    setCurrentMessage('');
+    setCurrentMessage("");
     let currentIndex = 0;
 
     streamingTimerRef.current = window.setInterval(() => {
@@ -160,9 +170,9 @@ const AiConversation = () => {
 
   // 当voiceState变为listening时，将current移到previous
   useEffect(() => {
-    if (voiceState === 'listening' && currentMessage) {
+    if (voiceState === "listening" && currentMessage) {
       setPreviousMessage(currentMessage);
-      setCurrentMessage('');
+      setCurrentMessage("");
     }
   }, [voiceState, currentMessage]);
 
@@ -170,66 +180,42 @@ const AiConversation = () => {
   const personas = personasResponse?.data || [];
 
   // 切换人设
-  const handlePersonaSwitch = useCallback(async (personaId: string) => {
-    const persona = personas.filter(persona => persona.persona_id === personaId)[0];
-    if (!currentSessionId) {
-      // 如果没有会话，直接切换选中的人设
-      setSelectedPersona(persona);
-      return;
-    }
-
-    try {
-      const response = await aiChatServer.switchPersona({
-        sessionId: currentSessionId,
-        personaId: persona.persona_id
-      });
-
-      if (response.data.success) {
+  const handlePersonaSwitch = useCallback(
+    async (personaId: string) => {
+      const persona = personas.filter(
+        (persona) => persona.persona_id === personaId
+      )[0];
+      if (!currentSessionId) {
+        // 如果没有会话，直接切换选中的人设
         setSelectedPersona(persona);
-
-        // 添加系统消息提示用户人设已切换
-        const systemMessage: ChatMessage = {
-          id: nanoid(),
-          content: `已切换到人设：${persona.name}`,
-          role: 'assistant',
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, systemMessage]);
+        return;
       }
-    } catch (error) {
-      console.error('切换人设失败:', error);
-      alert('切换人设失败，请重试');
-    }
-  }, [currentSessionId]);
 
+      try {
+        const response = await aiChatServer.switchPersona({
+          sessionId: currentSessionId,
+          personaId: persona.persona_id,
+        });
 
-  // Mock演示函数：模拟用户语音输入和AI回复
-  const triggerMockDemo = useCallback(() => {
-    // 清除之前的定时器
-    if (streamingTimerRef.current) {
-      clearInterval(streamingTimerRef.current);
-    }
+        if (response.data.success) {
+          setSelectedPersona(persona);
 
-    // 1. 用户输入 (listening)
-    setVoiceState('listening');
-    streamText('用户：请帮我解释一下React的useState是什么？', () => {
-      // 2. 等待1秒，切换到buffering状态
-      setTimeout(() => {
-        setVoiceState('buffering');
-
-        // 3. 再等待1秒，开始AI回复
-        setTimeout(() => {
-          setVoiceState('speaking');
-          streamText('AI：useState是React的一个Hook，它允许你在函数组件中添加state。它接受初始state作为参数，返回一个包含当前state值和更新state的函数的数组。', () => {
-            // 4. 等待2秒，切换回listening状态（这会触发previous message更新）
-            setTimeout(() => {
-              setVoiceState('listening');
-            }, 2000);
-          });
-        }, 1000);
-      }, 1000);
-    });
-  }, [streamText]);
+          // 添加系统消息提示用户人设已切换
+          const systemMessage: ChatMessage = {
+            id: nanoid(),
+            content: `已切换到人设：${persona.name}`,
+            role: "assistant",
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, systemMessage]);
+        }
+      } catch (error) {
+        console.error("切换人设失败:", error);
+        alert("切换人设失败，请重试");
+      }
+    },
+    [currentSessionId]
+  );
 
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
@@ -366,8 +352,7 @@ const AiConversation = () => {
     };
 
     window.addEventListener(SEND_TO_AI, handler);
-    return () =>
-      window.removeEventListener(SEND_TO_AI, handler);
+    return () => window.removeEventListener(SEND_TO_AI, handler);
   }, []);
   const processStreamResponse = useCallback(
     async (
@@ -626,6 +611,14 @@ const AiConversation = () => {
     }
   }, [sectionId]);
 
+  const onVoiceClose = useCallback(() => {
+    setIsVoiceMode(false);
+    setIsVoiceModeAble(false);
+    setTimeout(() => {
+      setIsVoiceModeAble(true);
+    }, 2000);
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -647,11 +640,11 @@ const AiConversation = () => {
               <Fingerprint className="size-5" />
             </ItemMedia>
             <ItemContent>
-              <ItemTitle>{selectedPersona ? selectedPersona.name : '默认人设'}</ItemTitle>
+              <ItemTitle>
+                {selectedPersona ? selectedPersona.name : "默认人设"}
+              </ItemTitle>
             </ItemContent>
-            <ItemActions>
-              AI人设
-            </ItemActions>
+            <ItemActions>AI人设</ItemActions>
           </Item>
           <VoiceUI
             userId={getUserId()}
@@ -659,9 +652,7 @@ const AiConversation = () => {
             sectionId={sectionId || ""}
             personaId={selectedPersona?.persona_id}
             serverUrl={getWebRTCServerUrl()}
-            onClose={() => {
-              setIsVoiceMode(false);
-            }}
+            onClose={onVoiceClose}
           />
         </>
       ) : (
@@ -670,13 +661,19 @@ const AiConversation = () => {
           {/* AI Settings and Model Selection */}
           <div className="flex items-center gap-2 border-b px-4 py-3">
             <div className="flex items-center flex-1 h-10">
-              <Select value={selectedPersona?.persona_id} onValueChange={handlePersonaSwitch}>
+              <Select
+                value={selectedPersona?.persona_id}
+                onValueChange={handlePersonaSwitch}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="默认人设" />
                 </SelectTrigger>
                 <SelectContent>
                   {personas.map((persona) => (
-                    <SelectItem key={persona.persona_id} value={persona.persona_id}>
+                    <SelectItem
+                      key={persona.persona_id}
+                      value={persona.persona_id}
+                    >
                       {persona.name}
                     </SelectItem>
                   ))}
@@ -774,21 +771,15 @@ const AiConversation = () => {
           <div className="px-4 pt-1 pb-4 bg-white">
             {/* Toolbar buttons */}
             <div className="flex items-center gap-2 mb-3">
-              <Button
-                variant={'outline'}
-                disabled={isTyping}
-              >
+              <Button variant={"outline"} disabled={isTyping}>
                 <MicIcon className="size-5 text-muted-foreground" />
               </Button>
-              <Button
-                variant={'outline'}
-                disabled={isTyping}
-              >
+              <Button variant={"outline"} disabled={isTyping}>
                 <ArrowUpIcon className="size-5 text-muted-foreground" />
               </Button>
               <Button
-                variant={'outline'}
-                disabled={isTyping}
+                variant={"outline"}
+                disabled={isTyping || !isVoiceModeAble}
                 onClick={() => setIsVoiceMode(true)}
               >
                 <PhoneIcon className="size-5 text-muted-foreground" />
