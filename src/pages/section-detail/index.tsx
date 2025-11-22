@@ -1,6 +1,6 @@
 import { VideoPlayer } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
-import { courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
+import { aiChatServer, courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
 import { useNavigate, useParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
@@ -39,33 +39,50 @@ export function SectionDetail() {
   },[exerciseResult])
 
   useEffect(() => {
-    if (loading || error || !data) {
-      return;
+    const run = async () => {
+      if (loading || error || !data) {
+        return;
+      }
+
+      if (stage !== 'compare') {
+        learningReviewTriggeredRef.current = false;
+        return;
+      }
+
+      const user = getLoginUser();
+      var sessionId: string | null = localStorage.getItem(`ai-session-${params.sectionId}`);
+
+      if (!user?.user_id || !params.sectionId) {
+        console.error('[learning-review] skipped due to missing identifiers', {
+          hasUserId: Boolean(user?.user_id),
+          hasSectionId: Boolean(params.sectionId),
+        });
+        return;
+      }
+
+      if (sessionId === null) {
+        var session = await aiChatServer.new({
+          userId: user.user_id,
+          sectionId: params.sectionId,
+        })
+        sessionId = session.data.data.session_id;
+      }
+
+      if (!sessionId) {
+        console.error('[learning-review] skipped due to missing identifiers', {
+          hasSession: Boolean(sessionId),
+        });
+        return;
+      }
+
+      if (learningReviewTriggeredRef.current) {
+        return;
+      }
+      learningReviewTriggeredRef.current = true;
+
+      aiLearningReview(user.user_id,params.sectionId,sessionId);
     }
-
-    if (stage !== 'compare') {
-      learningReviewTriggeredRef.current = false;
-      return;
-    }
-
-    const user = getLoginUser();
-    const sessionId = localStorage.getItem(`ai-session-${params.sectionId}`) || '';
-
-    if (!user?.user_id || !params.sectionId || !sessionId) {
-      console.warn('[learning-review] skipped due to missing identifiers', {
-        hasUserId: Boolean(user?.user_id),
-        hasSectionId: Boolean(params.sectionId),
-        hasSessionId: Boolean(sessionId),
-      });
-      return;
-    }
-
-    if (learningReviewTriggeredRef.current) {
-      return;
-    }
-    learningReviewTriggeredRef.current = true;
-
-    aiLearningReview(user.user_id,params.sectionId,sessionId);
+    run();
   }, [stage, params.sectionId, loading, error, data]);
 
   if (loading) {
