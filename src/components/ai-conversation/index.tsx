@@ -351,7 +351,7 @@ const AiConversation = () => {
           {
             id: nanoid(),
             content:
-              "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
+              "你好，我是你的AI学习助手，目前处于闲聊模式。",
             role: "assistant",
             timestamp: new Date(),
           },
@@ -419,7 +419,7 @@ const AiConversation = () => {
           {
             id: nanoid(),
             content:
-              "Hello! I'm your AI assistant. I can help you with coding questions, explain concepts, and provide guidance on web development topics. What would you like to know?",
+              "你好，我是你的AI课程助手，目前处于课程模式。",
             role: "assistant",
             timestamp: new Date(),
             sources: [
@@ -437,7 +437,7 @@ const AiConversation = () => {
       setMessages([
         {
           id: nanoid(),
-          content: "Hello! I'm your AI assistant. What would you like to know?",
+          content: "你好，我是你的AI课程助手，有什么可以帮助你的？",
           role: "assistant",
           timestamp: new Date(),
         },
