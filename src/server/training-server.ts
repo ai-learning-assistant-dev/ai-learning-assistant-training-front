@@ -111,14 +111,14 @@ export class CourseServer extends TrainingServer<CourseResponse> {
     ).data;
   };
 
-  getNextSections = async (courseId?: string, sectionId?: string) => {
+  getNextSections = async (user_id: string, courseId?: string, sectionId?: string) => {
     if (!courseId || !sectionId) {
       return null;
     }
     const course = (
       await this.http.post<Status<CourseResponse>>(
         "/getCourseChaptersSections",
-        { course_id: courseId },
+        { course_id: courseId, user_id },
         { baseURL: this.baseUrl }
       )
     ).data;
