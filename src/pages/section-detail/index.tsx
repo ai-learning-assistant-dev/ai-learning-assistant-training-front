@@ -14,8 +14,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 
 export function SectionDetail() {
-  let params = useParams();
-  let navigate = useNavigate();
+  const params = useParams();
+  const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>('video');
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
@@ -24,6 +24,9 @@ export function SectionDetail() {
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
+  const [videoCompleted, setVideoCompleted] = useState(false);
+  const [isExaminationPassed, setIsExaminationPassed] = useState(false);
+
   if (loading) {
     return <div>loading...</div>
   }
@@ -31,30 +34,25 @@ export function SectionDetail() {
     return <div>{error.message}</div>
   }
 
+   // 添加视频播放完成处理
+  const handleVideoEnded = () => {
+    setVideoCompleted(true);
+  };
+
   const onPass = async (data: any) => {
-    setStage('compare')
-  }
+    setIsExaminationPassed(true);
+    setStage('compare');
+  };
 
   const onFail = async (data: any) => {
-    setStage('video')
-  }
+    setIsExaminationPassed(false);
+    setStage('video');
+  };
 
   const changeStage = async (nextStage: Stage) => {
-    if(data.data.unlocked === 2){
-      setStage(nextStage);
-    }else{
-      if(stage === 'video'){
-        if(nextStage === 'examination'){
-          setStage(nextStage)
-        }
-      }else if(stage === 'examination'){
-
-      }else if(stage === 'compare'){
-
-      }
-    }
-    
-  }
+    // 直接设置阶段，具体的限制逻辑已经在 SectionStage 中处理
+    setStage(nextStage);
+  };
 
   const goToNextSection = async () => {
     if(nextSection){
@@ -70,9 +68,14 @@ export function SectionDetail() {
     return (
       <div className="flex flex-col gap-4 px-6">
         <SectionHeader />
-        <SectionStage stage={stage} onClick={changeStage} />
+        <SectionStage 
+          stage={stage} 
+          onClick={changeStage} 
+          videoCompleted={videoCompleted}
+          isExaminationPassed={isExaminationPassed}
+        />
         {stage !== 'examination' && <>
-          <VideoPlayer url={section.video_url} />
+          <VideoPlayer url={section.video_url} onEnded={handleVideoEnded}/>
         </>}
         {stage !== 'examination' && (
           <Tabs defaultValue="doc">

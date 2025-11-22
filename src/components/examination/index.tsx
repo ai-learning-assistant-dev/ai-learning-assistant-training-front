@@ -22,47 +22,58 @@ import {
 import { isArray } from "lodash";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { ExamResultDialog } from "../exam-result-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-function getSingleExerciseResult(results: ExrciseResultCompose, exercise_id: string){
-  const result = results.results.filter(item=>item.exercise_id === exercise_id)[0];
-  if(result){
+function getSingleExerciseResult(results: ExrciseResultCompose, exercise_id: string) {
+  const result = results.results.filter(item => item.exercise_id === exercise_id)[0];
+  if (result) {
     return result;
   }
 }
 
-export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, onFail?: (data: any) => void }) {
+// 定义表单值的类型
+type FormValues = Record<string, string | string[] | undefined>;
+
+export function Examination({ onPass, onFail }: { onPass?: (data: any) => void, onFail?: (data: any) => void }) {
   const params = useParams();
   const [explanation, setExplanation] = useState(false);
   const [trigger, setTrigger] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [resultDialogShow, setResultDialogShow] = useState(false);
-  const {data} = useAutoCache(exerciseServer.getExercisesWithOptionsBySection, [{section_id: params.sectionId}]);
-  const {data: exerciseResult } = useAutoCache(
-    exerciseResultServer.getExerciseResults, 
-    [{user_id: getLoginUser()?.user_id,section_id: params.sectionId}], undefined, trigger
+  const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
+  const [incompleteCount, setIncompleteCount] = useState(0);
+  const { data } = useAutoCache(exerciseServer.getExercisesWithOptionsBySection, [{ section_id: params.sectionId }]);
+  const { data: exerciseResult } = useAutoCache(
+    exerciseResultServer.getExerciseResults,
+    [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
 
-  const checkResult = ()=>{
+  const checkResult = () => {
     setExplanation(true);
     setResultDialogShow(false);
   }
 
-  const schema: Record<string, z.ZodOptional<z.ZodAny>> = {
+  const schema: Record<string, z.ZodOptional<z.ZodAny>> = {}
 
-  }
-
-  const defaultValues: Record<string, any> = {
-
-  }
+  const defaultValues: Record<string, any> = {}
 
   data?.data.forEach((exercise) => {
     schema[exercise.exercise_id] = z.any().optional();
-    if(exerciseResult){
-      for(const item of exerciseResult?.data.results){
-        if(item.exercise_id === exercise.exercise_id){
-          if(exercise.type_status === '2'){
+    if (exerciseResult) {
+      for (const item of exerciseResult?.data.results) {
+        if (item.exercise_id === exercise.exercise_id) {
+          if (exercise.type_status === '2') {
             defaultValues[exercise.exercise_id] = item.user_answer;
-          }else{
+          } else {
             defaultValues[exercise.exercise_id] = item.user_answer.split(';');
           }
         }
@@ -76,7 +87,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
     defaultValues,
   })
 
-  const onSubmit = useCallback(async (values: z.infer<typeof formSchema>) =>{
+  const submitForm = async (values: FormValues) => {
     const formData = {
       user_id: getLoginUser().user_id,
       section_id: params.sectionId,
@@ -88,19 +99,42 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
       }
       formData.list.push({
         exercise_id: key,
-        user_answer: isArray(values[key]) ?  values[key].join(';') : values[key],
+        user_answer: isArray(values[key]) ? (values[key] as string[]).join(';') : (values[key] as string || ''),
       });
     }
-    try{
+    try {
       setSubmitting(true);
       await exerciseResultServer.saveExerciseResults(formData);
       setTrigger(trigger + 1);
       setResultDialogShow(true);
-    }finally{
+    } finally {
       setSubmitting(false);
     }
-  }, [params.sectionId, setTrigger]);
-  
+  };
+
+  const checkAllQuestionsAnswered = (values: FormValues) => {
+    let count = 0;
+    for (const key in values) {
+      if (!Object.prototype.hasOwnProperty.call(values, key)) {
+        continue;
+      }
+      if (!values[key] || (Array.isArray(values[key]) && (values[key] as string[]).length === 0)) {
+        count++;
+      }
+    }
+    setIncompleteCount(count);
+    return count === 0;
+  };
+
+  const onSubmit = useCallback(async (values: FormValues) => {
+    // 检查是否所有题目都已作答
+    if (!checkAllQuestionsAnswered(values)) {
+      setShowIncompleteDialog(true);
+      return;
+    }
+
+    await submitForm(values);
+  }, [params.sectionId, setTrigger, data]);
 
   return (
     <div className="flex">
@@ -122,8 +156,8 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                         question={exercise.question}
                         answerKey={exercise.answer}
                         score={exercise.score}
-                        user_score={singleResult?singleResult.user_score:0}
-                        ai_feedback={singleResult?singleResult.ai_feedback:''}
+                        user_score={singleResult ? singleResult.user_score : 0}
+                        ai_feedback={singleResult ? singleResult.ai_feedback : ''}
                         image={exercise.image}
                         options={exercise.options?.map((opt) => ({
                           id: opt.option_id,
@@ -135,7 +169,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                         mode={exercise.type_status === '0' ? 'single' : 'multiple'}
                         explanation={explanation}
                       />
-                      )}
+                    )}
                   />
                 )
               } else if (exercise.type_status === '2') {
@@ -151,8 +185,8 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
                         question={exercise.question}
                         answerKey={exercise.answer}
                         score={exercise.score}
-                        user_score={singleResult?singleResult.user_score:0}
-                        ai_feedback={singleResult?singleResult.ai_feedback:''}
+                        user_score={singleResult ? singleResult.user_score : 0}
+                        ai_feedback={singleResult ? singleResult.ai_feedback : ''}
                         image={exercise.image}
                         explanation={explanation}
                       />
@@ -163,7 +197,7 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
               return null;
             })
           }
-          {!explanation&&
+          {!explanation &&
             <Button type="submit" disabled={submitting}>
               {submitting ? (
                 <span className="inline-flex items-center gap-2">
@@ -178,11 +212,43 @@ export function Examination({ onPass, onFail}: { onPass?: (data: any) => void, o
               )}
             </Button>
           }
-          {explanation && exerciseResult?.data.pass && <Button onClick={()=> {setExplanation(false);onPass&&onPass(exerciseResult)}} type="button">进入对照学习</Button>}
-          {explanation && !(exerciseResult?.data.pass) && <Button onClick={()=>{setExplanation(false);onFail&&onFail(exerciseResult)}} type="button">返回视频学习</Button>}
+          {explanation && exerciseResult?.data.pass && <Button onClick={() => { setExplanation(false); onPass && onPass(exerciseResult) }} type="button">进入对照学习</Button>}
+          {explanation && !(exerciseResult?.data.pass) && <Button onClick={() => { setExplanation(false); onFail && onFail(exerciseResult) }} type="button">返回视频学习</Button>}
         </form>
       </Form>
-      {exerciseResult&&<ExamResultDialog open={resultDialogShow} {...exerciseResult.data} onSubmit={checkResult}/>}
+      {exerciseResult && <ExamResultDialog open={resultDialogShow} {...exerciseResult.data} onSubmit={checkResult} />}
+
+      {/* 未完成题目确认弹窗 */}
+      <AlertDialog open={showIncompleteDialog} onOpenChange={setShowIncompleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>还有未完成的题目</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>您还有 <span className="font-semibold text-amber-600">{incompleteCount}</span> 道题目未作答。</p>
+              <p className="text-sm text-muted-foreground">
+                为了获得更准确的评估和反馈，建议您先完成所有题目后再提交。
+              </p>
+              <p className="text-sm text-muted-foreground">
+                如果您坚持提交，未作答题目将计为0分。
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowIncompleteDialog(false)}>
+              继续答题
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowIncompleteDialog(false);
+                submitForm(form.getValues());
+              }}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              提交当前答案
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
