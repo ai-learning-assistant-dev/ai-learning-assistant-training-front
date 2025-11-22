@@ -127,7 +127,7 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
         <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
-            <ScrollArea className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 " style={{height: 'calc(100svh - 64px)'}}>
+            <ScrollArea className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 center-scroll-container" style={{height: 'calc(100svh - 64px)'}}>
               {children}
               <ScrollBar orientation="vertical" />
               <ScrollBar orientation="horizontal" />
@@ -137,4 +137,14 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
       </SidebarInset>
     </SidebarProvider>
   )
+}
+
+export function scrollCenterTop(){
+  const scrollElement = document.querySelector('.center-scroll-container [data-slot="scroll-area-viewport"]');
+  if (scrollElement) {
+    (scrollElement as HTMLElement).scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }
 }

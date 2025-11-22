@@ -12,6 +12,7 @@ import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { aiLearningReview } from "@/components/ai-conversation";
+import { scrollCenterTop } from "@/components/app-left-sidebar";
 
 export function SectionDetail() {
   let params = useParams();
@@ -25,6 +26,8 @@ export function SectionDetail() {
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
   const learningReviewTriggeredRef = useRef(false);
+
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(()=>{
     if(exerciseResult != null){
@@ -101,6 +104,7 @@ export function SectionDetail() {
     if(nextSection){
       navigate(`/app/courseList/courseDetail/${params.courseId}/sectionDetail/${nextSection.section_id}`)
       setStage('video')
+      scrollCenterTop();
     }else{
       navigate(`/app/courseList/courseDetail/${params.courseId}`)
     }
@@ -109,7 +113,7 @@ export function SectionDetail() {
   if (loading === false && error == null) {
     const section = data.data;
     return (
-      <div className="flex flex-col gap-4 px-6">
+      <div className="flex flex-col gap-4 px-6" ref={rootRef}>
         <SectionHeader />
         <SectionStage stage={stage} onClick={changeStage} />
         {stage !== 'examination' && <>
