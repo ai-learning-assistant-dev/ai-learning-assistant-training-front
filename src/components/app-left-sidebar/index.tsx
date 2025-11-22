@@ -27,46 +27,47 @@ const topItems = [
     url: "#/app/courseList",
     icon: Book,
   },
-  {
-    title: "学习情况总揽",
-    url: "#",
-    icon: Gauge,
-  },
-  {
-    title: "我的学习计划",
-    url: "#",
-    icon: Calendar,
-  },
-  {
-    title: "课堂空间",
-    url: "#",
-    icon: VideoIcon,
-  },
+  // {
+  //   title: "学习情况总揽",
+  //   url: "#",
+  //   icon: Gauge,
+  // },
+  // {
+  //   title: "我的学习计划",
+  //   url: "#",
+  //   icon: Calendar,
+  // },
+  // {
+  //   title: "课堂空间",
+  //   url: "#",
+  //   icon: VideoIcon,
+  // },
 ]
 
 // Menu items.
 const bottomItems = [
-  {
-    title: "设置",
-    url: "#",
-    icon: Settings,
-  },
+  // {
+  //   title: "设置",
+  //   url: "#",
+  //   icon: Settings,
+  // },
   {
     title: "切换账户",
     url: "#/userList",
     icon: UserPen,
   },
-  {
-    title: "获得帮助",
-    url: "#",
-    icon: CircleQuestionMark,
-  },
+  // {
+  //   title: "获得帮助",
+  //   url: "#",
+  //   icon: CircleQuestionMark,
+  // },
 ]
 
 export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
   const user = getLoginUser();
   return (
     <SidebarProvider 
+      defaultOpen={false}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
@@ -80,13 +81,13 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
             <CardHeader>
               <CardTitle><User size={24} style={{display: 'inline'}} />{user?.name}</CardTitle>
             </CardHeader>
-            <CardContent>
+            {/* <CardContent>
               <div className="flex justify-between items-center w-full">
                 <div>LV5</div>
                 <div>青铜电工</div>
               </div>
               <Progress value={30}></Progress>
-            </CardContent>
+            </CardContent> */}
           </Card>
         </SidebarHeader>
         

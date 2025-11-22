@@ -10,11 +10,11 @@ export interface BreadcrumbNode {
 
 // 面包屑树配置 - 用户可以自由修改这个结构
 export const breadcrumbTree: BreadcrumbNode[] = [
-  {
-    id: '首页',
-    title: '首页',
-    path: '/app',
-    children: [
+  // {
+    // id: '首页',
+    // title: '首页',
+    // path: '/app',
+    // children: [
       {
         id: '课程广场',
         title: '课程广场',
@@ -34,8 +34,8 @@ export const breadcrumbTree: BreadcrumbNode[] = [
           }
         ]
       }
-    ]
-  }
+  //   ]
+  // }
 ];
 
 // 根据当前路径查找面包屑路径
