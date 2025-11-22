@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { aiLearningReview } from "@/components/ai-conversation";
 
 export function SectionDetail() {
   let params = useParams();
@@ -53,15 +54,7 @@ export function SectionDetail() {
     }
     learningReviewTriggeredRef.current = true;
 
-    window.dispatchEvent(
-      new CustomEvent('ai-learning-review', {
-        detail: {
-          userId: user.user_id,
-          sectionId: params.sectionId,
-          sessionId,
-        },
-      }),
-    );
+    aiLearningReview(user.user_id,params.sectionId,sessionId);
   }, [stage, params.sectionId, loading, error, data]);
 
   if (loading) {

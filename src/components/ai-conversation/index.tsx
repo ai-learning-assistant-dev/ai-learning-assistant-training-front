@@ -69,12 +69,29 @@ import { Response } from "@/components/ui/shadcn-io/ai/response";
 
 export const SEND_TO_AI = "ai-insert-text";
 
+
+
 export function sendToAI(message: string){
   const event = new CustomEvent(SEND_TO_AI, {
     detail: { text: message }
   });
   window.dispatchEvent(event);
 }
+
+export const AI_LEARNING_REVIEW = "ai-learning-review";
+
+export function aiLearningReview(user_id: string, sectionId: string, sessionId: string){
+  window.dispatchEvent(
+    new CustomEvent('ai-learning-review', {
+      detail: {
+        userId: user_id,
+        sectionId: sectionId,
+        sessionId,
+      },
+    }),
+  );
+}
+
 
 type ChatMessage = {
   id: string;
@@ -677,10 +694,10 @@ const AiConversation = () => {
       });
     };
 
-    window.addEventListener("ai-learning-review", handler as EventListener);
+    window.addEventListener(AI_LEARNING_REVIEW, handler as EventListener);
 
     return () => {
-      window.removeEventListener("ai-learning-review", handler as EventListener);
+      window.removeEventListener(AI_LEARNING_REVIEW, handler as EventListener);
     };
   }, [currentSessionId, sectionId, selectedModel, processStreamResponse]);
 
