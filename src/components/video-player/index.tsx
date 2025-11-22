@@ -288,6 +288,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     };
 
     const updateQualityList = () => {
+      if (!playerRef.current) return;
+
       if (!playerRef.current || currentQualityIndex !== -1) return;
       const videoRepresentations = playerRef.current.getRepresentationsByType('video');
       if (videoRepresentations.length === 0) return;
@@ -435,6 +437,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         },
       });
       playerRef.current.on(dashJs.MediaPlayer.events.ERROR, (e: unknown) => {
+        console.error('dash.js 播放错误:', e);
         const error = new Error(`播放错误: ${e}`);
         onError?.(error);
       });
@@ -497,11 +500,17 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
     const destroyPlayer = () => {
       if (playerRef.current) {
-        playerRef.current.reset();
-        playerRef.current = null;
+        try {
+          // 先移除所有事件监听器
+          playerRef.current.reset();
+          playerRef.current = null;
+        } catch (error) {
+          console.warn('销毁播放器时发生错误:', error);
+        }
       }
       if (hideControlsTimer.current) {
         clearTimeout(hideControlsTimer.current);
+        hideControlsTimer.current = null;
       }
       revokePreviousBlobUrl();
     };
@@ -583,8 +592,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         document.removeEventListener('fullscreenchange', handleFullscreenChange);
         if (hideControlsTimer.current) {
           clearTimeout(hideControlsTimer.current);
+          hideControlsTimer.current = null;
         }
         destroyPlayer();
+
+        if (videoPlayerRef.current) {
+          videoPlayerRef.current.src = '';;
+          videoPlayerRef.current.load()
+        }
       };
     }, [onPlay, onPause, onEnded, onError, onLoaded, autoPlay, options.src]);
 
@@ -602,22 +617,22 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         ended: el.ended,
       };
     }
-  const askAI = () => {
-    const p = getProgress();
-    console.log('用户手动获取播放进度：', p);
+    const askAI = () => {
+      const p = getProgress();
+      console.log('用户手动获取播放进度：', p);
 
-    // Use player's current playback progress (seconds) and format as HH:MM:SS
-    const progress = getProgress();
-    const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    const hh = pad(Math.floor(currentSeconds / 3600));
-    const mm = pad(Math.floor((currentSeconds % 3600) / 60));
-    const ss = pad(currentSeconds % 60);
-    const timeStr = `${hh}:${mm}:${ss}`;
-    const text = `对于当前时间点：${timeStr}，我有以下问题：\n`;
+      // Use player's current playback progress (seconds) and format as HH:MM:SS
+      const progress = getProgress();
+      const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const hh = pad(Math.floor(currentSeconds / 3600));
+      const mm = pad(Math.floor((currentSeconds % 3600) / 60));
+      const ss = pad(currentSeconds % 60);
+      const timeStr = `${hh}:${mm}:${ss}`;
+      const text = `对于当前时间点：${timeStr}，我有以下问题：\n`;
 
-    sendToAI(text)
-  }
+      sendToAI(text)
+    }
 
     return (
       <div className="flex flex-col gap-4">

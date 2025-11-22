@@ -111,14 +111,14 @@ export class CourseServer extends TrainingServer<CourseResponse> {
     ).data;
   };
 
-  getNextSections = async (courseId?: string, sectionId?: string) => {
+  getNextSections = async (user_id: string, courseId?: string, sectionId?: string) => {
     if (!courseId || !sectionId) {
       return null;
     }
     const course = (
       await this.http.post<Status<CourseResponse>>(
         "/getCourseChaptersSections",
-        { course_id: courseId },
+        { course_id: courseId, user_id },
         { baseURL: this.baseUrl }
       )
     ).data;
@@ -217,6 +217,7 @@ interface ChatRequest {
   useAudio?: boolean;
   ttsOption?: string[];
   daily?: boolean;
+  modelName?: string;
 }
 
 /**
@@ -402,6 +403,28 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
       data,
       { baseURL: this.baseUrl }
     )).data;
+  }
+
+  /**
+   * 生成学习总结评语
+   */
+  learningReview = (data: { userId: string; sectionId: string; sessionId: string; modelName?: string }) => {
+    return this.apiClient.post(`${this.baseUrl}/learning-review`, data, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  /**
+   * 获取所有可用模型列表
+   */
+  getAllModels = (data: {all?: string[]; default?: string}) => {
+    return this.apiClient.get(`${this.baseUrl}/models`, data, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }
 

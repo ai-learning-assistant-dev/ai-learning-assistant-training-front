@@ -1,29 +1,92 @@
 import { VideoPlayer } from "@/components/video-player";
-import type { VideoPlayerHandle } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
-import { courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
+import { aiChatServer, courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
 import { useNavigate, useParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
 import { Examination } from "@/components/examination";
 import type { Stage } from "@/components/section-stage";
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { aiLearningReview } from "@/components/ai-conversation";
+import { scrollCenterTop } from "@/components/app-left-sidebar";
 
 export function SectionDetail() {
-  let params = useParams();
-  let navigate = useNavigate();
+  const params = useParams();
+  const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>('video');
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
-  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[params.courseId, params.sectionId]);
+  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[getLoginUser()?.user_id, params.courseId, params.sectionId]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
+  const [videoCompleted, setVideoCompleted] = useState(false);
+  const [isExaminationPassed, setIsExaminationPassed] = useState(false);
+  const learningReviewTriggeredRef = useRef(false);
+
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(()=>{
+    if(exerciseResult != null){
+      if(exerciseResult.data.pass){
+        setStage('compare');
+      }
+    }
+
+  },[exerciseResult])
+
+  useEffect(() => {
+    const run = async () => {
+      if (loading || error || !data) {
+        return;
+      }
+
+      if (stage !== 'compare') {
+        learningReviewTriggeredRef.current = false;
+        return;
+      }
+
+      const user = getLoginUser();
+      var sessionId: string | null = localStorage.getItem(`ai-session-${params.sectionId}`);
+
+      if (!user?.user_id || !params.sectionId) {
+        console.error('[learning-review] skipped due to missing identifiers', {
+          hasUserId: Boolean(user?.user_id),
+          hasSectionId: Boolean(params.sectionId),
+        });
+        return;
+      }
+
+      if (sessionId === null) {
+        var session = await aiChatServer.new({
+          userId: user.user_id,
+          sectionId: params.sectionId,
+        })
+        sessionId = session.data.data.session_id;
+      }
+
+      if (!sessionId) {
+        console.error('[learning-review] skipped due to missing identifiers', {
+          hasSession: Boolean(sessionId),
+        });
+        return;
+      }
+
+      if (learningReviewTriggeredRef.current) {
+        return;
+      }
+      learningReviewTriggeredRef.current = true;
+
+      aiLearningReview(user.user_id,params.sectionId,sessionId);
+    }
+    run();
+  }, [stage, params.sectionId, loading, error, data]);
+
   if (loading) {
     return <div>loading...</div>
   }
@@ -31,16 +94,23 @@ export function SectionDetail() {
     return <div>{error.message}</div>
   }
 
+   // 添加视频播放完成处理
+  const handleVideoEnded = () => {
+    setVideoCompleted(true);
+  };
+
   const onPass = async (data: any) => {
-    setStage('compare')
-  }
+    setIsExaminationPassed(true);
+    setStage('compare');
+  };
 
   const onFail = async (data: any) => {
-    setStage('video')
-  }
+    setIsExaminationPassed(false);
+    setStage('video');
+  };
 
   const changeStage = async (nextStage: Stage) => {
-    if(data.data.unlocked === 2){
+    if(exerciseResult?.data.pass){
       setStage(nextStage);
     }else{
       if(stage === 'video'){
@@ -48,7 +118,7 @@ export function SectionDetail() {
           setStage(nextStage)
         }
       }else if(stage === 'examination'){
-
+        
       }else if(stage === 'compare'){
 
       }
@@ -60,6 +130,7 @@ export function SectionDetail() {
     if(nextSection){
       navigate(`/app/courseList/courseDetail/${params.courseId}/sectionDetail/${nextSection.section_id}`)
       setStage('video')
+      scrollCenterTop();
     }else{
       navigate(`/app/courseList/courseDetail/${params.courseId}`)
     }
@@ -68,11 +139,16 @@ export function SectionDetail() {
   if (loading === false && error == null) {
     const section = data.data;
     return (
-      <div className="flex flex-col gap-4 px-6">
+      <div className="flex flex-col gap-4 px-6" ref={rootRef}>
         <SectionHeader />
-        <SectionStage stage={stage} onClick={changeStage} />
+        <SectionStage 
+          stage={stage} 
+          onClick={changeStage} 
+          videoCompleted={videoCompleted}
+          isExaminationPassed={isExaminationPassed}
+        />
         {stage !== 'examination' && <>
-          <VideoPlayer url={section.video_url} />
+          <VideoPlayer url={section.video_url} onEnded={handleVideoEnded}/>
         </>}
         {stage !== 'examination' && (
           <Tabs defaultValue="doc">
