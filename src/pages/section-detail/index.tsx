@@ -8,10 +8,11 @@ import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
 import { Examination } from "@/components/examination";
 import type { Stage } from "@/components/section-stage";
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { aiLearningReview } from "@/components/ai-conversation";
 
 export function SectionDetail() {
   const params = useParams();
@@ -26,6 +27,37 @@ export function SectionDetail() {
   );
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [isExaminationPassed, setIsExaminationPassed] = useState(false);
+  const learningReviewTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (loading || error || !data) {
+      return;
+    }
+
+    if (stage !== 'compare') {
+      learningReviewTriggeredRef.current = false;
+      return;
+    }
+
+    const user = getLoginUser();
+    const sessionId = localStorage.getItem(`ai-session-${params.sectionId}`) || '';
+
+    if (!user?.user_id || !params.sectionId || !sessionId) {
+      console.warn('[learning-review] skipped due to missing identifiers', {
+        hasUserId: Boolean(user?.user_id),
+        hasSectionId: Boolean(params.sectionId),
+        hasSessionId: Boolean(sessionId),
+      });
+      return;
+    }
+
+    if (learningReviewTriggeredRef.current) {
+      return;
+    }
+    learningReviewTriggeredRef.current = true;
+
+    aiLearningReview(user.user_id,params.sectionId,sessionId);
+  }, [stage, params.sectionId, loading, error, data]);
 
   if (loading) {
     return <div>loading...</div>
