@@ -1,5 +1,4 @@
 import { VideoPlayer } from "@/components/video-player";
-import type { VideoPlayerHandle } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
 import { courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
 import { useNavigate, useParams } from "react-router";
@@ -20,12 +19,21 @@ export function SectionDetail() {
   const [stage, setStage] = useState<Stage>('video');
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
-  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[params.courseId, params.sectionId]);
+  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[getLoginUser()?.user_id, params.courseId, params.sectionId]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
   const learningReviewTriggeredRef = useRef(false);
+
+  useEffect(()=>{
+    if(exerciseResult != null){
+      if(exerciseResult.data.pass){
+        setStage('compare');
+      }
+    }
+
+  },[exerciseResult])
 
   useEffect(() => {
     if (loading || error || !data) {
@@ -73,7 +81,7 @@ export function SectionDetail() {
   }
 
   const changeStage = async (nextStage: Stage) => {
-    if(data.data.unlocked === 2){
+    if(exerciseResult?.data.pass){
       setStage(nextStage);
     }else{
       if(stage === 'video'){
