@@ -28,6 +28,8 @@ export function SectionDetail() {
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [isExaminationPassed, setIsExaminationPassed] = useState(false);
   const learningReviewTriggeredRef = useRef(false);
+  
+  const isReviewMode = exerciseResult?.data?.pass === true;
 
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -35,9 +37,9 @@ export function SectionDetail() {
     if(exerciseResult != null){
       if(exerciseResult.data.pass){
         setStage('compare');
+        setIsExaminationPassed(true);
       }
     }
-
   },[exerciseResult])
 
   useEffect(() => {
@@ -77,7 +79,6 @@ export function SectionDetail() {
     return <div>{error.message}</div>
   }
 
-   // 添加视频播放完成处理
   const handleVideoEnded = () => {
     setVideoCompleted(true);
   };
@@ -129,6 +130,7 @@ export function SectionDetail() {
           onClick={changeStage} 
           videoCompleted={videoCompleted}
           isExaminationPassed={isExaminationPassed}
+          isReviewMode={isReviewMode}
         />
         {stage !== 'examination' && <>
           <VideoPlayer url={section.video_url} onEnded={handleVideoEnded}/>
@@ -154,5 +156,4 @@ export function SectionDetail() {
       </div>
     )
   }
-
 }

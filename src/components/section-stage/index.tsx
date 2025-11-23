@@ -19,12 +19,20 @@ interface SectionStageProps {
   onClick?: (stage: Stage) => void;
   videoCompleted?: boolean;
   isExaminationPassed?: boolean;
+  isReviewMode?: boolean; // 新增：是否为复习模式
 }
 
 const todo = '';
 const doing = <Disc className="size-8" fill={"#4039FA"} color="white" size={28} />;
 const finished = <CircleCheck className="size-8" fill={"#737373"} color="white" />;
-export function SectionStage({ stage, onClick, videoCompleted, isExaminationPassed }: SectionStageProps) {
+
+export function SectionStage({ 
+  stage, 
+  onClick, 
+  videoCompleted, 
+  isExaminationPassed,
+  isReviewMode = false 
+}: SectionStageProps) {
 
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [showCompareDialog, setShowCompareDialog] = useState(false);
@@ -35,7 +43,7 @@ export function SectionStage({ stage, onClick, videoCompleted, isExaminationPass
       return;
     }
 
-    if (nextStage === "examination" && !videoCompleted) {
+    if (nextStage === "examination" && !videoCompleted && !isReviewMode) {
       setPendingStage(nextStage);
       setShowVideoDialog(true);
       return;
@@ -54,8 +62,6 @@ export function SectionStage({ stage, onClick, videoCompleted, isExaminationPass
 
     onClick?.(nextStage);
   };
-
-
 
   const handleConfirm = () => {
     if (pendingStage) {
@@ -94,23 +100,40 @@ export function SectionStage({ stage, onClick, videoCompleted, isExaminationPass
         </Button>
       </div>
 
+      {/* 视频未完成提示弹窗 */}
       <AlertDialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认进入随堂测验</AlertDialogTitle>
+            <AlertDialogTitle>
+              确认进入随堂测验
+            </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-              <p>您尚未完成视频学习，是否要提前进入测验？</p>
-              <p className="text-amber-600 font-medium">
-                建议先观看完整视频，以获得更好的学习效果和测验表现。
-              </p>
-              <p className="text-sm text-muted-foreground">
-                测验过程中，您可以随时返回视频，但这可能会中断您的答题节奏。
-              </p>
+              {isReviewMode ? (
+                <>
+                  <p>您正在复习本节课程，可以直接进入测验巩固知识点。</p>
+                  <p className="text-blue-600 font-medium">
+                    复习模式下，建议先快速浏览视频重点内容，再进行测验以检验掌握程度。
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    您之前已完成过本节学习，测验结果将更新您的学习记录。
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>您尚未完成视频学习，是否要提前进入测验？</p>
+                  <p className="text-amber-600 font-medium">
+                    建议先观看完整视频，以获得更好的学习效果和测验表现。
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    测验过程中，您可以随时返回视频，但这可能会中断您的答题节奏。
+                  </p>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancel}>
-              返回视频学习
+              {isReviewMode ? '继续观看视频' : '返回视频学习'}
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirm}>
               立即进入测验
