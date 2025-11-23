@@ -29,7 +29,7 @@ export function SectionDetail() {
   const [isExaminationPassed, setIsExaminationPassed] = useState(false);
   const learningReviewTriggeredRef = useRef(false);
   
-  const isReviewMode = exerciseResult?.data?.pass === true;
+  const isReviewMode = isExaminationPassed || exerciseResult?.data?.pass === true;
 
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -86,11 +86,13 @@ export function SectionDetail() {
   const onPass = async (data: any) => {
     setIsExaminationPassed(true);
     setStage('compare');
+    setTrigger(trigger + 1);
   };
 
   const onFail = async (data: any) => {
     setIsExaminationPassed(false);
     setStage('video');
+    setTrigger(trigger + 1);
   };
 
   const changeStage = async (nextStage: Stage) => {

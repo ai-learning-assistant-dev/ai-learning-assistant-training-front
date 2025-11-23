@@ -19,7 +19,7 @@ interface SectionStageProps {
   onClick?: (stage: Stage) => void;
   videoCompleted?: boolean;
   isExaminationPassed?: boolean;
-  isReviewMode?: boolean; // 新增：是否为复习模式
+  isReviewMode?: boolean;
 }
 
 const todo = '';
@@ -43,7 +43,13 @@ export function SectionStage({
       return;
     }
 
-    if (nextStage === "examination" && !videoCompleted && !isReviewMode) {
+    // 复习模式下允许自由切换
+    if (isReviewMode) {
+      onClick?.(nextStage);
+      return;
+    }
+
+    if (nextStage === "examination" && !videoCompleted) {
       setPendingStage(nextStage);
       setShowVideoDialog(true);
       return;
@@ -52,11 +58,6 @@ export function SectionStage({
     if (nextStage === "compare" && !isExaminationPassed) {
       setPendingStage(nextStage);
       setShowCompareDialog(true);
-      return;
-    }
-
-    if (nextStage === "video") {
-      onClick?.(nextStage);
       return;
     }
 
@@ -79,6 +80,41 @@ export function SectionStage({
     setShowVideoDialog(false);
     setShowCompareDialog(false);
     setPendingStage(null);
+  };
+
+  // 根据当前阶段和模式动态获取取消按钮文案
+  const getCancelButtonText = () => {
+    if (isReviewMode) {
+      return '取消';
+    }
+    
+    // 非复习模式下，根据当前阶段显示不同的文案
+    switch (stage) {
+      case 'video':
+        return '继续观看视频';
+      case 'examination':
+        return '继续测验';
+      case 'compare':
+        return '继续对照学习';
+      default:
+        return '取消';
+    }
+  };
+
+  // 根据当前阶段和模式动态获取确认按钮文案
+  const getConfirmButtonText = () => {
+    if (isReviewMode) {
+      return '开始测验';
+    }
+    return '立即进入测验';
+  };
+
+  // 根据当前阶段和模式动态获取弹窗标题
+  const getDialogTitle = () => {
+    if (isReviewMode) {
+      return '重新进行随堂测验';
+    }
+    return '确认进入随堂测验';
   };
 
   return (
@@ -105,17 +141,17 @@ export function SectionStage({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              确认进入随堂测验
+              {getDialogTitle()}
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               {isReviewMode ? (
                 <>
-                  <p>您正在复习本节课程，可以直接进入测验巩固知识点。</p>
+                  <p>您正在复习模式下重新进行随堂测验。</p>
                   <p className="text-blue-600 font-medium">
-                    复习模式下，建议先快速浏览视频重点内容，再进行测验以检验掌握程度。
+                    重新测验将更新您的学习记录，帮助巩固知识点。
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    您之前已完成过本节学习，测验结果将更新您的学习记录。
+                    您可以随时切换回视频学习或对照学习模式。
                   </p>
                 </>
               ) : (
@@ -133,10 +169,10 @@ export function SectionStage({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleCancel}>
-              {isReviewMode ? '继续观看视频' : '返回视频学习'}
+              {getCancelButtonText()}
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirm}>
-              立即进入测验
+              {getConfirmButtonText()}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
