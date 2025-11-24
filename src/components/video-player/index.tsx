@@ -594,14 +594,18 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           clearTimeout(hideControlsTimer.current);
           hideControlsTimer.current = null;
         }
-        destroyPlayer();
+      };
+    }, [onPlay, onPause, onEnded, onError, onLoaded, autoPlay]);
 
+    useEffect(() => {
+      return () => {
+        destroyPlayer();
         if (videoPlayerRef.current) {
-          videoPlayerRef.current.src = '';;
-          videoPlayerRef.current.load()
+          videoPlayerRef.current.src = '';
+          videoPlayerRef.current.load();
         }
       };
-    }, [onPlay, onPause, onEnded, onError, onLoaded, autoPlay, options.src]);
+    }, []);
 
     const messagePosition = showControls ? 'bottom-24' : 'bottom-8';
 

@@ -20,7 +20,7 @@ import { getLoginUser } from "@/containers/auth-middleware";
 const unlockState = ['待完成', '待完成', '已完成'];
 
 export function CourseDetail() {
-  let params = useParams();
+  const params = useParams();
   const user = getLoginUser();
   const { loading, error, data } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer),[{course_id: params?.courseId, user_id: user.user_id}]);
   if (loading) {
