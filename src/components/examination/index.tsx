@@ -6,7 +6,7 @@ import { useAutoCache } from "@/containers/auto-cache";
 import { exerciseResultServer, exerciseServer, type ExrciseResultCompose } from "@/server/training-server";
 import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
-import { use, useCallback, useState } from "react";
+import { use, useCallback, useState, useEffect, useContext } from "react";
 import { z } from "zod"
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +22,7 @@ import {
 import { isArray } from "lodash";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { ExamResultDialog } from "../exam-result-dialog";
+import { ExaminationContext } from "@/contexts/examination-context";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,11 +52,17 @@ export function Examination({ onPass, onFail }: { onPass?: (data: any) => void, 
   const [resultDialogShow, setResultDialogShow] = useState(false);
   const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
   const [incompleteCount, setIncompleteCount] = useState(0);
+  const { setIsExamination } = useContext(ExaminationContext);
+  
   const { data } = useAutoCache(exerciseServer.getExercisesWithOptionsBySection, [{ section_id: params.sectionId }]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
+
+  useEffect(() => {
+    setIsExamination(!explanation);
+  }, [explanation, setIsExamination]);
 
   const checkResult = () => {
     setExplanation(true);

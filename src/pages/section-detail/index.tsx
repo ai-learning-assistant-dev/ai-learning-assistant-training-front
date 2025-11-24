@@ -31,12 +31,6 @@ export function SectionDetail() {
   const learningReviewTriggeredRef = useRef(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const { setIsExamination } = useContext(ExaminationContext);
-
-  useEffect(() => {
-    setIsExamination(stage === 'examination');
-    return () => setIsExamination(false);
-  }, [stage, setIsExamination]);
 
   useEffect(()=>{
     if(exerciseResult != null){
