@@ -1,18 +1,19 @@
 import { VideoPlayer } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
 import { aiChatServer, courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
-import { useNavigate, useParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
 import { Examination } from "@/components/examination";
 import type { Stage } from "@/components/section-stage";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useContext } from "react";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { aiLearningReview } from "@/components/ai-conversation";
 import { scrollCenterTop } from "@/components/app-left-sidebar";
+import { ExaminationContext } from "@/contexts/examination-context";
+import { useNavigate, useParams } from "react-router";
 
 export function SectionDetail() {
   const params = useParams();
@@ -30,6 +31,12 @@ export function SectionDetail() {
   const learningReviewTriggeredRef = useRef(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
+  const { setIsExamination } = useContext(ExaminationContext);
+
+  useEffect(() => {
+    setIsExamination(stage === 'examination');
+    return () => setIsExamination(false);
+  }, [stage, setIsExamination]);
 
   useEffect(()=>{
     if(exerciseResult != null){
@@ -52,7 +59,7 @@ export function SectionDetail() {
       }
 
       const user = getLoginUser();
-      var sessionId: string | null = localStorage.getItem(`ai-session-${params.sectionId}`);
+      let sessionId: string | null = localStorage.getItem(`ai-session-${params.sectionId}`);
 
       if (!user?.user_id || !params.sectionId) {
         console.error('[learning-review] skipped due to missing identifiers', {
@@ -63,7 +70,7 @@ export function SectionDetail() {
       }
 
       if (sessionId === null) {
-        var session = await aiChatServer.new({
+        const session = await aiChatServer.new({
           userId: user.user_id,
           sectionId: params.sectionId,
         })
