@@ -120,6 +120,11 @@ export function SectionDetail() {
   };
 
   const changeStage = async (nextStage: Stage) => {
+    if (isReviewMode) {
+      setStage(nextStage);
+      return;
+    }
+
     if(exerciseResult?.data.pass){
       setStage(nextStage);
     }else{
