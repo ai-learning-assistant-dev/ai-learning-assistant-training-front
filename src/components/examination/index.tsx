@@ -53,12 +53,18 @@ export function Examination({ onPass, onFail }: { onPass?: (data: any) => void, 
   const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
   const [incompleteCount, setIncompleteCount] = useState(0);
   const { setIsExamination } = useContext(ExaminationContext);
-  
+
   const { data } = useAutoCache(exerciseServer.getExercisesWithOptionsBySection, [{ section_id: params.sectionId }]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
+
+  useEffect(() => {
+    return () => {
+      setIsExamination(false);
+    };
+  }, [setIsExamination]);
 
   useEffect(() => {
     setIsExamination(!explanation);
