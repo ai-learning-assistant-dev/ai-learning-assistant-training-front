@@ -64,34 +64,36 @@ import {
   ItemDescription,
   ItemMedia,
   ItemTitle,
-} from "@/components/ui/item"
+} from "@/components/ui/item";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
+import { Streamdown } from "streamdown";
 
 export const SEND_TO_AI = "ai-insert-text";
 
-
-
-export function sendToAI(message: string){
+export function sendToAI(message: string) {
   const event = new CustomEvent(SEND_TO_AI, {
-    detail: { text: message }
+    detail: { text: message },
   });
   window.dispatchEvent(event);
 }
 
 export const AI_LEARNING_REVIEW = "ai-learning-review";
 
-export function aiLearningReview(user_id: string, sectionId: string, sessionId: string){
+export function aiLearningReview(
+  user_id: string,
+  sectionId: string,
+  sessionId: string
+) {
   window.dispatchEvent(
-    new CustomEvent('ai-learning-review', {
+    new CustomEvent("ai-learning-review", {
       detail: {
         userId: user_id,
         sectionId: sectionId,
         sessionId,
       },
-    }),
+    })
   );
 }
-
 
 type ChatMessage = {
   id: string;
@@ -134,46 +136,26 @@ const AiConversation = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
-  const [voiceState, setVoiceState] = useState<'listening' | 'buffering' | 'speaking'>('listening');
-  const [currentMessage, setCurrentMessage] = useState('');
-  const [previousMessage, setPreviousMessage] = useState('欢迎使用语音对话功能');
-  const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(null);
+  const [isVoiceModeAble, setIsVoiceModeAble] = useState(true);
+  const [voiceState, setVoiceState] = useState<
+    "listening" | "buffering" | "speaking"
+  >("listening");
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [previousMessage, setPreviousMessage] =
+    useState("欢迎使用语音对话功能");
+  const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(
+    null
+  );
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
   const sectionId = params.sectionId;
 
-  // 流式文本展示函数
-  const streamText = useCallback((text: string, onComplete?: () => void) => {
-    // 清除之前的定时器
-    if (streamingTimerRef.current) {
-      clearInterval(streamingTimerRef.current);
-    }
-
-    setCurrentMessage('');
-    let currentIndex = 0;
-
-    streamingTimerRef.current = window.setInterval(() => {
-      if (currentIndex < text.length) {
-        setCurrentMessage(text.slice(0, currentIndex + 1));
-        currentIndex++;
-      } else {
-        if (streamingTimerRef.current) {
-          clearInterval(streamingTimerRef.current);
-          streamingTimerRef.current = null;
-        }
-        if (onComplete) {
-          onComplete();
-        }
-      }
-    }, 50); // 每50ms添加一个字符
-  }, []);
-
   // 当voiceState变为listening时，将current移到previous
   useEffect(() => {
-    if (voiceState === 'listening' && currentMessage) {
+    if (voiceState === "listening" && currentMessage) {
       setPreviousMessage(currentMessage);
-      setCurrentMessage('');
+      setCurrentMessage("");
     }
   }, [voiceState, currentMessage]);
 
@@ -209,26 +191,19 @@ const AiConversation = () => {
     const loadModels = async () => {
       try {
         setIsLoadingModels(true);
-        const response = await aiChatServer.getAllModels({});
-        const raw = await (async () => {
-          if (typeof (response as any)?.json === "function") {
-            return await (response as any).json();
-          }
-          return response as any;
-        })();
+        const response = await aiChatServer.getAllModels();
+        const payload = response.data?.data ?? {};
 
-        const payload = raw?.data ?? raw ?? {};
         const candidateArrays = [
           payload?.all,
-          payload?.models,
-          payload?.items,
           Array.isArray(payload) ? payload : null,
         ];
 
-        const source = candidateArrays.find((item) => Array.isArray(item)) ?? [];
+        const source =
+          candidateArrays.find((item) => Array.isArray(item)) ?? [];
         const normalized = Array.from(
           new Set(
-            (source as any[]) 
+            (source as any[])
               .map(normalizeModel)
               .filter((item): item is string => Boolean(item))
           )
@@ -238,13 +213,7 @@ const AiConversation = () => {
           return;
         }
 
-        const defaultIdCandidate =
-          payload?.default ??
-          payload?.defaultModel ??
-          payload?.selected ??
-          payload?.preferred ??
-          raw?.default ??
-          normalized[0];
+        const defaultIdCandidate = payload?.default ?? normalized[0];
 
         if (cancelled) {
           return;
@@ -280,66 +249,42 @@ const AiConversation = () => {
   }, []);
 
   // 切换人设
-  const handlePersonaSwitch = useCallback(async (personaId: string) => {
-    const persona = personas.filter(persona => persona.persona_id === personaId)[0];
-    if (!currentSessionId) {
-      // 如果没有会话，直接切换选中的人设
-      setSelectedPersona(persona);
-      return;
-    }
-
-    try {
-      const response = await aiChatServer.switchPersona({
-        sessionId: currentSessionId,
-        personaId: persona.persona_id
-      });
-
-      if (response.data.success) {
+  const handlePersonaSwitch = useCallback(
+    async (personaId: string) => {
+      const persona = personas.filter(
+        (persona) => persona.persona_id === personaId
+      )[0];
+      if (!currentSessionId) {
+        // 如果没有会话，直接切换选中的人设
         setSelectedPersona(persona);
-
-        // 添加系统消息提示用户人设已切换
-        const systemMessage: ChatMessage = {
-          id: nanoid(),
-          content: `已切换到人设：${persona.name}`,
-          role: 'assistant',
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, systemMessage]);
+        return;
       }
-    } catch (error) {
-      console.error('切换人设失败:', error);
-      alert('切换人设失败，请重试');
-    }
-  }, [currentSessionId]);
 
+      try {
+        const response = await aiChatServer.switchPersona({
+          sessionId: currentSessionId,
+          personaId: persona.persona_id,
+        });
 
-  // Mock演示函数：模拟用户语音输入和AI回复
-  const triggerMockDemo = useCallback(() => {
-    // 清除之前的定时器
-    if (streamingTimerRef.current) {
-      clearInterval(streamingTimerRef.current);
-    }
+        if (response.data.success) {
+          setSelectedPersona(persona);
 
-    // 1. 用户输入 (listening)
-    setVoiceState('listening');
-    streamText('用户：请帮我解释一下React的useState是什么？', () => {
-      // 2. 等待1秒，切换到buffering状态
-      setTimeout(() => {
-        setVoiceState('buffering');
-
-        // 3. 再等待1秒，开始AI回复
-        setTimeout(() => {
-          setVoiceState('speaking');
-          streamText('AI：useState是React的一个Hook，它允许你在函数组件中添加state。它接受初始state作为参数，返回一个包含当前state值和更新state的函数的数组。', () => {
-            // 4. 等待2秒，切换回listening状态（这会触发previous message更新）
-            setTimeout(() => {
-              setVoiceState('listening');
-            }, 2000);
-          });
-        }, 1000);
-      }, 1000);
-    });
-  }, [streamText]);
+          // 添加系统消息提示用户人设已切换
+          const systemMessage: ChatMessage = {
+            id: nanoid(),
+            content: `已切换到人设：${persona.name}`,
+            role: "assistant",
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, systemMessage]);
+        }
+      } catch (error) {
+        console.error("切换人设失败:", error);
+        alert("切换人设失败，请重试");
+      }
+    },
+    [currentSessionId]
+  );
 
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
@@ -350,8 +295,7 @@ const AiConversation = () => {
         setMessages([
           {
             id: nanoid(),
-            content:
-              "你好，我是你的AI学习助手，目前处于闲聊模式。",
+            content: "你好，我是你的AI学习助手，目前处于闲聊模式。",
             role: "assistant",
             timestamp: new Date(),
           },
@@ -418,8 +362,7 @@ const AiConversation = () => {
         historyMessages = [
           {
             id: nanoid(),
-            content:
-              "你好，我是你的AI课程助手，目前处于课程模式。",
+            content: "你好，我是你的AI课程助手，目前处于课程模式。",
             role: "assistant",
             timestamp: new Date(),
             sources: [
@@ -480,8 +423,7 @@ const AiConversation = () => {
     };
 
     window.addEventListener(SEND_TO_AI, handler);
-    return () =>
-      window.removeEventListener(SEND_TO_AI, handler);
+    return () => window.removeEventListener(SEND_TO_AI, handler);
   }, []);
 
   // Listen for chat history refresh requests
@@ -492,109 +434,25 @@ const AiConversation = () => {
 
     window.addEventListener("ai-refresh-history", handler as EventListener);
     return () =>
-      window.removeEventListener("ai-refresh-history", handler as EventListener);
+      window.removeEventListener(
+        "ai-refresh-history",
+        handler as EventListener
+      );
   }, [loadChatHistory]);
 
   const processStreamResponse = useCallback(
-    async (
-      messageId: string,
-      opts: {
-        sessionId: string;
-        sectionId?: string;
-        personaId?: string;
-        message?: string;
-        customRequest?: { stream: () => AsyncIterable<any> };
-        modelName?: string;
-      }
-    ) => {
-      const request =
-        opts.customRequest ??
-        aiChatServer.chatStream({
-          userId: getUserId(),
-          message: opts.message ?? "",
-          sessionId: opts.sessionId,
-          sectionId: opts.sectionId ?? "",
-          personaId: opts.personaId,
-          modelName: opts.modelName ?? (selectedModel || undefined),
-          daily: !sectionId, // 如果sectionId为空，设置daily=true
-        });
-
+    async (messageId: string, stream: AsyncIterable<string>) => {
       try {
-        for await (const res of request.stream()) {
-          if ((res as any)?.error) {
-            console.error("AI Chat Stream Error:", (res as any).error);
-            continue;
-          }
-
-          const payload = (res as any)?.result ?? res;
-
-          // 使用 ts-pattern 进行模式匹配处理响应格式
-          const textChunk = match(payload)
-            .with({ data: { ai_response: P.select(P.string) } }, (str) => {
-              console.log("Found ai_response in data:", str);
-              return str;
-            })
-            .with({ ai_response: P.select(P.string) }, (str) => {
-              console.log("Found ai_response:", str);
-              return str;
-            })
-            .with({ content: P.select(P.string) }, (str) => {
-              console.log("Found content:", str);
-              return str;
-            })
-            .with(
-              {
-                choices: [
-                  { delta: { content: P.select(P.string) } },
-                  ...P.array(),
-                ],
-              },
-              (str) => {
-                console.log("Found OpenAI format:", str);
-                return str;
-              }
-            )
-            .with(P.string.startsWith("data: "), (dataStr) => {
-              const str = dataStr?.replace("data: ", "") ?? "";
-              console.log("Using 'data: ' content:", str);
-              return str;
-            })
-            .with(P.string, (str) => {
-              console.log("Using raw string:", str);
-              return str?.replace("data: ", "") ?? "";
-            })
-            // 未匹配到的格式
-            .otherwise((data) => {
-              console.log("No recognized format, parsed object:", data);
-              return null;
-            });
-
-          if (!textChunk) {
-            continue;
-          }
+        for await (const textChunk of stream) {
+          if (!textChunk) continue;
 
           setMessages((prev) =>
             prev.map((msg) => {
-              if (msg.id !== messageId) {
-                return msg;
-              }
-
-              const segments = textChunk
-                .split(/(?<=\n)/)
-                .filter((segment) => segment.length > 0);
-
-              const updatedContent = segments.reduce((acc, segment) => {
-                const trimmedSegment = segment.trimStart();
-                if (trimmedSegment.startsWith("#") || trimmedSegment.startsWith("-") || trimmedSegment.startsWith("*") || /^\d+\.\s/.test(trimmedSegment)) {
-                  const separator = acc.endsWith("\n") ? "" : "\n";
-                  return acc + separator + trimmedSegment;
-                }
-                return acc + segment;
-              }, msg.content);
+              if (msg.id !== messageId) return msg;
 
               return {
                 ...msg,
-                content: updatedContent,
+                content: msg.content + textChunk,
                 isStreaming: true,
               };
             })
@@ -641,7 +499,9 @@ const AiConversation = () => {
       const resolvedSessionId =
         detail.sessionId ??
         currentSessionId ??
-        (resolvedSectionId ? localStorage.getItem(`ai-session-${resolvedSectionId}`) : null);
+        (resolvedSectionId
+          ? localStorage.getItem(`ai-session-${resolvedSectionId}`)
+          : null);
 
       const resolvedUserId = detail.userId ?? getUserId();
 
@@ -679,19 +539,14 @@ const AiConversation = () => {
       setIsTyping(true);
       setStreamingMessageId(assistantMessageId);
 
-      const reviewRequest = aiChatServer.learningReview({
-        userId: resolvedUserId,
-        sectionId: resolvedSectionId,
-        sessionId: resolvedSessionId,
-        modelName: selectedModel || undefined,
-      });
-
-      void processStreamResponse(assistantMessageId, {
-        sessionId: resolvedSessionId,
-        sectionId: resolvedSectionId,
-        customRequest: reviewRequest,
-        modelName: selectedModel || undefined,
-      });
+      aiChatServer
+        .learningReview({
+          userId: resolvedUserId,
+          sectionId: resolvedSectionId,
+          sessionId: resolvedSessionId,
+          modelName: selectedModel || undefined,
+        })
+        .then((res) => processStreamResponse(assistantMessageId, res));
     };
 
     window.addEventListener(AI_LEARNING_REVIEW, handler as EventListener);
@@ -790,13 +645,16 @@ const AiConversation = () => {
           setStreamingMessageId(assistantMessageId);
 
           // Start real stream processing
-          await processStreamResponse(assistantMessageId, {
+          const response = await aiChatServer.textChatStream({
+            userId: getUserId(),
             message: currentInput,
             sessionId,
-            sectionId,
+            sectionId: sectionId ?? "",
             personaId: selectedPersona?.persona_id,
             modelName: selectedModel || undefined,
+            daily: !sectionId, // 如果sectionId为空，设置daily=true
           });
+          await processStreamResponse(assistantMessageId, response);
         } catch (error) {
           console.error("AI Chat Error:", error);
           setIsTyping(false);
@@ -870,6 +728,14 @@ const AiConversation = () => {
     }
   }, [sectionId]);
 
+  const onVoiceClose = useCallback(() => {
+    setIsVoiceMode(false);
+    setIsVoiceModeAble(false);
+    setTimeout(() => {
+      setIsVoiceModeAble(true);
+    }, 2000);
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -899,11 +765,11 @@ const AiConversation = () => {
               <Fingerprint className="size-5" />
             </ItemMedia>
             <ItemContent>
-              <ItemTitle>{selectedPersona ? selectedPersona.name : '默认人设'}</ItemTitle>
+              <ItemTitle>
+                {selectedPersona ? selectedPersona.name : "默认人设"}
+              </ItemTitle>
             </ItemContent>
-            <ItemActions>
-              AI人设
-            </ItemActions>
+            <ItemActions>AI人设</ItemActions>
           </Item>
           <VoiceUI
             userId={getUserId()}
@@ -911,9 +777,7 @@ const AiConversation = () => {
             sectionId={sectionId || ""}
             personaId={selectedPersona?.persona_id}
             serverUrl={getWebRTCServerUrl()}
-            onClose={() => {
-              setIsVoiceMode(false);
-            }}
+            onClose={onVoiceClose}
           />
         </>
       ) : (
@@ -922,13 +786,19 @@ const AiConversation = () => {
           {/* AI Settings and Model Selection */}
           <div className="flex items-center gap-2 border-b px-4 py-3">
             <div className="flex items-center flex-1 h-10">
-              <Select value={selectedPersona?.persona_id} onValueChange={handlePersonaSwitch}>
+              <Select
+                value={selectedPersona?.persona_id}
+                onValueChange={handlePersonaSwitch}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="默认人设" />
                 </SelectTrigger>
                 <SelectContent>
                   {personas.map((persona) => (
-                    <SelectItem key={persona.persona_id} value={persona.persona_id}>
+                    <SelectItem
+                      key={persona.persona_id}
+                      value={persona.persona_id}
+                    >
                       {persona.name}
                     </SelectItem>
                   ))}
@@ -979,7 +849,7 @@ const AiConversation = () => {
                           </span>
                         </div>
                       ) : message.role === "assistant" ? (
-                        <Response>{message.content}</Response>
+                        <Streamdown>{message.content}</Streamdown>
                       ) : (
                         <p className="leading-7">{message.content}</p>
                       )}
@@ -1031,21 +901,15 @@ const AiConversation = () => {
           <div className="px-4 pt-1 pb-4 bg-white">
             {/* Toolbar buttons */}
             <div className="flex items-center gap-2 mb-3">
-              <Button
-                variant={'outline'}
-                disabled={isTyping}
-              >
+              <Button variant={"outline"} disabled={isTyping}>
                 <MicIcon className="size-5 text-muted-foreground" />
               </Button>
-              <Button
-                variant={'outline'}
-                disabled={isTyping}
-              >
+              <Button variant={"outline"} disabled={isTyping}>
                 <ArrowUpIcon className="size-5 text-muted-foreground" />
               </Button>
               <Button
-                variant={'outline'}
-                disabled={isTyping}
+                variant={"outline"}
+                disabled={isTyping || !isVoiceModeAble}
                 onClick={() => setIsVoiceMode(true)}
               >
                 <PhoneIcon className="size-5 text-muted-foreground" />

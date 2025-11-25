@@ -111,7 +111,11 @@ export class CourseServer extends TrainingServer<CourseResponse> {
     ).data;
   };
 
-  getNextSections = async (user_id: string, courseId?: string, sectionId?: string) => {
+  getNextSections = async (
+    user_id: string,
+    courseId?: string,
+    sectionId?: string
+  ) => {
     if (!courseId || !sectionId) {
       return null;
     }
@@ -318,18 +322,6 @@ interface SwitchPersonaResponse {
 
 export class AIChatServer extends TrainingServer<SessionInfo> {
   //https://jsonlee12138.github.io/hook-fetch/docs/streaming/#%E4%BD%BF%E7%94%A8-sse-%E6%8F%92%E4%BB%B6
-  apiClient = hookFetch.create({
-    plugins: [
-      sseTextDecoderPlugin({
-        json: true, // 自动解析 JSON
-        prefix: "data: ", // 移除 "data: " 前缀
-        splitSeparator: "\n\n", // 事件分隔符
-        lineSeparator: "\n", // 行分隔符
-        trim: true, // 去除首尾空白
-        doneSymbol: "[DONE]", // 结束标记
-      }),
-    ],
-  });
 
   constructor() {
     super("/ai-chat");
@@ -347,12 +339,67 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
     });
   };
 
-  chatStream = (data: ChatRequest) => {
-    return this.apiClient.post(`${this.baseUrl}/chat/stream`, data, {
+  textStream = async (
+    path: string,
+    data: ChatRequest,
+    options?: {
+      // splitSeparator?: string;
+      // chunkSize?:number
+      // chunkSpeed?:number
+    }
+  ) => {
+    // const splitSeparator = options?.splitSeparator || "\n";
+
+    const response = await fetch(`${this.baseUrl + path}`, {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(data),
     });
+    const textStreamReader = response.body
+      ?.pipeThrough(new TextDecoderStream())
+      .getReader();
+    if (textStreamReader == undefined)
+      throw new Error("text stream body is null");
+
+    const res = async function* () {
+      try {
+        while (true) {
+          const { done, value } = await textStreamReader.read();
+          if (done) break;
+          yield value;
+        }
+      } finally {
+        textStreamReader.releaseLock?.();
+      }
+    };
+    return res();
+  };
+
+  textChatStream = (data: ChatRequest) => {
+    return this.textStream("/chat/stream", data);
+  };
+
+  sseStream = (data: ChatRequest, splitSeparator = "\n") => {
+    return hookFetch
+      .create({
+        plugins: [
+          sseTextDecoderPlugin({
+            json: true, // 自动解析 JSON
+            prefix: "data: ", // 移除 "data: " 前缀
+            splitSeparator, // 事件分隔符,默认\n\n
+            lineSeparator: "\n", // 行分隔符
+            trim: true, // 去除首尾空白
+            doneSymbol: "[DONE]", // 结束标记
+          }),
+        ],
+      })
+      .post(`${this.baseUrl}/chat/stream`, data, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
   };
 
   /**
@@ -376,56 +423,56 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
       `/history/${sessionId}`,
       { baseURL: this.baseUrl, params: { withoutInner } }
     );
-  }
+  };
 
   /**
    * 获取当前课程所有人设列表
    */
   getPersonas = async (courseId?: string, userId?: string) => {
-    return (await this.http.get<Status<AiPersona[]>>(
-      '/personas',
-      {
+    return (
+      await this.http.get<Status<AiPersona[]>>("/personas", {
         baseURL: this.baseUrl,
-        params: { 
+        params: {
           ...(courseId ? { courseId } : {}),
-          ...(userId ? { userId } : {})
-        }
-      }
-    )).data;
-  }
+          ...(userId ? { userId } : {}),
+        },
+      })
+    ).data;
+  };
 
   /**
    * 切换当前会话的人设
    */
   switchPersona = async (data: SwitchPersonaRequest) => {
-    return (await this.http.post<Status<SwitchPersonaResponse>>(
-      '/switch-persona',
-      data,
-      { baseURL: this.baseUrl }
-    )).data;
-  }
+    return (
+      await this.http.post<Status<SwitchPersonaResponse>>(
+        "/switch-persona",
+        data,
+        { baseURL: this.baseUrl }
+      )
+    ).data;
+  };
 
   /**
    * 生成学习总结评语
    */
-  learningReview = (data: { userId: string; sectionId: string; sessionId: string; modelName?: string }) => {
-    return this.apiClient.post(`${this.baseUrl}/learning-review`, data, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  }
+  learningReview = (data: {
+    userId: string;
+    sectionId: string;
+    sessionId: string;
+    modelName?: string;
+  }) => {
+    return this.textStream("/learning-review", { ...data, message: "" });
+  };
 
   /**
    * 获取所有可用模型列表
    */
-  getAllModels = (data: {all?: string[]; default?: string}) => {
-    return this.apiClient.get(`${this.baseUrl}/models`, data, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  }
+  getAllModels = () => {
+    return this.http.get<{ data: { all?: string[]; default?: string } }>(
+      `${this.baseUrl}/models`
+    );
+  };
 }
 
 export const aiChatServer = new AIChatServer();

@@ -436,29 +436,22 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
   }
 
   /**
-   * 切换静音状态
-   */
-  toggleMute(): boolean {
-    if (!this.localStream) return false;
-    const audioTracks = this.localStream.getAudioTracks();
-    if (audioTracks.length === 0) return false;
-
-    const isMuted = !audioTracks[0].enabled;
-    audioTracks.forEach((track) => {
-      track.enabled = isMuted;
-    });
-
-    this.emit("log", isMuted ? "麦克风已取消静音" : "麦克风已静音");
-    return isMuted;
-  }
-
-  /**
    * 获取麦克风静音状态
    */
   isMuted(): boolean {
     if (!this.localStream) return false;
     const audioTracks = this.localStream.getAudioTracks();
     return audioTracks.length > 0 && !audioTracks[0].enabled;
+  }
+
+  /**
+   * 切换静音状态
+   */
+  toggleMute(): boolean {
+    if (this.isMuted()) this.unmute();
+    else this.mute();
+
+    return this.isMuted();
   }
 
   /**
@@ -635,7 +628,7 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
    */
   private async sendOfferWithRetry(
     offer: RTCSessionDescriptionInit,
-    maxRetries: number = 3,
+    maxRetries: number = 5,
     retryDelay: number = 1000
   ): Promise<RTCSessionDescriptionInit> {
     let lastError: Error | null = null;

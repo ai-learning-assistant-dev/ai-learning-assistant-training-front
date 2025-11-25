@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@source "../node_modules/streamdown/dist/index.js";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -119,7 +120,9 @@
   }
 }
 
-html,body,#root{
+html,
+body,
+#root {
   display: flex;
   flex-direction: column;
   height: 100%;
