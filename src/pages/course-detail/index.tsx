@@ -54,7 +54,7 @@ export function CourseDetail() {
                           <TableCell className="text-center">
                             {
                               section.unlocked !== 0 && (
-                                <NavLink to={`/app/courseList/courseDetail/${course.course_id}/sectionDetail/${section.section_id}`}>
+                                <NavLink to={`/app/courseList/courseDetail/${course.course_id}/sectionDetail/${section.section_id}${section.unlocked !== 1 ? '?mode=review' : ''}`}>
                                   <Button className={section.unlocked === 1 ? "bg-blue-600" : "bg-gray-500"}><CirclePlay/>{section.unlocked === 1 ? '从这开始' : '复习'}</Button>
                                 </NavLink>
                               )

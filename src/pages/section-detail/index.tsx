@@ -1,7 +1,7 @@
 import { VideoPlayer } from "@/components/video-player";
 import { useAutoCache } from "@/containers/auto-cache";
 import { aiChatServer, courseServer, exerciseResultServer, sectionsServer } from "@/server/training-server";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { Response } from "@/components/ui/shadcn-io/ai/response";
 import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
@@ -17,30 +17,35 @@ import { scrollCenterTop } from "@/components/app-left-sidebar";
 export function SectionDetail() {
   const params = useParams();
   const navigate = useNavigate();
-  const [stage, setStage] = useState<Stage>('video');
+  const [searchParams] = useSearchParams();
+  const mode = searchParams.get('mode');
+  const [stage, setStage] = useState<Stage>(mode === 'review' ? 'compare' : 'video');
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
+  const { data: courseData } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer), [{course_id: params.courseId, user_id: getLoginUser()?.user_id}]);
   const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[getLoginUser()?.user_id, params.courseId, params.sectionId]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
   const [videoCompleted, setVideoCompleted] = useState(false);
-  const [isExaminationPassed, setIsExaminationPassed] = useState(false);
+  const [isExaminationPassed, setIsExaminationPassed] = useState(mode === 'review' ? true : false);
   const learningReviewTriggeredRef = useRef(false);
   
-  const isReviewMode = isExaminationPassed || exerciseResult?.data?.pass === true;
+  const unlocked = courseData?.data.chapters?.flatMap(chapter => chapter.sections || []).find(sec => sec.section_id === params.sectionId)?.unlocked;
+  const isCompleted = unlocked === 2;
+  const isReviewMode = isExaminationPassed || exerciseResult?.data?.pass === true || isCompleted || mode === 'review';
 
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(()=>{
-    if(exerciseResult != null){
-      if(exerciseResult.data.pass){
+    if(exerciseResult != null || courseData != null){
+      if(exerciseResult?.data.pass || isCompleted){
         setStage('compare');
         setIsExaminationPassed(true);
       }
     }
-  },[exerciseResult])
+  },[exerciseResult, courseData, isCompleted])
 
   useEffect(() => {
     const run = async () => {
@@ -54,7 +59,7 @@ export function SectionDetail() {
       }
 
       const user = getLoginUser();
-      var sessionId: string | null = localStorage.getItem(`ai-session-${params.sectionId}`);
+      let sessionId: string | null = localStorage.getItem(`ai-session-${params.sectionId}`);
 
       if (!user?.user_id || !params.sectionId) {
         console.error('[learning-review] skipped due to missing identifiers', {
@@ -65,7 +70,7 @@ export function SectionDetail() {
       }
 
       if (sessionId === null) {
-        var session = await aiChatServer.new({
+        const session = await aiChatServer.new({
           userId: user.user_id,
           sectionId: params.sectionId,
         })
@@ -108,7 +113,9 @@ export function SectionDetail() {
 
   const onFail = async (data: any) => {
     setIsExaminationPassed(false);
-    setStage('video');
+    if (!isReviewMode) {
+      setStage('video');
+    }
     setTrigger(trigger + 1);
   };
 
@@ -165,12 +172,12 @@ export function SectionDetail() {
             </TabsContent>
             {stage === 'compare' && (
               <TabsContent value="examination">
-                <Examination onPass={onPass} onFail={onFail} />
+                <Examination onPass={onPass} onFail={onFail} isReviewMode={isReviewMode} />
               </TabsContent>
             )}
           </Tabs>
         )}
-        {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} />}
+        {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} isReviewMode={isReviewMode} />}
         {stage === 'compare' && <Button onClick={goToNextSection}>学习下一节课程</Button>}
       </div>
     )
