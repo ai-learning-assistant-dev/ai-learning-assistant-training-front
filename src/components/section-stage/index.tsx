@@ -26,41 +26,48 @@ const todo = '';
 const doing = <Disc className="size-8" fill={"#4039FA"} color="white" size={28} />;
 const finished = <CircleCheck className="size-8" fill={"#737373"} color="white" />;
 
-export function SectionStage({ 
-  stage, 
-  onClick, 
-  videoCompleted, 
+export function SectionStage({
+  stage,
+  onClick,
+  videoCompleted,
   isExaminationPassed,
-  isReviewMode = false 
+  isReviewMode = false
 }: SectionStageProps) {
-
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [showCompareDialog, setShowCompareDialog] = useState(false);
+  const [showVideoLockedDialog, setShowVideoLockedDialog] = useState(false);
+  const [showExamLockedDialog, setShowExamLockedDialog] = useState(false);
   const [pendingStage, setPendingStage] = useState<Stage | null>(null);
+  const isVideoButtonLocked = stage === "compare" && isReviewMode;
+  const isExamButtonLocked = stage === "compare" && isReviewMode;
 
   const handleStageClick = (nextStage: Stage) => {
     if (nextStage === stage) {
       return;
     }
-
-    // 复习模式下允许自由切换
+    // 如果按钮被锁定，则显示提示弹窗
+    if (nextStage === "video" && isVideoButtonLocked) {
+      setShowVideoLockedDialog(true);
+      return;
+    }
+    if (nextStage === "examination" && isExamButtonLocked) {
+      setShowExamLockedDialog(true);
+      return;
+    }
     if (isReviewMode) {
       onClick?.(nextStage);
       return;
     }
-
     if (nextStage === "examination" && !videoCompleted) {
       setPendingStage(nextStage);
       setShowVideoDialog(true);
       return;
     }
-
     if (nextStage === "compare" && !isExaminationPassed) {
       setPendingStage(nextStage);
       setShowCompareDialog(true);
       return;
     }
-
     onClick?.(nextStage);
   };
 
@@ -87,7 +94,7 @@ export function SectionStage({
     if (isReviewMode) {
       return '取消';
     }
-    
+   
     // 非复习模式下，根据当前阶段显示不同的文案
     switch (stage) {
       case 'video':
@@ -120,22 +127,30 @@ export function SectionStage({
   return (
     <>
       <div className="flex justify-end gap-2 w-full">
-        <Button variant={'secondary'} className="text-base" onClick={() => handleStageClick("video")}>
+        <Button
+          variant={'secondary'}
+          className={`text-base ${isVideoButtonLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+          onClick={() => handleStageClick("video")}
+        >
           {stage == 'video' ? doing : finished}
           视频学习
         </Button>
-        <Button variant={'secondary'} className="text-base" onClick={() => handleStageClick("examination")}>
-          {stage == 'video' && todo}
-          {stage == 'examination' && doing}
-          {stage == 'compare' && finished}
+        <Button
+          variant={'secondary'}
+          className={`text-base ${isExamButtonLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+          onClick={() => handleStageClick("examination")}
+        >
+          {stage == 'video' ? todo :
+           stage == 'examination' ? doing :
+           finished}
           随堂测验
         </Button>
+       
         <Button variant={'secondary'} className="text-base" onClick={() => handleStageClick("compare")}>
           {stage == 'compare' ? doing : todo}
           对照学习
         </Button>
       </div>
-
       {/* 视频未完成提示弹窗 */}
       <AlertDialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
         <AlertDialogContent>
@@ -177,7 +192,6 @@ export function SectionStage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       {/* 切换到对照学习的确认弹窗 */}
       <AlertDialog open={showCompareDialog} onOpenChange={setShowCompareDialog}>
         <AlertDialogContent>
@@ -199,6 +213,38 @@ export function SectionStage({
           <AlertDialogFooter>
             <AlertDialogAction onClick={handleCancel}>
               返回测验
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={showVideoLockedDialog} onOpenChange={setShowVideoLockedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>无法切换</AlertDialogTitle>
+            <AlertDialogDescription>
+              在复习模式下，无法切换到视频学习。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowVideoLockedDialog(false)}>
+              确认
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={showExamLockedDialog} onOpenChange={setShowExamLockedDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>无法切换</AlertDialogTitle>
+            <AlertDialogDescription>
+              在复习模式下，无法切换到随堂测验。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowExamLockedDialog(false)}>
+              确认
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

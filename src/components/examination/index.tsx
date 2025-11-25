@@ -44,7 +44,7 @@ function getSingleExerciseResult(results: ExrciseResultCompose, exercise_id: str
 // 定义表单值的类型
 type FormValues = Record<string, string | string[] | undefined>;
 
-export function Examination({ onPass, onFail }: { onPass?: (data: any) => void, onFail?: (data: any) => void }) {
+export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?: (data: unknown) => void, onFail?: (data: unknown) => void, isReviewMode?: boolean }) {
   const params = useParams();
   const [explanation, setExplanation] = useState(false);
   const [trigger, setTrigger] = useState(1);
@@ -77,7 +77,7 @@ export function Examination({ onPass, onFail }: { onPass?: (data: any) => void, 
 
   const schema: Record<string, z.ZodOptional<z.ZodAny>> = {}
 
-  const defaultValues: Record<string, any> = {}
+  const defaultValues: Record<string, unknown> = {}
 
   data?.data.forEach((exercise) => {
     schema[exercise.exercise_id] = z.any().optional();
@@ -225,8 +225,17 @@ export function Examination({ onPass, onFail }: { onPass?: (data: any) => void, 
               )}
             </Button>
           }
-          {explanation && exerciseResult?.data.pass && <Button onClick={() => { setExplanation(false); onPass && onPass(exerciseResult) }} type="button">进入对照学习</Button>}
-          {explanation && !(exerciseResult?.data.pass) && <Button onClick={() => { setExplanation(false); onFail && onFail(exerciseResult) }} type="button">返回视频学习</Button>}
+          {explanation && (
+            isReviewMode ? (
+              <Button onClick={() => { setExplanation(false); }} type="button">再答一次</Button>
+            ) : (
+              exerciseResult?.data.pass ? (
+                <Button onClick={() => { setExplanation(false); onPass && onPass(exerciseResult) }} type="button">进入对照学习</Button>
+              ) : (
+                <Button onClick={() => { setExplanation(false); onFail && onFail(exerciseResult) }} type="button">返回视频学习</Button>
+              )
+            )
+          )}
         </form>
       </Form>
       {exerciseResult && <ExamResultDialog open={resultDialogShow} {...exerciseResult.data} onSubmit={checkResult} />}
