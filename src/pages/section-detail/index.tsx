@@ -6,13 +6,12 @@ import { SectionHeader } from "@/components/section-header";
 import { SectionStage } from "@/components/section-stage";
 import { Examination } from "@/components/examination";
 import type { Stage } from "@/components/section-stage";
-import { useEffect, useRef, useState, useContext } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { aiLearningReview } from "@/components/ai-conversation";
 import { scrollCenterTop } from "@/components/app-left-sidebar";
-import { ExaminationContext } from "@/contexts/examination-context";
 import { useNavigate, useParams } from "react-router";
 
 export function SectionDetail() {
@@ -21,7 +20,7 @@ export function SectionDetail() {
   const [stage, setStage] = useState<Stage>('video');
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
-  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[getLoginUser()?.user_id, params.courseId, params.sectionId]);
+  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer), [getLoginUser()?.user_id, params.courseId, params.sectionId]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
@@ -32,14 +31,14 @@ export function SectionDetail() {
 
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(()=>{
-    if(exerciseResult != null){
-      if(exerciseResult.data.pass){
+  useEffect(() => {
+    if (exerciseResult != null) {
+      if (exerciseResult.data.pass) {
         setStage('compare');
       }
     }
 
-  },[exerciseResult])
+  }, [exerciseResult])
 
   useEffect(() => {
     const run = async () => {
@@ -83,7 +82,7 @@ export function SectionDetail() {
       }
       learningReviewTriggeredRef.current = true;
 
-      aiLearningReview(user.user_id,params.sectionId,sessionId);
+      aiLearningReview(user.user_id, params.sectionId, sessionId);
     }
     run();
   }, [stage, params.sectionId, loading, error, data]);
@@ -95,7 +94,7 @@ export function SectionDetail() {
     return <div>{error.message}</div>
   }
 
-   // 添加视频播放完成处理
+  // 添加视频播放完成处理
   const handleVideoEnded = () => {
     setVideoCompleted(true);
   };
@@ -111,28 +110,28 @@ export function SectionDetail() {
   };
 
   const changeStage = async (nextStage: Stage) => {
-    if(exerciseResult?.data.pass){
+    if (exerciseResult?.data.pass) {
       setStage(nextStage);
-    }else{
-      if(stage === 'video'){
-        if(nextStage === 'examination'){
+    } else {
+      if (stage === 'video') {
+        if (nextStage === 'examination') {
           setStage(nextStage)
         }
-      }else if(stage === 'examination'){
-        
-      }else if(stage === 'compare'){
+      } else if (stage === 'examination') {
+
+      } else if (stage === 'compare') {
 
       }
     }
-    
+
   }
 
   const goToNextSection = async () => {
-    if(nextSection){
+    if (nextSection) {
       navigate(`/app/courseList/courseDetail/${params.courseId}/sectionDetail/${nextSection.section_id}`)
       setStage('video')
       scrollCenterTop();
-    }else{
+    } else {
       navigate(`/app/courseList/courseDetail/${params.courseId}`)
     }
   }
@@ -142,14 +141,14 @@ export function SectionDetail() {
     return (
       <div className="flex flex-col gap-4 px-6" ref={rootRef}>
         <SectionHeader />
-        <SectionStage 
-          stage={stage} 
-          onClick={changeStage} 
+        <SectionStage
+          stage={stage}
+          onClick={changeStage}
           videoCompleted={videoCompleted}
           isExaminationPassed={isExaminationPassed}
         />
         {stage !== 'examination' && <>
-          <VideoPlayer url={section.video_url} onEnded={handleVideoEnded}/>
+          <VideoPlayer url={section.video_url} onEnded={handleVideoEnded} />
         </>}
         {stage !== 'examination' && (
           <Tabs defaultValue="doc">
