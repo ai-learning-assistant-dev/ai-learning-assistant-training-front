@@ -38,12 +38,20 @@ export function SectionStage({
   const [showCompareDialog, setShowCompareDialog] = useState(false);
   const [pendingStage, setPendingStage] = useState<Stage | null>(null);
 
+  const isVideoButtonLocked = stage === "compare" && isReviewMode;
+  const isExamButtonLocked = stage === "compare" && isReviewMode;
+
   const handleStageClick = (nextStage: Stage) => {
     if (nextStage === stage) {
       return;
     }
 
-    // 复习模式下允许自由切换
+    // 如果按钮被锁定，则不执行任何操作
+    if ((nextStage === "video" && isVideoButtonLocked) || 
+        (nextStage === "examination" && isExamButtonLocked)) {
+      return;
+    }
+
     if (isReviewMode) {
       onClick?.(nextStage);
       return;
@@ -120,16 +128,27 @@ export function SectionStage({
   return (
     <>
       <div className="flex justify-end gap-2 w-full">
-        <Button variant={'secondary'} className="text-base" onClick={() => handleStageClick("video")}>
+        <Button 
+          variant={'secondary'} 
+          className="text-base" 
+          onClick={() => handleStageClick("video")}
+          disabled={isVideoButtonLocked}
+        >
           {stage == 'video' ? doing : finished}
           视频学习
         </Button>
-        <Button variant={'secondary'} className="text-base" onClick={() => handleStageClick("examination")}>
-          {stage == 'video' && todo}
-          {stage == 'examination' && doing}
-          {stage == 'compare' && finished}
+        <Button 
+          variant={'secondary'} 
+          className="text-base" 
+          onClick={() => handleStageClick("examination")}
+          disabled={isExamButtonLocked}
+        >
+          {stage == 'video' ? todo : 
+           stage == 'examination' ? doing : 
+           finished}
           随堂测验
         </Button>
+        
         <Button variant={'secondary'} className="text-base" onClick={() => handleStageClick("compare")}>
           {stage == 'compare' ? doing : todo}
           对照学习
