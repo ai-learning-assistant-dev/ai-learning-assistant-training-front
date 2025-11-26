@@ -469,7 +469,12 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
    * 获取所有可用模型列表
    */
   getAllModels = () => {
-    return this.http.get<{ data: { all?: string[]; default?: string } }>(
+    return this.http.get<{ 
+      data: { 
+        all?: Array<{id: string, name: string, displayName: string}>;
+        default?: string 
+      } 
+    }>(
       `${this.baseUrl}/models`
     );
   };
