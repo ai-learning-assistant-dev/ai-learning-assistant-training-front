@@ -159,12 +159,10 @@ export function SectionDetail() {
 
   const goToNextSection = async () => {
     if (nextSectionLoading) {
-      // TODO: 下一节数据加载中给用户提示
       return;
     }
     if (nextSection) {
       navigate(`/app/courseList/courseDetail/${params.courseId}/sectionDetail/${nextSection.section_id}`)
-
       scrollCenterTop();
     } else {
       navigate(`/app/courseList/courseDetail/${params.courseId}`)
@@ -203,7 +201,12 @@ export function SectionDetail() {
           </Tabs>
         )}
         {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} isReviewMode={isReviewMode} />}
-        {stage === 'compare' && <Button onClick={goToNextSection}>学习下一节课程</Button>}
+        {stage === 'compare' && <Button
+          onClick={goToNextSection}
+          disabled={nextSectionLoading}
+        >
+          {nextSectionLoading ? "下一节内容加载中...." : "学习下一节课程"}
+        </Button>}
       </div>
     )
   }
