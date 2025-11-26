@@ -19,7 +19,7 @@ export function CourseList() {
   if (loading === false && error == null) {
     const courseList = data.data;
     return (
-      <div className="flex gap-4 p-4">
+      <div className="flex gap-4 p-4 flex-wrap">
         {courseList.map((course) => (
           <NavLink key={course.course_id} to={`/app/courseList/courseDetail/${course.course_id}`}>
             <Card className="w-[320px] h-[159px] course-card">
