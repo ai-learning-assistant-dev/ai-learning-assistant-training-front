@@ -108,6 +108,17 @@ export function SectionStage({
     }
   };
 
+  const getBackFromCompareText = () => {
+  switch (stage) {
+    case "examination":
+      return "返回测验";
+    case "video":
+      return "返回视频学习";
+    default:
+      return "返回";
+  }
+};
+
   // 根据当前阶段和模式动态获取确认按钮文案
   const getConfirmButtonText = () => {
     if (isReviewMode) {
@@ -218,7 +229,7 @@ export function SectionStage({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={handleCancel}>
-              返回测验
+              {getBackFromCompareText()}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
