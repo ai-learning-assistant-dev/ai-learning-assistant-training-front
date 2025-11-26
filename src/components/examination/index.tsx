@@ -1,6 +1,6 @@
 import Selection from "./selection";
 import type { Option } from "./selection";
-import ShortAnswer from "./short-answer";
+import ShortAnswer, { checkPlagiarism } from "./short-answer";
 import image from './image.png';
 import { useAutoCache } from "@/containers/auto-cache";
 import { exerciseResultServer, exerciseServer, type ExrciseResultCompose } from "@/server/training-server";
@@ -52,6 +52,9 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
   const [resultDialogShow, setResultDialogShow] = useState(false);
   const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
   const [incompleteCount, setIncompleteCount] = useState(0);
+  const [showPlagiarismDialog, setShowPlagiarismDialog] = useState(false);
+  const [plagiarismErrors, setPlagiarismErrors] = useState<Array<{ question: string; message: string }>>([]);
+  const [answerCache, setAnswerCache] = useState<Record<string, string>>({});
   const { setIsExamination } = useContext(ExaminationContext);
 
   const { data } = useAutoCache(exerciseServer.getExercisesWithOptionsBySection, [{ section_id: params.sectionId }]);
@@ -59,6 +62,44 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
   );
+
+  // 加载缓存的答案
+  useEffect(() => {
+    if (!params.sectionId) return;
+    
+    const cacheKey = `answer_cache_${params.sectionId}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        setAnswerCache(JSON.parse(cached));
+      } catch (e) {
+        console.error('Failed to load answer cache:', e);
+      }
+    }
+  }, [params.sectionId]);
+
+  // 缓存答案
+  useEffect(() => {
+    if (!data?.data || !params.sectionId) return;
+    
+    const newCache: Record<string, string> = {};
+    let hasNewAnswers = false;
+    
+    data.data.forEach((exercise) => {
+      if (exercise.answer) {
+        newCache[exercise.exercise_id] = exercise.answer;
+        if (!answerCache[exercise.exercise_id]) {
+          hasNewAnswers = true;
+        }
+      }
+    });
+    
+    if (hasNewAnswers || Object.keys(answerCache).length === 0) {
+      setAnswerCache(newCache);
+      const cacheKey = `answer_cache_${params.sectionId}`;
+      localStorage.setItem(cacheKey, JSON.stringify(newCache));
+    }
+  }, [data, params.sectionId]);
 
   useEffect(() => {
     return () => {
@@ -139,7 +180,40 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
     return count === 0;
   };
 
+  const checkPlagiarismForShortAnswers = (values: FormValues) => {
+    const errors: Array<{ question: string; message: string }> = [];
+    
+    data?.data.forEach((exercise) => {
+      // 只检查简答题（type_status === '2'）
+      if (exercise.type_status === '2') {
+        const userAnswer = values[exercise.exercise_id] as string || '';
+        // 优先使用缓存的答案，如果没有则使用当前答案
+        const refAnswer = answerCache[exercise.exercise_id] || exercise.answer;
+        
+        if (refAnswer) {
+          const result = checkPlagiarism(userAnswer, refAnswer);
+          
+          if (!result.isValid) {
+            errors.push({
+              question: exercise.question,
+              message: result.message || '答案不符合要求'
+            });
+          }
+        }
+      }
+    });
+    
+    setPlagiarismErrors(errors);
+    return errors.length === 0;
+  };
+
   const onSubmit = useCallback(async (values: FormValues) => {
+    // 检查简答题是否存在抄袭
+    if (!checkPlagiarismForShortAnswers(values)) {
+      setShowPlagiarismDialog(true);
+      return;
+    }
+    
     // 检查是否所有题目都已作答
     if (!checkAllQuestionsAnswered(values)) {
       setShowIncompleteDialog(true);
@@ -267,6 +341,34 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
               className="bg-amber-600 hover:bg-amber-700"
             >
               提交当前答案
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* 查重失败弹窗 */}
+      <AlertDialog open={showPlagiarismDialog} onOpenChange={setShowPlagiarismDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>检测到答案抄袭</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p className="text-amber-600 font-semibold">以下题目的答案与参考答案过于相似：</p>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {plagiarismErrors.map((error, index) => (
+                  <div key={index} className="p-3 bg-amber-50 rounded-md border border-amber-200">
+                    <p className="font-medium text-sm text-gray-900">{error.question}</p>
+                    <p className="text-sm text-amber-700 mt-1">{error.message}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                请自行填写答案。
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowPlagiarismDialog(false)}>
+              返回修改
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

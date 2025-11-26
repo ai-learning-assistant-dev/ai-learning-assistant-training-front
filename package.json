@@ -36,6 +36,8 @@
     "clsx": "^2.1.1",
     "embla-carousel-react": "^8.6.0",
     "emittery": "^1.2.0",
+    "fast-levenshtein": "^3.0.0",
+    "fastest-levenshtein": "^1.0.16",
     "harden-react-markdown": "^1.1.2",
     "hook-fetch": "^2.2.4",
     "katex": "^0.16.22",

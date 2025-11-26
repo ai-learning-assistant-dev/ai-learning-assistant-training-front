@@ -5,7 +5,37 @@ import { useParams } from "react-router";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { aiChatServer } from "@/server/training-server";
 import { Button } from "@/components/ui/button";
-import { Key } from 'lucide-react';
+import { distance } from 'fastest-levenshtein';
+
+// 查重验证函数
+export function checkPlagiarism(userAnswer: string, refAnswer: string): { isValid: boolean; message?: string } {
+  const user = userAnswer.trim();
+  const ref = refAnswer.trim();
+  
+  if (!user || !ref) {
+    return { isValid: true };
+  }
+  
+  // 1. 检查完全相同
+  if (user === ref) {
+    return { isValid: false, message: "答案与参考答案完全相同" };
+  }
+  
+  // 2. 检查子集关系
+  if (ref.includes(user) || user.includes(ref)) {
+    return { isValid: false, message: "答案直接摘抄自参考答案" };
+  }
+  
+  // 3. 检查编辑距离相似度
+  const dist = distance(user, ref);
+  const similarity = 1 - dist / Math.max(user.length, ref.length);
+  
+  if (similarity >= 0.8) {
+    return { isValid: false, message: "答案与参考答案过于相似" };
+  }
+  
+  return { isValid: true };
+}
 
 type ShortAnswerProps = {
   id?: string;
