@@ -23,7 +23,7 @@ export function SectionDetail() {
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
   const { data: courseData } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer), [{ course_id: params.courseId, user_id: getLoginUser()?.user_id }]);
-  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer), [getLoginUser()?.user_id, params.courseId, params.sectionId]);
+  const { loading: nextSectionLoading, data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer), [getLoginUser()?.user_id, params.courseId, params.sectionId]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
@@ -57,6 +57,14 @@ export function SectionDetail() {
       setStage(isCompleted ? 'compare' : 'video');
     }
   }, [params.sectionId]);
+
+  useEffect(() => {
+    setVideoCompleted(false);
+    setIsExaminationPassed(mode === 'review' ? true : false);
+    setStage(mode === 'review' ? 'compare' : 'video');
+    learningReviewTriggeredRef.current = false;
+    setTrigger(prev => prev + 1);
+  }, [params.sectionId, mode]);
 
   useEffect(() => {
     const run = async () => {
@@ -150,6 +158,10 @@ export function SectionDetail() {
   }
 
   const goToNextSection = async () => {
+    if (nextSectionLoading) {
+      // TODO: 下一节数据加载中给用户提示
+      return;
+    }
     if (nextSection) {
       navigate(`/app/courseList/courseDetail/${params.courseId}/sectionDetail/${nextSection.section_id}`)
 
