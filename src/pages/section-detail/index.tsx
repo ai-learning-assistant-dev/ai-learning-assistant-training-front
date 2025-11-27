@@ -22,8 +22,8 @@ export function SectionDetail() {
   const [stage, setStage] = useState<Stage>(mode === 'review' ? 'compare' : 'video');
   const [trigger, setTrigger] = useState(1);
   const { loading, error, data } = useAutoCache(sectionsServer.getById.bind(sectionsServer), [{ section_id: params.sectionId }]);
-  const { data: courseData } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer), [{course_id: params.courseId, user_id: getLoginUser()?.user_id}]);
-  const { data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer),[getLoginUser()?.user_id, params.courseId, params.sectionId]);
+  const { data: courseData } = useAutoCache(courseServer.getCourseChaptersSections.bind(sectionsServer), [{ course_id: params.courseId, user_id: getLoginUser()?.user_id }]);
+  const { loading: nextSectionLoading, data: nextSection } = useAutoCache(courseServer.getNextSections.bind(courseServer), [getLoginUser()?.user_id, params.courseId, params.sectionId]);
   const { data: exerciseResult } = useAutoCache(
     exerciseResultServer.getExerciseResults,
     [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger
@@ -31,21 +31,40 @@ export function SectionDetail() {
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [isExaminationPassed, setIsExaminationPassed] = useState(mode === 'review' ? true : false);
   const learningReviewTriggeredRef = useRef(false);
-  
+
   const unlocked = courseData?.data.chapters?.flatMap(chapter => chapter.sections || []).find(sec => sec.section_id === params.sectionId)?.unlocked;
   const isCompleted = unlocked === 2;
   const isReviewMode = isExaminationPassed || exerciseResult?.data?.pass === true || isCompleted || mode === 'review';
 
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(()=>{
-    if(exerciseResult != null || courseData != null){
-      if(exerciseResult?.data.pass || isCompleted){
-        setStage('compare');
-        setIsExaminationPassed(true);
+  useEffect(() => {
+    // 只在非导航场景下自动设置stage
+    if (exerciseResult != null || courseData != null) {
+      if (exerciseResult?.data.pass || isCompleted) {
+        // 只有当前不是video状态时才自动切换
+        if (stage !== 'video') {
+          setStage('compare');
+          setIsExaminationPassed(true);
+        }
       }
     }
-  },[exerciseResult, courseData, isCompleted])
+  }, [exerciseResult, courseData, isCompleted])
+
+  useEffect(() => {
+    // 路由变化时重置stage
+    if (mode !== 'review') {
+      setStage(isCompleted ? 'compare' : 'video');
+    }
+  }, [params.sectionId]);
+
+  useEffect(() => {
+    setVideoCompleted(false);
+    setIsExaminationPassed(mode === 'review' ? true : false);
+    setStage(mode === 'review' ? 'compare' : 'video');
+    learningReviewTriggeredRef.current = false;
+    setTrigger(prev => prev + 1);
+  }, [params.sectionId, mode]);
 
   useEffect(() => {
     const run = async () => {
@@ -106,13 +125,13 @@ export function SectionDetail() {
     setVideoCompleted(true);
   };
 
-  const onPass = async (data: any) => {
+  const onPass = async () => {
     setIsExaminationPassed(true);
     setStage('compare');
     setTrigger(trigger + 1);
   };
 
-  const onFail = async (data: any) => {
+  const onFail = async () => {
     setIsExaminationPassed(false);
     if (!isReviewMode) {
       setStage('video');
@@ -126,26 +145,24 @@ export function SectionDetail() {
       return;
     }
 
-    if(exerciseResult?.data.pass){
+    if (exerciseResult?.data.pass) {
       setStage(nextStage);
     } else {
       if (stage === 'video') {
         if (nextStage === 'examination') {
           setStage(nextStage)
         }
-      } else if (stage === 'examination') {
-
-      } else if (stage === 'compare') {
-
       }
     }
 
   }
 
   const goToNextSection = async () => {
+    if (nextSectionLoading) {
+      return;
+    }
     if (nextSection) {
       navigate(`/app/courseList/courseDetail/${params.courseId}/sectionDetail/${nextSection.section_id}`)
-      setStage('video')
       scrollCenterTop();
     } else {
       navigate(`/app/courseList/courseDetail/${params.courseId}`)
@@ -184,7 +201,12 @@ export function SectionDetail() {
           </Tabs>
         )}
         {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} isReviewMode={isReviewMode} />}
-        {stage === 'compare' && <Button onClick={goToNextSection}>学习下一节课程</Button>}
+        {stage === 'compare' && <Button
+          onClick={goToNextSection}
+          disabled={nextSectionLoading}
+        >
+          {nextSectionLoading ? "下一节内容加载中...." : "学习下一节课程"}
+        </Button>}
       </div>
     )
   }
