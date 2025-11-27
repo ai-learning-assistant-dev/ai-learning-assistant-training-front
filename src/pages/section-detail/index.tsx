@@ -152,9 +152,12 @@ export function SectionDetail() {
         if (nextStage === 'examination') {
           setStage(nextStage)
         }
+      } else if (stage === 'examination') {
+        if(nextStage === 'video') {
+          setStage(nextStage)
+        }
       }
     }
-
   }
 
   const goToNextSection = async () => {
