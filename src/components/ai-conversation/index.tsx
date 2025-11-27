@@ -104,6 +104,12 @@ type ChatMessage = {
   sources?: Array<{ title: string; url: string }>;
   isStreaming?: boolean;
 };
+
+interface ModelOption {
+  id: string;
+  name: string;
+  displayName: string;
+}
 // const characters = [
 //   { id: "character1", name: "暴躁老师傅" },
 //   { id: "character2", name: "温柔助手" },
@@ -126,7 +132,7 @@ const getWebRTCServerUrl = () => {
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
-  const [modelOptions, setModelOptions] = useState<string[]>([]);
+  const [modelOptions, setModelOptions] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -165,72 +171,35 @@ const AiConversation = () => {
   useEffect(() => {
     let cancelled = false;
 
-    const normalizeModel = (entry: any): string | null => {
-      if (!entry) {
-        return null;
-      }
-      if (typeof entry === "string") {
-        return entry;
-      }
-      if (typeof entry === "object") {
-        const id =
-          entry.id ??
-          entry.modelId ??
-          entry.value ??
-          entry.code ??
-          entry.name ??
-          entry.key;
-        if (!id) {
-          return null;
-        }
-        return String(id);
-      }
-      return null;
-    };
-
     const loadModels = async () => {
       try {
         setIsLoadingModels(true);
         const response = await aiChatServer.getAllModels();
         const payload = response.data?.data ?? {};
 
-        const candidateArrays = [
-          payload?.all,
-          Array.isArray(payload) ? payload : null,
-        ];
-
-        const source =
-          candidateArrays.find((item) => Array.isArray(item)) ?? [];
-        const normalized = Array.from(
-          new Set(
-            (source as any[])
-              .map(normalizeModel)
-              .filter((item): item is string => Boolean(item))
-          )
-        );
-
-        if (cancelled || normalized.length === 0) {
+        const models: ModelOption[] = payload?.all || [];
+        
+        if (cancelled || models.length === 0) {
           return;
         }
 
-        const defaultIdCandidate = payload?.default ?? normalized[0];
-
-        if (cancelled) {
-          return;
-        }
-
-        setModelOptions(normalized);
+        setModelOptions(models);
+        
+        const defaultModelName = payload?.default;
         setSelectedModel((prev) => {
-          if (prev && normalized.includes(prev)) {
+          // Check if previously selected model exists in new list
+          if (prev && models.some((model) => model.id === prev)) {
             return prev;
           }
-          if (
-            defaultIdCandidate &&
-            normalized.includes(String(defaultIdCandidate))
-          ) {
-            return String(defaultIdCandidate);
+          // Try to select default model
+          const defaultModel = models.find((model) => 
+            model.displayName === defaultModelName || model.name === defaultModelName
+          );
+          if (defaultModel) {
+            return defaultModel.id;
           }
-          return normalized[0];
+          // Fallback to first model
+          return models[0].id;
         });
       } catch (error) {
         console.error("加载模型列表失败:", error);
@@ -817,9 +786,9 @@ const AiConversation = () => {
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {modelOptions.map((modelId) => (
-                    <SelectItem key={modelId} value={modelId}>
-                      {modelId}
+                  {modelOptions.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.displayName}
                     </SelectItem>
                   ))}
                 </SelectContent>
