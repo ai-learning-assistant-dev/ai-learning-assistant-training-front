@@ -134,12 +134,11 @@ export function SectionDetail() {
           setStage(nextStage)
         }
       } else if (stage === 'examination') {
-
-      } else if (stage === 'compare') {
-
+        if(nextStage === 'video') {
+          setStage(nextStage)
+        }
       }
     }
-
   }
 
   const goToNextSection = async () => {
