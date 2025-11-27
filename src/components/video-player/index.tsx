@@ -641,7 +641,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     return (
       <div className="flex flex-col gap-4">
         <div
-          className="relative overflow-hidden bg-black rounded-lg"
+          className="w-full aspect-[16/9] relative overflow-hidden bg-black rounded-lg"
           onMouseMove={handleMouseMove}
           onMouseLeave={hideControlsFn}
         >

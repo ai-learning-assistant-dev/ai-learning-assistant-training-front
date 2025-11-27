@@ -113,6 +113,17 @@ export function SectionStage({
     }
   };
 
+  const getBackFromCompareText = () => {
+  switch (stage) {
+    case "examination":
+      return "返回测验";
+    case "video":
+      return "返回视频学习";
+    default:
+      return "返回";
+  }
+};
+
   // 根据当前阶段和模式动态获取确认按钮文案
   const getConfirmButtonText = () => {
     if (isReviewMode) {
@@ -156,6 +167,7 @@ export function SectionStage({
           对照学习
         </Button>
       </div>
+      
       {/* 视频未完成提示弹窗 */}
       <AlertDialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
         <AlertDialogContent>
@@ -163,28 +175,30 @@ export function SectionStage({
             <AlertDialogTitle>
               {getDialogTitle()}
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              {isReviewMode ? (
-                <>
-                  <p>您正在复习模式下重新进行随堂测验。</p>
-                  <p className="text-blue-600 font-medium">
-                    重新测验将更新您的学习记录，帮助巩固知识点。
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    您可以随时切换回视频学习或对照学习模式。
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p>您尚未完成视频学习，是否要提前进入测验？</p>
-                  <p className="text-amber-600 font-medium">
-                    建议先观看完整视频，以获得更好的学习效果和测验表现。
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    测验过程中，您可以随时返回视频，但这可能会中断您的答题节奏。
-                  </p>
-                </>
-              )}
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                {isReviewMode ? (
+                  <>
+                    <p>您正在复习模式下重新进行随堂测验。</p>
+                    <p className="text-blue-600 font-medium">
+                      重新测验将更新您的学习记录，帮助巩固知识点。
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      您可以随时切换回视频学习或对照学习模式。
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>您尚未完成视频学习，是否要提前进入测验？</p>
+                    <p className="text-amber-600 font-medium">
+                      建议先观看完整视频，以获得更好的学习效果和测验表现。
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      测验过程中，您可以随时返回视频，但这可能会中断您的答题节奏。
+                    </p>
+                  </>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -197,6 +211,7 @@ export function SectionStage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
       {/* 切换到对照学习的确认弹窗 */}
       <AlertDialog open={showCompareDialog} onOpenChange={setShowCompareDialog}>
         <AlertDialogContent>
@@ -205,19 +220,21 @@ export function SectionStage({
               <AlertCircle className="h-5 w-5 text-amber-600" />
               暂无法进入对照学习
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>请先完成随堂测验并通过评估后，方可进入对照学习。</p>
-              <p className="text-amber-600 font-medium">
-                对照学习将提供测验解析、知识点对比和个性化建议，需要基于您的测验结果生成。
-              </p>
-              <p className="text-sm text-muted-foreground">
-                完成测验后，系统将自动评估并解锁此阶段。如果未通过，可返回视频复习。
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>请先完成随堂测验并通过评估后，方可进入对照学习。</p>
+                <p className="text-amber-600 font-medium">
+                  对照学习将提供测验解析、知识点对比和个性化建议，需要基于您的测验结果生成。
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  完成测验后，系统将自动评估并解锁此阶段。如果未通过，可返回视频复习。
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={handleCancel}>
-              返回测验
+              {getBackFromCompareText()}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
