@@ -1,23 +1,16 @@
 import Selection from "./selection";
-import type { Option } from "./selection";
 import ShortAnswer from "./short-answer";
-import image from './image.png';
 import { useAutoCache } from "@/containers/auto-cache";
 import { exerciseResultServer, exerciseServer, type ExrciseResultCompose } from "@/server/training-server";
 import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
-import { use, useCallback, useState, useEffect, useContext } from "react";
+import { useCallback, useState, useEffect, useContext } from "react";
 import { z } from "zod"
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Form,
-  FormControl,
-  FormDescription,
   FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
 } from "@/components/ui/form"
 import { isArray } from "lodash";
 import { getLoginUser } from "@/containers/auth-middleware";
@@ -34,6 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+
 function getSingleExerciseResult(results: ExrciseResultCompose, exercise_id: string) {
   const result = results.results.filter(item => item.exercise_id === exercise_id)[0];
   if (result) {
@@ -44,7 +38,14 @@ function getSingleExerciseResult(results: ExrciseResultCompose, exercise_id: str
 // 定义表单值的类型
 type FormValues = Record<string, string | string[] | undefined>;
 
-export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?: (data: unknown) => void, onFail?: (data: unknown) => void, isReviewMode?: boolean }) {
+interface ExaminationProps {
+  onPass?: (data: unknown) => void;
+  onFail?: (data: unknown) => void;
+  onSubmittedExam?: (pass: boolean) => void;
+  stage?: "video" | "examination" | "compare";
+  isReviewMode?: boolean;
+}
+export function Examination({ onPass, onFail, onSubmittedExam, stage, }: ExaminationProps) {
   const params = useParams();
   const [explanation, setExplanation] = useState(false);
   const [trigger, setTrigger] = useState(1);
@@ -71,6 +72,10 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
   }, [explanation, setIsExamination]);
 
   const checkResult = () => {
+    // 不及格才可以返回查看视频阶段
+    if (onSubmittedExam && exerciseResult?.data.pass === false) {
+      onSubmittedExam(exerciseResult?.data.pass)
+    }
     setExplanation(true);
     setResultDialogShow(false);
   }
@@ -81,8 +86,8 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
 
   data?.data.forEach((exercise) => {
     schema[exercise.exercise_id] = z.any().optional();
-    if (exerciseResult) {
-      for (const item of exerciseResult?.data.results) {
+    if (exerciseResult && exerciseResult.data && exerciseResult.data.results) {
+      for (const item of exerciseResult.data.results) {
         if (item.exercise_id === exercise.exercise_id) {
           if (exercise.type_status === '2') {
             defaultValues[exercise.exercise_id] = item.user_answer;
@@ -121,6 +126,7 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
       setTrigger(trigger + 1);
       setResultDialogShow(true);
     } finally {
+
       setSubmitting(false);
     }
   };
@@ -148,6 +154,20 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
 
     await submitForm(values);
   }, [params.sectionId, setTrigger, data]);
+
+
+  const goCompare = () => {
+    setExplanation(false);
+    if (onPass) {
+      onPass(exerciseResult)
+    }
+  };
+  const backVideoLearn = () => {
+    setExplanation(false);
+    if (onFail) {
+      onFail(exerciseResult)
+    }
+  };
 
   return (
     <div className="flex">
@@ -226,13 +246,13 @@ export function Examination({ onPass, onFail, isReviewMode = false }: { onPass?:
             </Button>
           }
           {explanation && (
-            isReviewMode ? (
+            stage === 'compare' ? (
               <Button onClick={() => { setExplanation(false); }} type="button">再答一次</Button>
             ) : (
               exerciseResult?.data.pass ? (
-                <Button onClick={() => { setExplanation(false); onPass && onPass(exerciseResult) }} type="button">进入对照学习</Button>
+                <Button onClick={goCompare} type="button">进入对照学习</Button>
               ) : (
-                <Button onClick={() => { setExplanation(false); onFail && onFail(exerciseResult) }} type="button">返回视频学习</Button>
+                <Button onClick={backVideoLearn} type="button">返回视频学习</Button>
               )
             )
           )}
