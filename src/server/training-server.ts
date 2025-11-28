@@ -128,9 +128,9 @@ export class CourseServer extends TrainingServer<CourseResponse> {
     ).data;
     const allSections: SectionResponse[] = [];
     if (course.data.chapters) {
-      for (let chapter of course.data.chapters) {
+      for (const chapter of course.data.chapters) {
         if (chapter.sections) {
-          for (let section of chapter.sections) {
+          for (const section of chapter.sections) {
             allSections.push(section);
           }
         }
@@ -215,7 +215,7 @@ interface SessionInfo {
 interface ChatRequest {
   userId: string;
   sectionId: string;
-  message: string;
+  message?: string;
   personaId?: string;
   sessionId?: string;
   useAudio?: boolean;
@@ -462,7 +462,7 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
     sessionId: string;
     modelName?: string;
   }) => {
-    return this.textStream("/learning-review", { ...data, message: "" });
+    return this.textStream("/learning-review", { ...data });
   };
 
   /**
