@@ -20,6 +20,7 @@ interface SectionStageProps {
   videoCompleted?: boolean;
   isExaminationPassed?: boolean;
   isReviewMode?: boolean;
+  hasSubmittedExam?: boolean;
 }
 
 const todo = '';
@@ -31,16 +32,17 @@ export function SectionStage({
   onClick,
   videoCompleted,
   isExaminationPassed,
-  isReviewMode = false
+  isReviewMode = false,
+  hasSubmittedExam = false,
 }: SectionStageProps) {
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [showCompareDialog, setShowCompareDialog] = useState(false);
   const [showVideoLockedDialog, setShowVideoLockedDialog] = useState(false);
   const [showExamLockedDialog, setShowExamLockedDialog] = useState(false);
-  const [showExamToVideoDialog, setShowExamToVideoDialog] = useState(false);
+  const [showCannotReturnDialog, setShowCannotReturnDialog] = useState(false);
   const [pendingStage, setPendingStage] = useState<Stage | null>(null);
-  const isVideoButtonLocked = false;
-  const isExamButtonLocked = stage === "compare" && isReviewMode;
+  const isVideoButtonLocked = stage === "compare";
+  const isExamButtonLocked = stage === "compare";
 
   const handleStageClick = (nextStage: Stage) => {
     if (nextStage === stage) {
@@ -58,10 +60,14 @@ export function SectionStage({
       onClick?.(nextStage);
       return;
     }
-    if (nextStage === "video" && stage === "examination" && !isReviewMode) {
-      setPendingStage(nextStage);
-      setShowExamToVideoDialog(true);
-      return;
+    if (nextStage === "video" && stage === "examination") {
+      if (!hasSubmittedExam) {
+        setShowCannotReturnDialog(true);
+        return;
+      } else {
+        onClick?.(nextStage);
+        return;
+      }
     }
     if (nextStage === "examination" && !videoCompleted) {
       setPendingStage(nextStage);
@@ -114,15 +120,15 @@ export function SectionStage({
   };
 
   const getBackFromCompareText = () => {
-  switch (stage) {
-    case "examination":
-      return "返回测验";
-    case "video":
-      return "返回视频学习";
-    default:
-      return "返回";
-  }
-};
+    switch (stage) {
+      case "examination":
+        return "返回测验";
+      case "video":
+        return "返回视频学习";
+      default:
+        return "返回";
+    }
+  };
 
   // 根据当前阶段和模式动态获取确认按钮文案
   const getConfirmButtonText = () => {
@@ -167,7 +173,7 @@ export function SectionStage({
           对照学习
         </Button>
       </div>
-      
+
       {/* 视频未完成提示弹窗 */}
       <AlertDialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
         <AlertDialogContent>
@@ -194,7 +200,7 @@ export function SectionStage({
                       建议先观看完整视频，以获得更好的学习效果和测验表现。
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      测验过程中，您可以随时返回视频，但这可能会中断您的答题节奏。
+                      测验过程中，您不可以返回视频学习。
                     </p>
                   </>
                 )}
@@ -211,7 +217,7 @@ export function SectionStage({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
       {/* 切换到对照学习的确认弹窗 */}
       <AlertDialog open={showCompareDialog} onOpenChange={setShowCompareDialog}>
         <AlertDialogContent>
@@ -272,29 +278,35 @@ export function SectionStage({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showExamToVideoDialog} onOpenChange={setShowExamToVideoDialog}>
+      <AlertDialog open={showCannotReturnDialog} onOpenChange={setShowCannotReturnDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-amber-600" />
-              确认返回视频学习
+              无法返回视频学习
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>您当前正在进行随堂测验，返回视频学习可能会中断您的答题进度。</p>
-              <p className="text-amber-600 font-medium">
-                建议先完成测验，以获得完整的学习评估和反馈。
-              </p>
-              <p className="text-sm text-muted-foreground">
-                如果需要复习特定知识点，您可以在测验后进入对照学习模式。
-              </p>
+            <AlertDialogDescription className="space-y-2" asChild>
+              {
+                isExaminationPassed ? (
+                  <p className="text-amber-600 font-medium">测验已经通过，请前往对照学习。</p>
+                ) : (
+                  <div className="space-y-3">
+                    <p>您尚未完成测验并交卷，无法返回到视频学习阶段。</p>
+                    <p className="text-amber-600 font-medium">
+                      请先交卷查看答案解析，之后可以再次观看视频。
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      此设计是为了确保您在测验过程中保持专注，并获得完整的学习反馈。
+                    </p>
+                  </div>
+                )
+              }
+
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancel}>
+            <AlertDialogAction onClick={() => setShowCannotReturnDialog(false)}>
               继续测验
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirm}>
-              确认返回
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -31,6 +31,7 @@ export function SectionDetail() {
   const { data: exerciseResult } = useAutoCache(exerciseResultServer.getExerciseResults, [{ user_id: getLoginUser()?.user_id, section_id: params.sectionId }], undefined, trigger);
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [isExaminationPassed, setIsExaminationPassed] = useState(mode === 'review' ? true : false);
+  const [hasSubmittedExam, setHasSubmittedExam] = useState(false); 
   const learningReviewTriggeredRef = useRef(false);
 
   const unlocked = courseData?.data.chapters?.flatMap(chapter => chapter.sections || []).find(sec => sec.section_id === params.sectionId)?.unlocked;
@@ -62,6 +63,7 @@ export function SectionDetail() {
   useEffect(() => {
     setVideoCompleted(false);
     setIsExaminationPassed(mode === 'review' ? true : false);
+    setHasSubmittedExam(false);
     setStage(mode === 'review' ? 'compare' : 'video');
     learningReviewTriggeredRef.current = false;
     setTrigger(prev => prev + 1);
@@ -132,6 +134,12 @@ export function SectionDetail() {
     setTrigger(trigger + 1);
   };
 
+  function onSubmittedExam(pass: boolean) {
+    if(!pass) {
+      setHasSubmittedExam(true);
+    }
+  }
+
   const onFail = async () => {
     setIsExaminationPassed(false);
     if (!isReviewMode) {
@@ -151,11 +159,12 @@ export function SectionDetail() {
     } else {
       if (stage === 'video') {
         if (nextStage === 'examination') {
-          setStage(nextStage);
+          setStage(nextStage)
+          setHasSubmittedExam(false);
         }
       } else if (stage === 'examination') {
         if (nextStage === 'video') {
-          setStage(nextStage);
+          setStage(nextStage)
         }
       }
     }
@@ -178,7 +187,14 @@ export function SectionDetail() {
     return (
       <div className='flex flex-col gap-4 px-6' ref={rootRef}>
         <SectionHeader />
-        <SectionStage stage={stage} onClick={changeStage} videoCompleted={videoCompleted} isExaminationPassed={isExaminationPassed} isReviewMode={isReviewMode} />
+        <SectionStage
+          stage={stage}
+          onClick={changeStage}
+          videoCompleted={videoCompleted}
+          isExaminationPassed={isExaminationPassed}
+          isReviewMode={isReviewMode}
+          hasSubmittedExam={hasSubmittedExam}
+        />
         {stage !== 'examination' && (
           <>
             <VideoPlayer url={section.video_url} knowledge_points={section.knowledge_points} onEnded={handleVideoEnded} />
@@ -194,18 +210,19 @@ export function SectionDetail() {
               <Response className='text-base leading-relaxed'>{section.knowledge_content}</Response>
             </TabsContent>
             {stage === 'compare' && (
-              <TabsContent value='examination'>
-                <Examination onPass={onPass} onFail={onFail} isReviewMode={isReviewMode} />
+              <TabsContent value="examination">
+                <Examination onPass={onPass} onFail={onFail} stage={stage} isReviewMode={isReviewMode} />
               </TabsContent>
             )}
           </Tabs>
         )}
-        {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} isReviewMode={isReviewMode} />}
-        {stage === 'compare' && (
-          <Button onClick={goToNextSection} disabled={nextSectionLoading}>
-            {nextSectionLoading ? '下一节内容加载中....' : '学习下一节课程'}
-          </Button>
-        )}
+        {stage === 'examination' && <Examination onPass={onPass} onFail={onFail} onSubmittedExam={onSubmittedExam} isReviewMode={isReviewMode} />}
+        {stage === 'compare' && <Button
+          onClick={goToNextSection}
+          disabled={nextSectionLoading}
+        >
+          {nextSectionLoading ? "下一节内容加载中...." : "学习下一节课程"}
+        </Button>}
       </div>
     );
   }
