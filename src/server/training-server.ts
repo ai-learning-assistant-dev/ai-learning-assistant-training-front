@@ -166,12 +166,20 @@ export class ChapterServer extends TrainingServer<ChapterResponse> {
 }
 export const chapterServer = new ChapterServer();
 
+export type KnowledgePoints = {
+  key_points?: {
+    description: string;
+    time: string;
+    title: string;
+  }[];
+};
+
 export type SectionResponse = {
   section_id: string;
   title: string;
   chapter_id: string;
   video_url?: string;
-  knowledge_points?: string;
+  knowledge_points?: KnowledgePoints;
   video_subtitles?: string;
   knowledge_content?: string;
   estimated_time?: number;
@@ -469,14 +477,12 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
    * 获取所有可用模型列表
    */
   getAllModels = () => {
-    return this.http.get<{ 
-      data: { 
-        all?: Array<{id: string, name: string, displayName: string}>;
-        default?: string 
-      } 
-    }>(
-      `${this.baseUrl}/models`
-    );
+    return this.http.get<{
+      data: {
+        all?: Array<{ id: string; name: string; displayName: string }>;
+        default?: string;
+      };
+    }>(`${this.baseUrl}/models`);
   };
 }
 

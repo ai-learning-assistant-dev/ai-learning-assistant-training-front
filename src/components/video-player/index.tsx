@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, forwa
 import * as dashJs from 'dashjs';
 import { uniqueId } from 'lodash';
 import type { MediaPlayerClass } from 'dashjs';
-import { serverHost } from '@/server/training-server';
+import { serverHost, type KnowledgePoints } from '@/server/training-server';
 import type { Quality } from '../video-controls';
 import VideoControls from '../video-controls';
 import BilibiliLoginModal from '../bilibili-login-modal';
-import aiVideoAssistantImg from './ai_video_assistant.png'
-import questionHereImg from './question_here.png'
+import aiVideoAssistantImg from './ai_video_assistant.png';
+import questionHereImg from './question_here.png';
 import { sendToAI } from '../ai-conversation';
+import { AIVideoSummary } from '../ai_video_assistant';
 
 export interface Source {
   src: string;
@@ -36,6 +37,7 @@ interface PlayerProps {
   width?: string;
   height?: string;
   subtitles?: Subtitle[];
+  knowledge_points?: KnowledgePoints;
   onError?: (error: Error) => void;
   onLoaded?: (player: MediaPlayerClass) => void;
   onPlay?: () => void;
@@ -70,6 +72,9 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       width = '100%',
       height = 'auto',
       subtitles = [],
+      knowledge_points = {
+        key_points: [],
+      },
       onError,
       onLoaded,
       onPlay,
@@ -82,7 +87,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     // State
     const [options, setOptions] = useState<Source>({
       src: '',
-      type: 'application/dash+xml'
+      type: 'application/dash+xml',
     });
     const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
     const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -105,6 +110,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [isPiPSupported] = useState<boolean>('pictureInPictureEnabled' in document);
     const [currentSubtitle, setCurrentSubtitle] = useState<string>('');
     const [showSubtitles, setShowSubtitles] = useState<boolean>(true);
+    const [showKnowledgePoints, setKnowledgePoints] = useState<boolean>(false);
 
     // Refs
     const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
@@ -119,7 +125,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       return subtitles.map(sub => ({
         ...sub,
         startTime: parseTimeToSeconds(sub.start),
-        endTime: parseTimeToSeconds(sub.end)
+        endTime: parseTimeToSeconds(sub.end),
       }));
     }, [subtitles]);
 
@@ -139,9 +145,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         return;
       }
 
-      const currentSub = processedSubtitles.find(
-        sub => currentTime >= sub.startTime && currentTime <= sub.endTime
-      );
+      const currentSub = processedSubtitles.find(sub => currentTime >= sub.startTime && currentTime <= sub.endTime);
 
       setCurrentSubtitle(currentSub?.text || '');
     }, [currentTime, processedSubtitles]);
@@ -192,15 +196,17 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         .then(data => {
           const xmlString = data.data.unifiedMpd;
           setFormatListTwo(data.data.formatList);
-          const xmlBlob = new Blob([xmlString], { type: 'application/dash+xml' });
+          const xmlBlob = new Blob([xmlString], {
+            type: 'application/dash+xml',
+          });
           const blobUrl = URL.createObjectURL(xmlBlob);
           setOptions({
             src: blobUrl,
-            type: 'application/dash+xml'
+            type: 'application/dash+xml',
           });
         })
         .catch(error => {
-          console.error("Failed to fetch MPD:", error);
+          console.error('Failed to fetch MPD:', error);
         });
     };
 
@@ -301,7 +307,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         return;
       }
 
-      const matchingQuality = formatListRef.current.find((quality) => {
+      const matchingQuality = formatListRef.current.find(quality => {
         return quality.id === Number(currentRepresentation.id);
       });
 
@@ -336,7 +342,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         setCurrentQuality('自动');
         updateQualityList();
       } else {
-        const targetQuality = availableQualities.find((q) => q.index === index);
+        const targetQuality = availableQualities.find(q => q.index === index);
         if (!targetQuality) return;
 
         setSwitchMessage(`正在切换到 ${targetQuality.label}, 请稍等...`);
@@ -375,7 +381,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       }
 
       if (wasPlaying && videoPlayerRef.current) {
-        videoPlayerRef.current.play().catch((err) => console.warn('切换后播放失败：', err));
+        videoPlayerRef.current.play().catch(err => console.warn('切换后播放失败：', err));
       }
     };
 
@@ -448,9 +454,9 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       playerRef.current.on(dashJs.MediaPlayer.events.STREAM_INITIALIZED, () => {
         const videoReps = playerRef.current?.getRepresentationsByType('video') || [];
         const newQualities: Quality[] = [];
-        formatListRef.current.forEach((item) => {
+        formatListRef.current.forEach(item => {
           if (item.id && item.codecs) {
-            const repIndex = videoReps.findIndex((rep) => Number(rep.id) === item.id);
+            const repIndex = videoReps.findIndex(rep => Number(rep.id) === item.id);
             if (repIndex !== -1) {
               newQualities.push({
                 index: repIndex,
@@ -472,7 +478,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         setAvailableQualities(newQualities);
         updateQualityList();
       });
-      playerRef.current.on(dashJs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, (event) => {
+      playerRef.current.on(dashJs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, event => {
         if (currentQualityIndex === -1) {
           updateQualityList();
         }
@@ -620,7 +626,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         paused: el.paused,
         ended: el.ended,
       };
-    }
+    };
     const askAI = () => {
       const p = getProgress();
       console.log('用户手动获取播放进度：', p);
@@ -635,30 +641,24 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       const timeStr = `${hh}:${mm}:${ss}`;
       const text = `对于当前时间点：${timeStr}，我有以下问题：\n`;
 
-      sendToAI(text)
-    }
+      sendToAI(text);
+    };
 
     return (
-      <div className="flex flex-col gap-4">
-        <div
-          className="w-full aspect-[16/9] relative overflow-hidden bg-black rounded-lg"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={hideControlsFn}
-        >
+      <div className='flex flex-col gap-4'>
+        <div className='w-full aspect-[16/9] relative overflow-hidden bg-black rounded-lg' onMouseMove={handleMouseMove} onMouseLeave={hideControlsFn}>
           <video
             ref={videoPlayerRef}
             id={playerIdRef.current}
-            className="w-full h-full object-contain bg-black"
+            className='w-full h-full object-contain bg-black'
             style={{ width: containerWidth, height: containerHeight }}
             onClick={togglePlay}
           />
 
           {/* 字幕显示 */}
           {showSubtitles && currentSubtitle && (
-            <div className="absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4">
-              <div className="bg-black/80 backdrop-blur-sm text-white px-6 py-3 rounded-lg text-lg font-medium max-w-4xl text-center shadow-lg">
-                {currentSubtitle}
-              </div>
+            <div className='absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4'>
+              <div className='bg-black/80 backdrop-blur-sm text-white px-6 py-3 rounded-lg text-lg font-medium max-w-4xl text-center shadow-lg'>{currentSubtitle}</div>
             </div>
           )}
 
@@ -698,12 +698,19 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             onSubtitleToggle={handleSubtitleToggle}
           />
         </div>
-        <div className="flex gap-4 justify-end">
-          <button type="button" className="w-24 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none">
-            <img src={aiVideoAssistantImg} alt="AI视频助手" className="max-w-full max-h-full" />
-          </button>
-          <button type="button" className="w-22 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none" onClick={askAI}>
-            <img src={questionHereImg} alt="这里不懂" className="max-w-full max-h-full" />
+        <div className='flex gap-4 justify-end'>
+          <AIVideoSummary
+            data={knowledge_points}
+            open={showKnowledgePoints}
+            onOpenChange={setKnowledgePoints}
+            triggerButton={
+              <button type='button' className='w-24 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none'>
+                <img src={aiVideoAssistantImg} alt='AI视频助手' className='max-w-full max-h-full' />
+              </button>
+            }
+          />
+          <button type='button' className='w-22 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none' onClick={askAI}>
+            <img src={questionHereImg} alt='这里不懂' className='max-w-full max-h-full' />
           </button>
         </div>
         <BilibiliLoginModal visible={showLoginModal} onClose={() => setShowLoginModal(false)} onSuccess={handleLoginSuccess} />
