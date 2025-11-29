@@ -19,7 +19,6 @@ import { Progress } from "@/components/ui/progress"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { SiteHeader } from "./site-header"
 import { getLoginUser } from "@/containers/auth-middleware"
-import { ScrollArea, ScrollBar } from "../ui/scroll-area"
 // Menu items.
 const topItems = [
   {
@@ -63,10 +62,10 @@ const bottomItems = [
   // },
 ]
 
-export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
+export function AppLeftSidebar({ children }: { children?: React.ReactNode }) {
   const user = getLoginUser();
   return (
-    <SidebarProvider 
+    <SidebarProvider
       defaultOpen={false}
       style={
         {
@@ -79,7 +78,7 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
         <SidebarHeader className="p-0">
           <Card>
             <CardHeader>
-              <CardTitle><User size={24} style={{display: 'inline'}} />{user?.name}</CardTitle>
+              <CardTitle><User size={24} style={{ display: 'inline' }} />{user?.name}</CardTitle>
             </CardHeader>
             {/* <CardContent>
               <div className="flex justify-between items-center w-full">
@@ -90,7 +89,7 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
             </CardContent> */}
           </Card>
         </SidebarHeader>
-        
+
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupContent>
@@ -127,12 +126,10 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
       <SidebarInset>
         <SiteHeader />
         <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <ScrollArea className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 center-scroll-container" style={{height: 'calc(100svh - 64px)'}}>
+          <div className="@container/main center-scroll-container flex flex-1 flex-col gap-2">
+            <div className="w-full flex flex-col gap-4 py-4 md:gap-6 md:py-6 h-[calc(100svh-64px)] overflow-auto scroll-area-viewport">
               {children}
-              <ScrollBar orientation="vertical" />
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+            </div>
           </div>
         </div>
       </SidebarInset>
@@ -140,8 +137,8 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
   )
 }
 
-export function scrollCenterTop(){
-  const scrollElement = document.querySelector('.center-scroll-container [data-slot="scroll-area-viewport"]');
+export function scrollCenterTop() {
+  const scrollElement = document.querySelector('.center-scroll-container .scroll-area-viewport');
   if (scrollElement) {
     (scrollElement as HTMLElement).scrollTo({
       top: 0,
