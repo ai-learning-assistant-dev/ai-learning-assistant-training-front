@@ -184,8 +184,12 @@ export function SectionDetail() {
 
   if (loading === false && error == null) {
     const section = data.data;
+    let doc = section.knowledge_content || '';
+    if(doc.indexOf('```') === 0) {
+      doc = doc.replace('```','')
+    }
     return (
-      <div className='flex flex-col gap-4 px-6' ref={rootRef}>
+      <div className='flex flex-col gap-4 px-6 w-full' ref={rootRef}>
         <SectionHeader />
         <SectionStage
           stage={stage}
@@ -207,7 +211,9 @@ export function SectionDetail() {
               {stage === 'compare' && <TabsTrigger value='examination'>随堂测验</TabsTrigger>}
             </TabsList>
             <TabsContent value='doc'>
-              <Response className='text-base leading-relaxed'>{section.knowledge_content}</Response>
+              <div className='flex'>
+                <Response className='text-base leading-relaxed'>{doc}</Response>
+              </div>
             </TabsContent>
             {stage === 'compare' && (
               <TabsContent value="examination">
