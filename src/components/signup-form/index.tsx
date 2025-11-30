@@ -33,7 +33,7 @@ export function SignupForm(props: {onSubmit?: (name: string) => void }) {
           <Input name="name" required />
         </Field>
         <Field>
-          <Button type="submit">创建并登陆</Button>
+          <Button type="submit">创建并登录</Button>
         </Field>
       </FieldGroup>
     </form>

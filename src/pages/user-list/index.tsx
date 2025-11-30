@@ -54,12 +54,12 @@ export default function UserList() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <Tabs defaultValue="登陆账户">
+            <Tabs defaultValue="登录账户">
               <TabsList>
-                <TabsTrigger value="登陆账户">登陆账户</TabsTrigger>
+                <TabsTrigger value="登录账户">登录账户</TabsTrigger>
                 <TabsTrigger value="创建账户">创建账户</TabsTrigger>
               </TabsList>
-              <TabsContent value="登陆账户">
+              <TabsContent value="登录账户">
                 <LoginForm userList={userList?.data} onSubmit={loginOnSubmit}/>
               </TabsContent>
               <TabsContent value="创建账户">

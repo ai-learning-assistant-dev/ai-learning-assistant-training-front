@@ -30,7 +30,7 @@ export function LoginForm(props: {userList?: UserResponse[], onSubmit?: (user_id
     <form className={cn("flex flex-col gap-6")} onSubmit={onSubmit} >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">登陆账户</h1>
+          <h1 className="text-2xl font-bold">登录账户</h1>
           <p className="text-muted-foreground text-sm text-balance">
             在下方选择账户名来从上次进度继续学习
           </p>
@@ -53,7 +53,7 @@ export function LoginForm(props: {userList?: UserResponse[], onSubmit?: (user_id
           </Select>
         </Field>
         <Field>
-          <Button type="submit">登陆</Button>
+          <Button type="submit">登录</Button>
         </Field>
       </FieldGroup>
     </form>
