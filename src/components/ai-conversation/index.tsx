@@ -125,8 +125,8 @@ function getUserId() {
 // WebRTC 服务器地址配置
 const getWebRTCServerUrl = () => {
   // 根据实际部署情况配置
-  // return window.location.protocol + "//" + window.location.host + "/api";
-  return "http://localhost:8989";
+  return window.location.protocol + "//" + window.location.hostname + ':8989';
+  // return "http://localhost:8989";
 };
 
 const AiConversation = () => {
