@@ -2,13 +2,7 @@
  * FastRTC 消息类型和接口定义
  */
 
-export type MessageType =
-  | "send_input"
-  | "fetch_output"
-  | "stopword"
-  | "error"
-  | "warning"
-  | "log";
+export type MessageType = 'send_input' | 'fetch_output' | 'stopword' | 'error' | 'warning' | 'log';
 
 export interface Message {
   type: MessageType;
@@ -25,12 +19,12 @@ export interface WebRTCError {
 
 export type Subtitle =
   | {
-      type: "request"; //request表示用户语音识别字幕
-      timestamp: "";
+      type: 'request'; //request表示用户语音识别字幕
+      timestamp: '';
       text: string;
     }
   | {
-      type: "response"; //response表示AI响应字幕
+      type: 'response'; //response表示AI响应字幕
       timestamp: number; //秒级时间戳（相对时间，0视为音频段开始）
       text: string;
     };
@@ -49,6 +43,7 @@ export interface LLMMetadata {
   sessionId: string;
   sectionId: string;
   personaId?: string;
+  daily?: boolean;
 }
 
 /**
