@@ -15,6 +15,7 @@ const modelEnum = [
   "/exercises",
   "/exercise-results",
   "/users",
+  "/leading-questions",
 ] as const;
 
 export interface Pagination {
@@ -312,6 +313,13 @@ export interface AiPersona {
   is_default_template: boolean;
 }
 
+export interface LeadingQuestionResponse {
+  question_id: string;
+  section_id: string;
+  question: string;
+  // 如模型没有 answer 字段可去掉
+}
+
 /**
  * 切换人设请求
  */
@@ -487,6 +495,28 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
 }
 
 export const aiChatServer = new AIChatServer();
+
+class LeadingQuestionServer extends TrainingServer<LeadingQuestionResponse> {
+  constructor() {
+    super("/leading-questions");
+  }
+
+  searchBySection = async (data: {
+    section_id: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    return this.http.post<Status<LeadingQuestionResponse[]>>(
+      "/searchBySection",
+      data,
+      {
+        baseURL: this.baseUrl,
+      }
+    );
+  };
+}
+
+export const leadingQuestionServer = new LeadingQuestionServer();
 
 export interface ExerciseResponse {
   exercise_id: string;
