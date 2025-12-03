@@ -309,10 +309,6 @@ const AiConversation = () => {
             content: '你好，我是你的AI课程助手，目前处于课程模式。',
             role: 'assistant',
             timestamp: new Date(),
-            sources: [
-              { title: 'Getting Started Guide', url: '#' },
-              { title: 'API Documentation', url: '#' },
-            ],
           },
         ];
 
