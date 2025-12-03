@@ -33,13 +33,11 @@ export function sendToAI(message: string) {
 
 export const AI_LEARNING_REVIEW = 'ai-learning-review';
 
-export function aiLearningReview(user_id: string, sectionId: string, sessionId: string) {
+export function aiLearningReview(sectionId: string) {
   window.dispatchEvent(
-    new CustomEvent('ai-learning-review', {
+    new CustomEvent(AI_LEARNING_REVIEW, {
       detail: {
-        userId: user_id,
-        sectionId: sectionId,
-        sessionId,
+        sectionId,
       },
     })
   );
@@ -426,31 +424,43 @@ const AiConversation = () => {
 
   useEffect(() => {
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent)?.detail as
-        | {
-            userId?: string;
-            sectionId?: string;
-            sessionId?: string;
-          }
-        | undefined;
+      const detail = (event as CustomEvent)?.detail as { sectionId?: string } | undefined;
 
       if (!detail) {
         return;
       }
 
       const resolvedSectionId = detail.sectionId ?? sectionId ?? '';
-      const resolvedSessionId = detail.sessionId ?? currentSessionId ?? (resolvedSectionId ? localStorage.getItem(`ai-session-${resolvedSectionId}`) : null);
 
-      const resolvedUserId = detail.userId ?? getUserId();
-
-      if (!resolvedSessionId || !resolvedUserId) {
-        console.warn('[learning-review] missing identifiers', {
-          resolvedSessionId,
-          resolvedUserId,
-          resolvedSectionId,
-        });
+      if (!resolvedSectionId) {
+        console.warn('[learning-review] skipped: missing section id');
         return;
       }
+
+      let resolvedSessionId = currentSessionId;
+      if (!resolvedSessionId) {
+        resolvedSessionId = localStorage.getItem(`ai-session-${resolvedSectionId}`) ?? null;
+      }
+
+      if (!resolvedSessionId) {
+        console.log('[learning-review] skipped: no existing session for section', resolvedSectionId);
+        return;
+      }
+
+      const resolvedUserId = getUserId();
+
+      if (!resolvedUserId) {
+        console.warn('[learning-review] skipped: missing user id');
+        return;
+      }
+
+      const reviewKey = `ai-learning-review-${resolvedSectionId}-${resolvedSessionId}`;
+      if (localStorage.getItem(reviewKey)) {
+        console.log('[learning-review] skipped: already triggered for session', resolvedSessionId);
+        return;
+      }
+
+      localStorage.setItem(reviewKey, 'true');
 
       if (resolvedSessionId !== currentSessionId) {
         setCurrentSessionId(resolvedSessionId);
