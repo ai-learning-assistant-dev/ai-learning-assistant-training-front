@@ -1,6 +1,6 @@
 import { VideoPlayer } from '@/components/video-player';
 import { useAutoCache } from '@/containers/auto-cache';
-import { aiChatServer, courseServer, exerciseResultServer, sectionsServer } from '@/server/training-server';
+import { courseServer, exerciseResultServer, sectionsServer } from '@/server/training-server';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { Response } from '@/components/ui/shadcn-io/ai/response';
 import { SectionHeader } from '@/components/section-header';
@@ -32,13 +32,13 @@ export function SectionDetail() {
   const [videoCompleted, setVideoCompleted] = useState(false);
   const [isExaminationPassed, setIsExaminationPassed] = useState(mode === 'review' ? true : false);
   const [hasSubmittedExam, setHasSubmittedExam] = useState(false); 
-  const learningReviewTriggeredRef = useRef(false);
 
   const unlocked = courseData?.data.chapters?.flatMap(chapter => chapter.sections || []).find(sec => sec.section_id === params.sectionId)?.unlocked;
   const isCompleted = unlocked === 2;
   const isReviewMode = isExaminationPassed || exerciseResult?.data?.pass === true || isCompleted || mode === 'review';
 
   const rootRef = useRef<HTMLDivElement>(null);
+  const learningReviewTriggeredRef = useRef(false);
 
   useEffect(() => {
     // 只在非导航场景下自动设置stage
@@ -65,12 +65,11 @@ export function SectionDetail() {
     setIsExaminationPassed(mode === 'review' ? true : false);
     setHasSubmittedExam(false);
     setStage(mode === 'review' ? 'compare' : 'video');
-    learningReviewTriggeredRef.current = false;
     setTrigger(prev => prev + 1);
   }, [params.sectionId, mode]);
 
   useEffect(() => {
-    const run = async () => {
+    const run = () => {
       if (loading || error || !data) {
         return;
       }
@@ -80,39 +79,19 @@ export function SectionDetail() {
         return;
       }
 
-      const user = getLoginUser();
-      let sessionId: string | null = localStorage.getItem(`ai-session-${params.sectionId}`);
-
-      if (!user?.user_id || !params.sectionId) {
-        console.error('[learning-review] skipped due to missing identifiers', {
-          hasUserId: Boolean(user?.user_id),
-          hasSectionId: Boolean(params.sectionId),
-        });
-        return;
-      }
-
-      if (sessionId === null) {
-        const session = await aiChatServer.new({
-          userId: user.user_id,
-          sectionId: params.sectionId,
-        });
-        sessionId = session.data.data.session_id;
-      }
-
-      if (!sessionId) {
-        console.error('[learning-review] skipped due to missing identifiers', {
-          hasSession: Boolean(sessionId),
-        });
-        return;
-      }
-
       if (learningReviewTriggeredRef.current) {
         return;
       }
-      learningReviewTriggeredRef.current = true;
 
-      aiLearningReview(user.user_id, params.sectionId, sessionId);
+      if (!params.sectionId) {
+        console.warn('[learning-review] skipped due to missing section id');
+        return;
+      }
+
+      learningReviewTriggeredRef.current = true;
+      aiLearningReview(params.sectionId);
     };
+
     run();
   }, [stage, params.sectionId, loading, error, data]);
 

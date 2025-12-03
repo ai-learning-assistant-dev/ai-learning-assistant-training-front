@@ -9,7 +9,7 @@ import { MicIcon, ArrowUpIcon, PhoneIcon, MicOffIcon, XIcon, FileTextIcon, SunDi
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { nanoid } from 'nanoid';
 import { type FormEventHandler, useCallback, useEffect, useRef, useState } from 'react';
-import { aiChatServer, type AiPersona } from '@/server/training-server';
+import { aiChatServer, leadingQuestionServer, type AiPersona, type LeadingQuestionResponse } from '@/server/training-server';
 import { useAutoCache } from '@/containers/auto-cache';
 import { useParams } from 'react-router';
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer';
@@ -33,13 +33,11 @@ export function sendToAI(message: string) {
 
 export const AI_LEARNING_REVIEW = 'ai-learning-review';
 
-export function aiLearningReview(user_id: string, sectionId: string, sessionId: string) {
+export function aiLearningReview(sectionId: string) {
   window.dispatchEvent(
-    new CustomEvent('ai-learning-review', {
+    new CustomEvent(AI_LEARNING_REVIEW, {
       detail: {
-        userId: user_id,
-        sectionId: sectionId,
-        sessionId,
+        sectionId,
       },
     })
   );
@@ -53,6 +51,11 @@ type ChatMessage = {
   reasoning?: string;
   sources?: Array<{ title: string; url: string }>;
   isStreaming?: boolean;
+};
+
+type LeadingQuestionSuggestion = {
+  id: string;
+  text: string;
 };
 
 interface ModelOption {
@@ -95,6 +98,7 @@ const AiConversation = () => {
   const [currentMessage, setCurrentMessage] = useState('');
   const [previousMessage, setPreviousMessage] = useState('欢迎使用语音对话功能');
   const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(null);
+  const [leadingQuestions, setLeadingQuestions] = useState<LeadingQuestionSuggestion[]>([]);
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
@@ -110,6 +114,44 @@ const AiConversation = () => {
 
   const { data: personasResponse } = useAutoCache(aiChatServer.getPersonas, []);
   const personas = personasResponse?.data || [];
+
+  const fetchLeadingQuestions = useCallback(async (targetSectionId: string) => {
+    if (!targetSectionId) {
+      setLeadingQuestions([]);
+      return;
+    }
+
+    try {
+      const response = await leadingQuestionServer.searchBySection({
+        section_id: targetSectionId,
+        page: 1,
+        limit: 3,
+      });
+
+      const items: LeadingQuestionResponse[] = response.data?.data ?? [];
+      const suggestions = items
+        .map((item, index) => {
+          const text = item.question?.trim();
+          if (!text) {
+            return null;
+          }
+
+          const id = item.question_id || `leading-question-${targetSectionId}-${index}`;
+
+          return {
+            id,
+            text,
+          } satisfies LeadingQuestionSuggestion;
+        })
+        .filter((item): item is LeadingQuestionSuggestion => Boolean(item))
+        .slice(0, 3);
+
+      setLeadingQuestions(suggestions);
+    } catch (error) {
+      console.error('获取预设问题失败:', error);
+      setLeadingQuestions([]);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -209,6 +251,7 @@ const AiConversation = () => {
             timestamp: new Date(),
           },
         ]);
+        setLeadingQuestions([]);
         setIsLoadingHistory(false);
         return;
       }
@@ -256,6 +299,7 @@ const AiConversation = () => {
         });
 
         console.log(`加载了 ${historyMessages.length / 2} 条历史对话`);
+        setLeadingQuestions([]);
       } else {
         console.log('没有找到现有会话，将在发送第一条消息时创建');
         // 显示欢迎消息
@@ -271,6 +315,8 @@ const AiConversation = () => {
             ],
           },
         ];
+
+        await fetchLeadingQuestions(sectionId);
       }
 
       setMessages(historyMessages);
@@ -285,10 +331,11 @@ const AiConversation = () => {
           timestamp: new Date(),
         },
       ]);
+      setLeadingQuestions([]);
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [sectionId]);
+  }, [fetchLeadingQuestions, sectionId]);
 
   // 当 sectionId 变更时，加载对应的历史记录
   useEffect(() => {
@@ -377,31 +424,43 @@ const AiConversation = () => {
 
   useEffect(() => {
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent)?.detail as
-        | {
-            userId?: string;
-            sectionId?: string;
-            sessionId?: string;
-          }
-        | undefined;
+      const detail = (event as CustomEvent)?.detail as { sectionId?: string } | undefined;
 
       if (!detail) {
         return;
       }
 
       const resolvedSectionId = detail.sectionId ?? sectionId ?? '';
-      const resolvedSessionId = detail.sessionId ?? currentSessionId ?? (resolvedSectionId ? localStorage.getItem(`ai-session-${resolvedSectionId}`) : null);
 
-      const resolvedUserId = detail.userId ?? getUserId();
-
-      if (!resolvedSessionId || !resolvedUserId) {
-        console.warn('[learning-review] missing identifiers', {
-          resolvedSessionId,
-          resolvedUserId,
-          resolvedSectionId,
-        });
+      if (!resolvedSectionId) {
+        console.warn('[learning-review] skipped: missing section id');
         return;
       }
+
+      let resolvedSessionId = currentSessionId;
+      if (!resolvedSessionId) {
+        resolvedSessionId = localStorage.getItem(`ai-session-${resolvedSectionId}`) ?? null;
+      }
+
+      if (!resolvedSessionId) {
+        console.log('[learning-review] skipped: no existing session for section', resolvedSectionId);
+        return;
+      }
+
+      const resolvedUserId = getUserId();
+
+      if (!resolvedUserId) {
+        console.warn('[learning-review] skipped: missing user id');
+        return;
+      }
+
+      const reviewKey = `ai-learning-review-${resolvedSectionId}-${resolvedSessionId}`;
+      if (localStorage.getItem(reviewKey)) {
+        console.log('[learning-review] skipped: already triggered for session', resolvedSessionId);
+        return;
+      }
+
+      localStorage.setItem(reviewKey, 'true');
 
       if (resolvedSessionId !== currentSessionId) {
         setCurrentSessionId(resolvedSessionId);
@@ -473,29 +532,29 @@ const AiConversation = () => {
     }, 50);
     return () => clearInterval(typeInterval);
   }, []);
-  const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
-    async event => {
-      event.preventDefault();
+  const sendMessage = useCallback(
+    (messageText: string) => {
+      if (isTyping) return;
 
-      if (!inputValue.trim() || isTyping) return;
+      const trimmed = messageText.trim();
+      if (!trimmed) return;
 
-      const currentInput = inputValue.trim();
-
-      // Add user message
       const userMessage: ChatMessage = {
         id: nanoid(),
-        content: currentInput,
+        content: trimmed,
         role: 'user',
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, userMessage]);
-      setInputValue('');
       setIsTyping(true);
+      setLeadingQuestions([]);
 
-      // Process AI response with real streaming
-      setTimeout(async () => {
+      if (streamingTimerRef.current) {
+        window.clearTimeout(streamingTimerRef.current);
+      }
+
+      streamingTimerRef.current = window.setTimeout(async () => {
         try {
-          // 如果没有sessionId，先创建一个
           let sessionId = currentSessionId;
           if (!sessionId) {
             console.log('创建新会话...');
@@ -505,7 +564,6 @@ const AiConversation = () => {
             });
             sessionId = response.data.data.session_id;
             setCurrentSessionId(sessionId);
-            // 保存到 localStorage
             if (sectionId) {
               localStorage.setItem(`ai-session-${sectionId}`, sessionId);
             }
@@ -513,7 +571,6 @@ const AiConversation = () => {
           }
 
           const assistantMessageId = nanoid();
-
           const assistantMessage: ChatMessage = {
             id: assistantMessageId,
             content: '',
@@ -524,15 +581,14 @@ const AiConversation = () => {
           setMessages(prev => [...prev, assistantMessage]);
           setStreamingMessageId(assistantMessageId);
 
-          // Start real stream processing
           const response = await aiChatServer.textChatStream({
             userId: getUserId(),
-            message: currentInput,
+            message: trimmed,
             sessionId,
             sectionId: sectionId ?? '',
             personaId: selectedPersona?.persona_id,
             modelName: selectedModel || undefined,
-            daily: !sectionId, // 如果sectionId为空，设置daily=true
+            daily: !sectionId,
           });
           await processStreamResponse(assistantMessageId, response);
         } catch (error) {
@@ -540,7 +596,6 @@ const AiConversation = () => {
           setIsTyping(false);
           setStreamingMessageId(null);
 
-          // Add error message
           const errorMessage: ChatMessage = {
             id: nanoid(),
             content: 'Sorry, I encountered an error. Please try again.',
@@ -549,10 +604,32 @@ const AiConversation = () => {
             isStreaming: false,
           };
           setMessages(prev => [...prev, errorMessage]);
+        } finally {
+          streamingTimerRef.current = null;
         }
       }, 300);
     },
-    [inputValue, isTyping, currentSessionId, sectionId, selectedPersona, selectedModel, processStreamResponse]
+    [isTyping, currentSessionId, sectionId, selectedPersona, selectedModel, processStreamResponse]
+  );
+
+  const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
+    event => {
+      event.preventDefault();
+
+      if (!inputValue.trim() || isTyping) return;
+
+      const currentInput = inputValue;
+      setInputValue('');
+      sendMessage(currentInput);
+    },
+    [inputValue, isTyping, sendMessage]
+  );
+
+  const handleLeadingQuestionClick = useCallback(
+    (question: string) => {
+      sendMessage(question);
+    },
+    [sendMessage]
   );
 
   const handleReset = useCallback(() => {
@@ -594,11 +671,17 @@ const AiConversation = () => {
       setIsTyping(false);
       setStreamingMessageId(null);
 
+      if (sectionId) {
+        await fetchLeadingQuestions(sectionId);
+      } else {
+        setLeadingQuestions([]);
+      }
+
       console.log('已切换到新会话:', newSessionId);
     } catch (error) {
       console.error('创建新会话失败:', error);
     }
-  }, [sectionId]);
+  }, [fetchLeadingQuestions, sectionId]);
 
   const onVoiceClose = useCallback(() => {
     setIsVoiceMode(false);
@@ -687,6 +770,25 @@ const AiConversation = () => {
                 <div className='flex items-center justify-center py-4'>
                   <Loader size={16} />
                   <span className='ml-2 text-muted-foreground text-sm'>Loading chat history...</span>
+                </div>
+              )}
+              {!isLoadingHistory && leadingQuestions.length > 0 && (
+                <div className='rounded-lg border border-dashed border-muted bg-muted/40 p-4'>
+                  <div className='mb-3 text-xs font-medium text-muted-foreground'>预设问题</div>
+                  <div className='grid gap-2'>
+                    {leadingQuestions.map(question => (
+                      <Button
+                        key={question.id}
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        className='justify-start whitespace-normal text-left'
+                        onClick={() => handleLeadingQuestionClick(question.text)}
+                      >
+                        {question.text}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               )}
               {messages.map(message => (
