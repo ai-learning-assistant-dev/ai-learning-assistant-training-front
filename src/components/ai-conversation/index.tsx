@@ -589,12 +589,18 @@ const AiConversation = () => {
           await processStreamResponse(assistantMessageId, response);
         } catch (error) {
           console.error('AI Chat Error:', error);
+          let message = '对话失败，请检查AI设置和网络情况';
+          // @ts-ignore
+          if (error?.response?.data?.details) {
+            // @ts-ignore
+            message = error.response.data.details
+          }
           setIsTyping(false);
           setStreamingMessageId(null);
 
           const errorMessage: ChatMessage = {
             id: nanoid(),
-            content: 'Sorry, I encountered an error. Please try again.',
+            content: message,
             role: 'assistant',
             timestamp: new Date(),
             isStreaming: false,
