@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { MicIcon, MicOffIcon, XIcon } from 'lucide-react';
+import { MicIcon, MicOffIcon, XIcon, ChevronDownIcon, SettingsIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { FastRTCClient, type Subtitle } from '@/lib/rtc-client';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { FastRTCClient, type Subtitle, type MicrophoneDevice, type MicrophoneTestStatus } from '@/lib/rtc-client';
 
 type VoiceUIProps = {
   userId: string;
@@ -26,6 +28,14 @@ export const VoiceUI = ({ userId, sessionId, sectionId, personaId, serverUrl, on
   const [connectionState, setConnectionState] = useState<string>('disconnected');
   const [subtitles, setSubtitles] = useState<SubtitleItem[]>([]);
   const [currentSubtitle, setCurrentSubtitle] = useState<string>('');
+
+  // 麦克风相关状态
+  const [microphones, setMicrophones] = useState<MicrophoneDevice[]>([]);
+  const [currentMicId, setCurrentMicId] = useState<string>('');
+  const [micPopoverOpen, setMicPopoverOpen] = useState(false);
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const [testStatus, setTestStatus] = useState<MicrophoneTestStatus>('idle');
+  const [testMicId, setTestMicId] = useState<string>('');
 
   const rtcClientRef = useRef<FastRTCClient | null>(null);
 
@@ -109,16 +119,40 @@ export const VoiceUI = ({ userId, sessionId, sectionId, personaId, serverUrl, on
           }
         });
 
-        // 监听错误
+        // 监听错误 - 将错误显示到字幕中
         client.on('error', error => {
           console.error('RTC Error:', error);
           setConnectionState('failed');
+          // 将错误显示到字幕区域
+          const errorSubtitle: SubtitleItem = {
+            id: `error-${Date.now()}`,
+            type: 'assistant',
+            text: `❌ 错误: ${error}`,
+            timestamp: Date.now(),
+          };
+          setCurrentSubtitle(errorSubtitle.text);
+          setSubtitles(prev => [...prev, errorSubtitle]);
+        });
+
+        // 监听麦克风切换
+        client.on('microphoneChange', (mic: MicrophoneDevice) => {
+          setCurrentMicId(mic.deviceId);
+        });
+
+        // 监听麦克风测试状态
+        client.on('microphoneTestStatusChange', (status: MicrophoneTestStatus) => {
+          setTestStatus(status);
         });
 
         // 连接到服务器
         setConnectionState('connecting');
         await client.connect();
         console.log('✅ FastRTCClient 已连接到服务器');
+
+        // 获取麦克风列表
+        const mics = await client.listMicrophones();
+        setMicrophones(mics);
+        setCurrentMicId(client.getCurrentMicrophoneId());
       } catch (error) {
         setConnectionState('failed');
         console.error('❌ Failed to initialize RTC:', error);
@@ -142,6 +176,52 @@ export const VoiceUI = ({ userId, sessionId, sectionId, personaId, serverUrl, on
       setIsMuted(newMutedState);
     }
   }, []);
+
+  // 切换麦克风
+  const handleSwitchMicrophone = useCallback(
+    async (deviceId: string) => {
+      if (rtcClientRef.current && deviceId !== currentMicId) {
+        try {
+          await rtcClientRef.current.switchMicrophone(deviceId);
+          setMicPopoverOpen(false);
+        } catch (error) {
+          console.error('切换麦克风失败:', error);
+        }
+      }
+    },
+    [currentMicId]
+  );
+
+  // 开始麦克风测试
+  const handleStartTest = useCallback(async () => {
+    if (rtcClientRef.current && testMicId) {
+      try {
+        await rtcClientRef.current.startMicrophoneTest(testMicId);
+      } catch (error) {
+        console.error('麦克风测试失败:', error);
+      }
+    }
+  }, [testMicId]);
+
+  // 获取当前麦克风名称
+  const getCurrentMicLabel = useCallback(() => {
+    const mic = microphones.find(m => m.deviceId === currentMicId);
+    return mic?.label || '未选择麦克风';
+  }, [microphones, currentMicId]);
+
+  // 获取测试状态文本
+  const getTestStatusText = useCallback(() => {
+    switch (testStatus) {
+      case 'recording':
+        return '正在录音...（5秒）';
+      case 'playing':
+        return '正在播放录音...';
+      case 'done':
+        return '测试完成';
+      default:
+        return '点击开始测试';
+    }
+  }, [testStatus]);
 
   // 获取状态颜色和文本
   const getStateInfo = () => {
@@ -188,6 +268,56 @@ export const VoiceUI = ({ userId, sessionId, sectionId, personaId, serverUrl, on
 
   return (
     <div className='flex-1 flex flex-col pl-8 pr-8 relative'>
+      {/* 右上角麦克风测试按钮 */}
+      <div className='absolute top-2 right-2'>
+        <Button
+          variant='ghost'
+          size='icon'
+          onClick={() => {
+            setTestMicId(currentMicId || (microphones[0]?.deviceId ?? ''));
+            setTestStatus('idle');
+            setTestDialogOpen(true);
+          }}
+          className='h-8 w-8 text-gray-500 hover:text-gray-700'
+          title='麦克风测试'
+        >
+          <SettingsIcon className='h-4 w-4' />
+        </Button>
+      </div>
+
+      {/* 麦克风测试弹窗 */}
+      <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
+        <DialogContent className='sm:max-w-sm'>
+          <DialogHeader>
+            <DialogTitle>麦克风测试</DialogTitle>
+            <DialogDescription>选择麦克风并录音5秒，然后播放录音检查效果。</DialogDescription>
+          </DialogHeader>
+          <div className='space-y-4 py-2'>
+            <div className='space-y-2'>
+              <label className='text-sm font-medium text-gray-700'>选择麦克风</label>
+              <select
+                className='w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+                value={testMicId}
+                onChange={e => setTestMicId(e.target.value)}
+                disabled={testStatus === 'recording' || testStatus === 'playing'}
+              >
+                {microphones.map(mic => (
+                  <option key={mic.deviceId} value={mic.deviceId}>
+                    {mic.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className='flex items-center justify-between'>
+              <span className='text-sm text-gray-600'>{getTestStatusText()}</span>
+              <Button onClick={handleStartTest} disabled={testStatus === 'recording' || testStatus === 'playing' || !testMicId} size='sm'>
+                {testStatus === 'idle' || testStatus === 'done' ? '开始测试' : '测试中...'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Main Voice Interface */}
       <div className='flex-1 flex flex-col items-center justify-between gap-1'>
         {/* AI 语音输出可视化圆球 (背景透明) */}
@@ -216,14 +346,48 @@ export const VoiceUI = ({ userId, sessionId, sectionId, personaId, serverUrl, on
         </div>
 
         {/* 控制按钮 - Fixed at bottom */}
-        <div className='flex gap-3 justify-center pb-4'>
-          <Button variant='outline' size='icon' onClick={toggleMute} disabled={!isConnected} className={cn('w-12 h-12 rounded-full', isMuted && 'bg-red-100 hover:bg-red-200')}>
-            {isMuted ? <MicOffIcon className='h-5 w-5 text-red-600' /> : <MicIcon className='h-5 w-5' />}
-          </Button>
+        <div className='flex flex-col gap-6 justify-center pb-4'>
+          {/* 麦克风选择下拉框 */}
+          <Popover open={micPopoverOpen} onOpenChange={setMicPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant='outline' className='h-12 px-3 rounded-full gap-1' disabled={!isConnected || microphones.length === 0}>
+                <MicIcon className='h-4 w-4' />
+                <span className='max-w-[100px] truncate text-sm'>{getCurrentMicLabel()}</span>
+                <ChevronDownIcon className='h-3 w-3' />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className='w-64 p-2' align='center'>
+              <div className='space-y-1'>
+                <div className='px-2 py-1 text-xs font-medium text-gray-500'>选择麦克风</div>
+                {microphones.map(mic => (
+                  <button
+                    key={mic.deviceId}
+                    onClick={() => handleSwitchMicrophone(mic.deviceId)}
+                    className={cn(
+                      'w-full px-2 py-2 text-left text-sm rounded-md transition-colors',
+                      mic.deviceId === currentMicId ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-100'
+                    )}
+                  >
+                    <div className='flex items-center gap-2'>
+                      <MicIcon className='h-4 w-4 flex-shrink-0' />
+                      <span className='truncate'>{mic.label}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <div className='flex flex-row items-center justify-center gap-6'>
+            {/* 静音按钮 */}
+            <Button variant='outline' size='icon' onClick={toggleMute} disabled={!isConnected} className={cn('w-12 h-12 rounded-full', isMuted && 'bg-red-100 hover:bg-red-200')}>
+              {isMuted ? <MicOffIcon className='h-5 w-5 text-red-600' /> : <MicIcon className='h-5 w-5' />}
+            </Button>
 
-          <Button variant='destructive' size='icon' onClick={closeVoice} className='w-12 h-12 rounded-full' disabled={!['failed', 'connected'].includes(connectionState)}>
-            <XIcon className='h-5 w-5' />
-          </Button>
+            {/* 关闭按钮 */}
+            <Button variant='destructive' size='icon' onClick={closeVoice} className='w-12 h-12 rounded-full' disabled={!['failed', 'connected'].includes(connectionState)}>
+              <XIcon className='h-5 w-5' />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

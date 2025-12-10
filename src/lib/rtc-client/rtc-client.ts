@@ -1,13 +1,8 @@
-import Emittery from "emittery";
-import type {
-  Message,
-  FastRTCClientConfig,
-  FastRTCClientEvents,
-  Subtitle,
-} from "./types";
-import { InputVisualizer, OutputVisualizer } from "./index";
-import hookFetch from "hook-fetch";
-import { sseTextDecoderPlugin } from "hook-fetch/plugins/sse";
+import Emittery from 'emittery';
+import type { Message, FastRTCClientConfig, FastRTCClientEvents, Subtitle, MicrophoneDevice, MicrophoneTestStatus } from './types';
+import { InputVisualizer, OutputVisualizer } from './index';
+import hookFetch from 'hook-fetch';
+import { sseTextDecoderPlugin } from 'hook-fetch/plugins/sse';
 
 /**
  * 字幕管理器
@@ -29,11 +24,11 @@ class SubtitleManager {
       plugins: [
         sseTextDecoderPlugin({
           json: true, // 自动解析 JSON
-          prefix: "data: ", // 移除 "data: " 前缀
-          splitSeparator: "\n\n", // 事件分隔符
-          lineSeparator: "\n", // 行分隔符
+          prefix: 'data: ', // 移除 "data: " 前缀
+          splitSeparator: '\n\n', // 事件分隔符
+          lineSeparator: '\n', // 行分隔符
           trim: true, // 去除首尾空白
-          doneSymbol: "[DONE]", // 结束标记
+          doneSymbol: '[DONE]', // 结束标记
         }),
       ],
     });
@@ -44,13 +39,11 @@ class SubtitleManager {
    * 建立 SSE 连接以接收字幕数据
    */
   async start(webrtcId: string) {
-    for await (const chunk of this.apiClient
-      .get(`/webrtc/text-stream?webrtc_id=${webrtcId}`)
-      .stream()) {
+    for await (const chunk of this.apiClient.get(`/webrtc/text-stream?webrtc_id=${webrtcId}`).stream()) {
       const subtitle = chunk.result;
       if (this.isSubtitle(subtitle)) {
-        this.processSubtitle(subtitle, (s) => {
-          this.rtcClient.emit("subtitle", s);
+        this.processSubtitle(subtitle, s => {
+          this.rtcClient.emit('subtitle', s);
         });
       }
     }
@@ -60,21 +53,16 @@ class SubtitleManager {
    * 检查是否为有效的字幕对象
    */
   private isSubtitle(obj: unknown): obj is Subtitle {
-    if (!obj || typeof obj !== "object") return false;
+    if (!obj || typeof obj !== 'object') return false;
     const sub = obj as Record<string, unknown>;
-    return (
-      (sub.type === "request" && typeof sub.text === "string") ||
-      (sub.type === "response" &&
-        typeof sub.timestamp === "number" &&
-        typeof sub.text === "string")
-    );
+    return (sub.type === 'request' && typeof sub.text === 'string') || (sub.type === 'response' && typeof sub.timestamp === 'number' && typeof sub.text === 'string');
   }
 
   /**
    * 处理字幕事件
    */
   processSubtitle(subtitle: Subtitle, onEmit: (s: Subtitle) => void): void {
-    if (subtitle.type === "request") {
+    if (subtitle.type === 'request') {
       // request 类型直接清空队列并发送
       this.clearQueue();
       this.baseTime = Date.now();
@@ -96,26 +84,17 @@ class SubtitleManager {
   /**
    * 将字幕添加到队列中
    */
-  private queueSubtitle(
-    subtitle: Subtitle,
-    onEmit: (s: Subtitle) => void
-  ): void {
-    if (subtitle.type !== "response") return;
+  private queueSubtitle(subtitle: Subtitle, onEmit: (s: Subtitle) => void): void {
+    if (subtitle.type !== 'response') return;
 
     if (this.responseQueue.length === 0) {
       this.baseTime = Date.now();
     }
-    const delayMs = Math.max(
-      subtitle.timestamp * 1000 -
-        (Date.now() - this.baseTime) /* 相对0时间戳经过的时间 */,
-      0
-    );
+    const delayMs = Math.max(subtitle.timestamp * 1000 - (Date.now() - this.baseTime) /* 相对0时间戳经过的时间 */, 0);
     const timeout = setTimeout(() => {
       onEmit(subtitle);
       // 移除队列中的该项
-      this.responseQueue = this.responseQueue.filter(
-        (item) => item.timeout !== timeout
-      );
+      this.responseQueue = this.responseQueue.filter(item => item.timeout !== timeout);
     }, delayMs);
 
     this.responseQueue.push({ subtitle, timeout });
@@ -125,7 +104,7 @@ class SubtitleManager {
    * 清空待执行的队列
    */
   private clearQueue(): void {
-    this.responseQueue.forEach((item) => clearTimeout(item.timeout));
+    this.responseQueue.forEach(item => clearTimeout(item.timeout));
     this.responseQueue = [];
   }
 
@@ -146,12 +125,21 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
   private peerConnection: RTCPeerConnection | null = null;
   private dataChannel: RTCDataChannel | null = null;
   private audioOutput: HTMLAudioElement;
-  private webrtcId: string = "";
+  private webrtcId: string = '';
   private isConnected = false;
   private inputVisualizer: InputVisualizer | null = null;
   private outputVisualizer: OutputVisualizer | null = null;
   private localStream: MediaStream | null = null;
   private subtitleManager: SubtitleManager;
+  private currentMicrophoneId: string = '';
+  private audioSender: RTCRtpSender | null = null;
+
+  // 麦克风测试相关
+  private testMediaRecorder: MediaRecorder | null = null;
+  private testAudioChunks: Blob[] = [];
+  private testAudioElement: HTMLAudioElement | null = null;
+  private testStream: MediaStream | null = null;
+  private testStatus: MicrophoneTestStatus = 'idle';
 
   private _config: FastRTCClientConfig | null = null;
   private set config(value: FastRTCClientConfig) {
@@ -165,7 +153,7 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
     super();
     this.config = config;
 
-    console.log("🚀 FastRTCClient 构造函数开始", {
+    console.log('🚀 FastRTCClient 构造函数开始', {
       hasInputContainer: !!config.visualizer?.inputContainerId,
       hasOutputContainer: !!config.visualizer?.outputContainerId,
       inputContainerId: config.visualizer?.inputContainerId,
@@ -182,46 +170,36 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
     // 立即创建可视化器（避免空屏），稍后连接音频流
     if (this.config.visualizer?.inputContainerId) {
       try {
-        this.inputVisualizer = new InputVisualizer(
-          this.config.visualizer.inputContainerId
-        );
-        console.log(
-          "✅ InputVisualizer 创建成功:",
-          this.config.visualizer.inputContainerId
-        );
+        this.inputVisualizer = new InputVisualizer(this.config.visualizer.inputContainerId);
+        console.log('✅ InputVisualizer 创建成功:', this.config.visualizer.inputContainerId);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error("❌ InputVisualizer 创建失败:", errorMsg);
+        console.error('❌ InputVisualizer 创建失败:', errorMsg);
         throw new Error(`Failed to create InputVisualizer: ${errorMsg}`);
       }
     } else {
-      console.warn("⚠️ InputVisualizer 未配置 containerId");
+      console.warn('⚠️ InputVisualizer 未配置 containerId');
     }
 
     if (this.config.visualizer?.outputContainerId) {
       try {
-        this.outputVisualizer = new OutputVisualizer(
-          this.config.visualizer.outputContainerId
-        );
-        console.log(
-          "✅ OutputVisualizer 创建成功:",
-          this.config.visualizer.outputContainerId
-        );
-        console.log("✅ this.outputVisualizer 状态:", {
+        this.outputVisualizer = new OutputVisualizer(this.config.visualizer.outputContainerId);
+        console.log('✅ OutputVisualizer 创建成功:', this.config.visualizer.outputContainerId);
+        console.log('✅ this.outputVisualizer 状态:', {
           isNull: this.outputVisualizer === null,
           isUndefined: this.outputVisualizer === undefined,
           type: typeof this.outputVisualizer,
         });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        console.error("❌ OutputVisualizer 创建失败:", errorMsg);
+        console.error('❌ OutputVisualizer 创建失败:', errorMsg);
         throw new Error(`Failed to create OutputVisualizer: ${errorMsg}`);
       }
     } else {
-      console.warn("⚠️ OutputVisualizer 未配置 containerId");
+      console.warn('⚠️ OutputVisualizer 未配置 containerId');
     }
 
-    console.log("🎉 FastRTCClient 构造函数完成", {
+    console.log('🎉 FastRTCClient 构造函数完成', {
       hasInputVisualizer: !!this.inputVisualizer,
       hasOutputVisualizer: !!this.outputVisualizer,
     });
@@ -229,42 +207,31 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
 
   /**
    * 初始化 WebRTC 连接
+   * 先建立连接，然后自动尝试获取麦克风
    */
   async connect(): Promise<void> {
     try {
-      await this.post("/webrtc/metadata", {
+      await this.post('/webrtc/metadata', {
         ...this.config.llmMetadata,
-        personaId: this.config.llmMetadata.personaId ?? "",
+        personaId: this.config.llmMetadata.personaId ?? '',
       });
       this.generateWebRTCId();
 
       this.subtitleManager.start(this.webrtcId);
 
-      const rtcConfig = this.config.iceServers
-        ? { iceServers: this.config.iceServers }
-        : {};
+      const rtcConfig = this.config.iceServers ? { iceServers: this.config.iceServers } : {};
 
       this.peerConnection = new RTCPeerConnection(rtcConfig);
       this.setupEventListeners();
 
-      // 获取麦克风音频流
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.localStream = stream;
-
-      // 添加音频轨道
-      stream.getTracks().forEach((track) => {
-        this.peerConnection!.addTrack(track, stream);
+      // 先添加 transceiver 用于发送音频，稍后再添加实际轨道
+      const transceiver = this.peerConnection.addTransceiver('audio', {
+        direction: 'sendrecv',
       });
-
-      // 连接输入音频可视化器到音频流（如果已创建）
-      if (this.inputVisualizer) {
-        this.inputVisualizer.connectStream(stream);
-        this.inputVisualizer.start();
-        await this.emit("log", "输入音频可视化已启动");
-      }
+      await this.emit('log', '已添加音频 transceiver');
 
       // 创建数据通道
-      this.dataChannel = this.peerConnection.createDataChannel("text");
+      this.dataChannel = this.peerConnection.createDataChannel('text');
       this.setupDataChannel();
 
       // 创建并发送 offer
@@ -275,21 +242,14 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
       const response = await this.sendOfferWithRetry(offer);
 
       // 检查服务器返回的 Answer
-      await this.emit("log", `收到服务器 Answer, type: ${response.type}`);
-      console.log("Server Answer SDP:", response.sdp);
+      await this.emit('log', `收到服务器 Answer, type: ${response.type}`);
+      console.log('Server Answer SDP:', response.sdp);
 
       // 检查 SDP 中是否包含音频媒体
       if (response.sdp) {
-        const hasAudio = response.sdp.includes("m=audio");
-        const audioDirection = response.sdp.match(
-          /a=(sendrecv|sendonly|recvonly|inactive)/g
-        );
-        await this.emit(
-          "log",
-          `Answer SDP - 包含音频: ${hasAudio}, 方向: ${
-            audioDirection?.join(", ") || "未指定"
-          }`
-        );
+        const hasAudio = response.sdp.includes('m=audio');
+        const audioDirection = response.sdp.match(/a=(sendrecv|sendonly|recvonly|inactive)/g);
+        await this.emit('log', `Answer SDP - 包含音频: ${hasAudio}, 方向: ${audioDirection?.join(', ') || '未指定'}`);
       }
 
       // 在设置远程描述之前就标记为已连接，避免 track 事件被忽略
@@ -297,19 +257,19 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
 
       await this.peerConnection.setRemoteDescription(response);
 
-      await this.emit("connect");
-      await this.emit("log", "已连接到服务器");
+      await this.emit('connect');
+      await this.emit('log', '已连接到服务器');
 
       // 检查输出可视化器的状态
       if (this.outputVisualizer) {
-        await this.emit("log", "输出可视化器已创建，等待远程音频轨道...");
+        await this.emit('log', '输出可视化器已创建，等待远程音频轨道...');
       } else {
-        await this.emit("log", "警告: 输出可视化器未创建");
+        await this.emit('log', '警告: 输出可视化器未创建');
       }
 
       // 检查 PeerConnection 的接收器
       const receivers = this.peerConnection.getReceivers();
-      await this.emit("log", `PeerConnection 接收器数量: ${receivers.length}`);
+      await this.emit('log', `PeerConnection 接收器数量: ${receivers.length}`);
       receivers.forEach((receiver, index) => {
         console.log(`Receiver ${index}:`, {
           kind: receiver.track?.kind,
@@ -318,18 +278,273 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
           enabled: receiver.track?.enabled,
         });
       });
+
+      // 连接建立后，自动尝试获取麦克风
+      await this.autoSelectMicrophone(transceiver);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await this.emit("error", errorMsg);
+      await this.emit('error', errorMsg);
       throw error;
     }
+  }
+
+  /**
+   * 自动选择并启用麦克风
+   * 按顺序尝试获取麦克风，使用第一个可用的
+   */
+  private async autoSelectMicrophone(transceiver: RTCRtpTransceiver): Promise<void> {
+    try {
+      const microphones = await this.listMicrophones();
+      await this.emit('log', `发现 ${microphones.length} 个麦克风设备`);
+
+      if (microphones.length === 0) {
+        await this.emit('log', '未找到麦克风设备');
+        return;
+      }
+
+      // 按顺序尝试每个麦克风
+      for (const mic of microphones) {
+        try {
+          await this.emit('log', `尝试使用麦克风: ${mic.label || mic.deviceId}`);
+
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: mic.deviceId } },
+          });
+
+          this.localStream = stream;
+          this.currentMicrophoneId = mic.deviceId;
+
+          // 替换 transceiver 的 sender 轨道
+          const audioTrack = stream.getAudioTracks()[0];
+          await transceiver.sender.replaceTrack(audioTrack);
+          this.audioSender = transceiver.sender;
+
+          // 连接输入音频可视化器
+          if (this.inputVisualizer) {
+            this.inputVisualizer.connectStream(stream);
+            this.inputVisualizer.start();
+            await this.emit('log', '输入音频可视化已启动');
+          }
+
+          await this.emit('log', `已启用麦克风: ${mic.label || mic.deviceId}`);
+          await this.emit('microphoneChange', mic);
+          return;
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          await this.emit('log', `麦克风 ${mic.label || mic.deviceId} 不可用: ${errMsg}`);
+          continue;
+        }
+      }
+
+      await this.emit('log', '所有麦克风均不可用');
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.emit('log', `获取麦克风失败: ${errorMsg}`);
+    }
+  }
+
+  /**
+   * 获取所有可用的麦克风设备
+   */
+  async listMicrophones(): Promise<MicrophoneDevice[]> {
+    try {
+      // 先请求权限以获取设备标签
+      await navigator.mediaDevices.getUserMedia({ audio: true }).then(s => {
+        s.getTracks().forEach(t => t.stop());
+      });
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const microphones = devices
+        .filter(device => device.kind === 'audioinput')
+        .map(device => ({
+          deviceId: device.deviceId,
+          label: device.label || `麦克风 ${device.deviceId.slice(0, 8)}`,
+          isDefault: device.deviceId === 'default',
+        }));
+
+      return microphones;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.emit('error', `获取麦克风列表失败: ${errorMsg}`);
+      return [];
+    }
+  }
+
+  /**
+   * 切换麦克风设备
+   */
+  async switchMicrophone(deviceId: string): Promise<void> {
+    if (!this.peerConnection || !this.isConnected) {
+      throw new Error('WebRTC 连接未建立');
+    }
+
+    if (deviceId === this.currentMicrophoneId) {
+      await this.emit('log', '已经在使用该麦克风');
+      return;
+    }
+
+    try {
+      // 获取新的音频流
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: deviceId } },
+      });
+
+      const newTrack = newStream.getAudioTracks()[0];
+
+      // 找到当前的音频 sender 并替换轨道
+      if (this.audioSender) {
+        await this.audioSender.replaceTrack(newTrack);
+      } else {
+        // 如果没有 sender，添加新轨道
+        this.audioSender = this.peerConnection.addTrack(newTrack, newStream);
+      }
+
+      // 停止旧轨道并更新流
+      if (this.localStream) {
+        this.localStream.getAudioTracks().forEach(track => track.stop());
+      }
+      this.localStream = newStream;
+      this.currentMicrophoneId = deviceId;
+
+      // 更新输入可视化器
+      if (this.inputVisualizer) {
+        this.inputVisualizer.connectStream(newStream);
+      }
+
+      // 获取设备信息并发送事件
+      const microphones = await this.listMicrophones();
+      const currentMic = microphones.find(m => m.deviceId === deviceId);
+      if (currentMic) {
+        await this.emit('microphoneChange', currentMic);
+      }
+
+      await this.emit('log', `已切换到麦克风: ${deviceId}`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.emit('error', `切换麦克风失败: ${errorMsg}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 获取当前麦克风设备 ID
+   */
+  getCurrentMicrophoneId(): string {
+    return this.currentMicrophoneId;
+  }
+
+  /**
+   * 开始测试麦克风（录音 5 秒）
+   */
+  async startMicrophoneTest(deviceId?: string): Promise<void> {
+    if (this.testStatus !== 'idle' && this.testStatus !== 'done') {
+      throw new Error('测试正在进行中');
+    }
+
+    try {
+      this.setTestStatus('recording');
+      this.testAudioChunks = [];
+
+      // 获取测试用的音频流
+      const constraints: MediaStreamConstraints = {
+        audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+      };
+      this.testStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // 创建 MediaRecorder
+      this.testMediaRecorder = new MediaRecorder(this.testStream);
+      this.testMediaRecorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+          this.testAudioChunks.push(event.data);
+        }
+      };
+
+      this.testMediaRecorder.onstop = () => {
+        this.playTestRecording();
+      };
+
+      // 开始录音
+      this.testMediaRecorder.start();
+      await this.emit('log', '开始麦克风测试录音（5秒）');
+
+      // 5 秒后停止录音
+      setTimeout(() => {
+        this.stopMicrophoneTest();
+      }, 5000);
+    } catch (error) {
+      this.setTestStatus('idle');
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.emit('error', `麦克风测试失败: ${errorMsg}`);
+      throw error;
+    }
+  }
+
+  /**
+   * 停止麦克风测试
+   */
+  stopMicrophoneTest(): void {
+    if (this.testMediaRecorder && this.testMediaRecorder.state !== 'inactive') {
+      this.testMediaRecorder.stop();
+    }
+
+    // 停止测试流
+    if (this.testStream) {
+      this.testStream.getTracks().forEach(track => track.stop());
+      this.testStream = null;
+    }
+  }
+
+  /**
+   * 播放测试录音
+   */
+  private async playTestRecording(): Promise<void> {
+    if (this.testAudioChunks.length === 0) {
+      this.setTestStatus('done');
+      return;
+    }
+
+    this.setTestStatus('playing');
+
+    const audioBlob = new Blob(this.testAudioChunks, { type: 'audio/webm' });
+    const audioUrl = URL.createObjectURL(audioBlob);
+
+    this.testAudioElement = new Audio(audioUrl);
+    this.testAudioElement.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      this.setTestStatus('done');
+      this.emit('log', '麦克风测试完成');
+    };
+
+    this.testAudioElement.onerror = () => {
+      URL.revokeObjectURL(audioUrl);
+      this.setTestStatus('done');
+      this.emit('error', '播放测试录音失败');
+    };
+
+    await this.testAudioElement.play();
+    await this.emit('log', '正在播放测试录音');
+  }
+
+  /**
+   * 获取麦克风测试状态
+   */
+  getMicrophoneTestStatus(): MicrophoneTestStatus {
+    return this.testStatus;
+  }
+
+  /**
+   * 设置测试状态并发送事件
+   */
+  private setTestStatus(status: MicrophoneTestStatus): void {
+    this.testStatus = status;
+    this.emit('microphoneTestStatusChange', status);
   }
 
   /**
    * 关闭 WebRTC 连接
    */
   async disconnect(): Promise<void> {
-    console.log("🔴 开始断开连接和清理资源");
+    console.log('🔴 开始断开连接和清理资源');
 
     // 立即标记为未连接，防止事件处理器继续处理
     this.isConnected = false;
@@ -345,21 +560,21 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
 
       this.peerConnection.close();
       this.peerConnection = null;
-      console.log("✅ PeerConnection 已关闭");
+      console.log('✅ PeerConnection 已关闭');
     }
 
     // 关闭数据通道
     if (this.dataChannel) {
       this.dataChannel.close();
       this.dataChannel = null;
-      console.log("✅ DataChannel 已关闭");
+      console.log('✅ DataChannel 已关闭');
     }
 
     // 停止本地音频流
     if (this.localStream) {
-      this.localStream.getTracks().forEach((track) => track.stop());
+      this.localStream.getTracks().forEach(track => track.stop());
       this.localStream = null;
-      console.log("✅ 本地音频流已停止");
+      console.log('✅ 本地音频流已停止');
     }
 
     // 销毁音频可视化器
@@ -367,30 +582,39 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
       this.inputVisualizer.stop();
       this.inputVisualizer.destroy();
       this.inputVisualizer = null;
-      await this.emit("log", "输入音频可视化已销毁");
+      await this.emit('log', '输入音频可视化已销毁');
     }
 
     if (this.outputVisualizer) {
       this.outputVisualizer.stop();
       this.outputVisualizer.destroy();
       this.outputVisualizer = null;
-      await this.emit("log", "输出音频可视化已销毁");
+      await this.emit('log', '输出音频可视化已销毁');
     }
 
     // 销毁字幕管理器
     this.subtitleManager.close();
 
-    await this.emit("disconnect");
-    await this.emit("log", "已断开连接");
-    console.log("🔴 断开连接完成");
+    // 清理麦克风测试资源
+    this.stopMicrophoneTest();
+    if (this.testAudioElement) {
+      this.testAudioElement.pause();
+      this.testAudioElement = null;
+    }
+    this.testAudioChunks = [];
+    this.testStatus = 'idle';
+
+    await this.emit('disconnect');
+    await this.emit('log', '已断开连接');
+    console.log('🔴 断开连接完成');
   }
 
   /**
    * 通过数据通道发送数据
    */
   async send(data: object): Promise<void> {
-    if (!this.dataChannel || this.dataChannel.readyState !== "open") {
-      throw new Error("数据通道未就绪");
+    if (!this.dataChannel || this.dataChannel.readyState !== 'open') {
+      throw new Error('数据通道未就绪');
     }
 
     this.dataChannel.send(
@@ -405,7 +629,7 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
    * 通过 HTTP 发送输入数据
    */
   async sendInput(inputData: object): Promise<void> {
-    await this.post("/input_hook", {
+    await this.post('/input_hook', {
       webrtc_id: this.webrtcId,
       ...inputData,
     });
@@ -416,10 +640,10 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
    */
   mute(): void {
     if (this.localStream) {
-      this.localStream.getAudioTracks().forEach((track) => {
+      this.localStream.getAudioTracks().forEach(track => {
         track.enabled = false;
       });
-      this.emit("log", "麦克风已静音");
+      this.emit('log', '麦克风已静音');
     }
   }
 
@@ -428,10 +652,10 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
    */
   unmute(): void {
     if (this.localStream) {
-      this.localStream.getAudioTracks().forEach((track) => {
+      this.localStream.getAudioTracks().forEach(track => {
         track.enabled = true;
       });
-      this.emit("log", "麦克风已取消静音");
+      this.emit('log', '麦克风已取消静音');
     }
   }
 
@@ -475,37 +699,37 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
   private setupEventListeners(): void {
     if (!this.peerConnection) return;
 
-    console.log("🔧 设置事件监听器", {
+    console.log('🔧 设置事件监听器', {
       hasInputVisualizer: !!this.inputVisualizer,
       hasOutputVisualizer: !!this.outputVisualizer,
     });
 
     // 处理接收到的音频轨道
-    this.peerConnection.addEventListener("track", (evt) => {
+    this.peerConnection.addEventListener('track', evt => {
       // 检查实例是否已被销毁
       if (!this.peerConnection || !this.isConnected) {
-        console.log("⚠️ 实例已销毁，忽略 track 事件");
+        console.log('⚠️ 实例已销毁，忽略 track 事件');
         return;
       }
 
-      console.log("on track event:", evt);
-      console.log("track kind:", evt.track.kind);
-      console.log("streams:", evt.streams);
-      console.log("transceiver:", evt.transceiver?.direction);
+      console.log('on track event:', evt);
+      console.log('track kind:', evt.track.kind);
+      console.log('streams:', evt.streams);
+      console.log('transceiver:', evt.transceiver?.direction);
 
       // 只处理远程音频轨道
-      if (evt.track.kind === "audio" && evt.streams.length > 0) {
+      if (evt.track.kind === 'audio' && evt.streams.length > 0) {
         const remoteStream = evt.streams[0];
 
         if (this.audioOutput.srcObject !== remoteStream) {
           this.audioOutput.srcObject = remoteStream;
-          this.emit("log", "接收到远程音频轨道");
+          this.emit('log', '接收到远程音频轨道');
 
           // 连接输出音频可视化器到远程音频流
           if (this.outputVisualizer) {
-            console.log("OutputVisualizer: 连接远程音频流", {
+            console.log('OutputVisualizer: 连接远程音频流', {
               streamId: remoteStream.id,
-              tracks: remoteStream.getAudioTracks().map((t) => ({
+              tracks: remoteStream.getAudioTracks().map(t => ({
                 id: t.id,
                 kind: t.kind,
                 enabled: t.enabled,
@@ -514,28 +738,25 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
             });
             this.outputVisualizer.connectStream(remoteStream);
             this.outputVisualizer.start();
-            this.emit("log", "输出音频可视化已启动");
+            this.emit('log', '输出音频可视化已启动');
           } else {
-            console.error("OutputVisualizer 未创建！检查构造函数配置");
-            this.emit("log", "错误: 输出音频可视化器未创建");
+            console.error('OutputVisualizer 未创建！检查构造函数配置');
+            this.emit('log', '错误: 输出音频可视化器未创建');
           }
 
-          this.emit("track", remoteStream);
+          this.emit('track', remoteStream);
         } else {
-          this.emit("log", "远程音频轨道已经连接，跳过重复处理");
+          this.emit('log', '远程音频轨道已经连接，跳过重复处理');
         }
       } else {
-        this.emit(
-          "log",
-          `收到非音频轨道或空流: kind=${evt.track.kind}, streams.length=${evt.streams.length}`
-        );
+        this.emit('log', `收到非音频轨道或空流: kind=${evt.track.kind}, streams.length=${evt.streams.length}`);
       }
     });
 
     // 处理远程数据通道
-    this.peerConnection.ondatachannel = (event) => {
+    this.peerConnection.ondatachannel = event => {
       if (!this.peerConnection || !this.isConnected) {
-        console.log("⚠️ 实例已销毁，忽略 datachannel 事件");
+        console.log('⚠️ 实例已销毁，忽略 datachannel 事件');
         return;
       }
       this.dataChannel = event.channel;
@@ -545,22 +766,18 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
     // 处理连接状态变化
     this.peerConnection.onconnectionstatechange = () => {
       if (!this.peerConnection) {
-        console.log("⚠️ 实例已销毁，忽略 connectionstatechange 事件");
+        console.log('⚠️ 实例已销毁，忽略 connectionstatechange 事件');
         return;
       }
 
       const state = this.peerConnection.connectionState;
       if (state) {
-        this.emit("connectionStateChange", state);
-        this.emit("log", `连接状态: ${state}`);
+        this.emit('connectionStateChange', state);
+        this.emit('log', `连接状态: ${state}`);
 
-        if (
-          state === "failed" ||
-          state === "disconnected" ||
-          state === "closed"
-        ) {
+        if (state === 'failed' || state === 'disconnected' || state === 'closed') {
           this.isConnected = false;
-          this.emit("disconnect");
+          this.emit('disconnect');
         }
       }
     };
@@ -568,14 +785,14 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
     // 处理 ICE 连接状态变化
     this.peerConnection.oniceconnectionstatechange = () => {
       if (!this.peerConnection) {
-        console.log("⚠️ 实例已销毁，忽略 iceconnectionstatechange 事件");
+        console.log('⚠️ 实例已销毁，忽略 iceconnectionstatechange 事件');
         return;
       }
 
       const state = this.peerConnection.iceConnectionState;
       if (state) {
-        this.emit("iceConnectionStateChange", state);
-        this.emit("log", `ICE 连接状态: ${state}`);
+        this.emit('iceConnectionStateChange', state);
+        this.emit('log', `ICE 连接状态: ${state}`);
       }
     };
   }
@@ -584,34 +801,34 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
     if (!this.dataChannel) return;
 
     this.dataChannel.onopen = () => {
-      this.emit("dataChannelOpen");
-      this.emit("log", "数据通道已打开");
+      this.emit('dataChannelOpen');
+      this.emit('log', '数据通道已打开');
     };
 
-    this.dataChannel.onmessage = (event) => {
+    this.dataChannel.onmessage = event => {
       try {
         const message = JSON.parse(event.data) as Message;
-        this.emit("message", message);
+        this.emit('message', message);
       } catch (error) {
-        this.emit("error", `解析消息失败: ${error}`);
+        this.emit('error', `解析消息失败: ${error}`);
       }
     };
 
-    this.dataChannel.onerror = (error) => {
-      this.emit("error", `数据通道错误: ${error}`);
+    this.dataChannel.onerror = error => {
+      this.emit('error', `数据通道错误: ${error}`);
     };
 
     this.dataChannel.onclose = () => {
-      this.emit("dataChannelClose");
-      this.emit("log", "数据通道已关闭");
+      this.emit('dataChannelClose');
+      this.emit('log', '数据通道已关闭');
     };
   }
 
   private async post<T = unknown>(endpoint: string, data: object): Promise<T> {
     const url = new URL(endpoint, this.config.serverUrl).toString();
     const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
 
@@ -626,33 +843,24 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
    * 发送 offer 请求，带重试机制
    * 如果服务器返回 {"status":"failed",...}，会进行重试
    */
-  private async sendOfferWithRetry(
-    offer: RTCSessionDescriptionInit,
-    maxRetries: number = 5,
-    retryDelay: number = 1000
-  ): Promise<RTCSessionDescriptionInit> {
+  private async sendOfferWithRetry(offer: RTCSessionDescriptionInit, maxRetries: number = 5, retryDelay: number = 1000): Promise<RTCSessionDescriptionInit> {
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await this.emit(
-          "log",
-          `发送 offer 请求 (尝试 ${attempt}/${maxRetries})`
-        );
+        await this.emit('log', `发送 offer 请求 (尝试 ${attempt}/${maxRetries})`);
 
-        const response = await this.post<
-          RTCSessionDescriptionInit & { status?: string }
-        >("/webrtc/offer", {
+        const response = await this.post<RTCSessionDescriptionInit & { status?: string }>('/webrtc/offer', {
           sdp: offer.sdp,
           type: offer.type,
           webrtc_id: this.webrtcId,
         });
 
         // 检查响应状态
-        if (response.status === "failed") {
+        if (response.status === 'failed') {
           const errorMsg = `Offer 请求失败: ${JSON.stringify(response)}`;
           lastError = new Error(errorMsg);
-          await this.emit("log", `${errorMsg}, 准备重试...`);
+          await this.emit('log', `${errorMsg}, 准备重试...`);
 
           // 如果不是最后一次尝试，等待后重试
           if (attempt < maxRetries) {
@@ -661,15 +869,12 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
           }
         } else {
           // 成功返回
-          await this.emit(
-            "log",
-            `Offer 请求成功 (尝试 ${attempt}/${maxRetries})`
-          );
+          await this.emit('log', `Offer 请求成功 (尝试 ${attempt}/${maxRetries})`);
           return response;
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        await this.emit("log", `Offer 请求异常: ${lastError.message}`);
+        await this.emit('log', `Offer 请求异常: ${lastError.message}`);
 
         // 如果不是最后一次尝试，等待后重试
         if (attempt < maxRetries) {
@@ -680,11 +885,8 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
     }
 
     // 所有重试都失败
-    const finalError = lastError || new Error("Offer 请求失败，未知错误");
-    await this.emit(
-      "error",
-      `Offer 请求失败，已重试 ${maxRetries} 次: ${finalError.message}`
-    );
+    const finalError = lastError || new Error('Offer 请求失败，未知错误');
+    await this.emit('error', `Offer 请求失败，已重试 ${maxRetries} 次: ${finalError.message}`);
     throw finalError;
   }
 
@@ -692,6 +894,6 @@ export class FastRTCClient extends Emittery<FastRTCClientEvents> {
    * 延迟执行（用于重试间隔）
    */
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
