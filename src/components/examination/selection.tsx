@@ -5,15 +5,15 @@ import "./selection.css";
 import { shuffle } from "lodash";
 import { useParams } from "react-router";
 import { getLoginUser } from "@/containers/auth-middleware";
-import { aiChatServer } from "@/server/training-server";
 import { Button } from "@/components/ui/button";
 import askAiImg from './ask_ai.png';
 import { sendToAI } from "../ai-conversation";
+import { Response } from '@/components/ui/shadcn-io/ai/response';
 
 export type Option = {
   id: string; // unique id for React keys
   value: string;
-  label: React.ReactNode;
+  label: string;
   image?: string; // image URL (optional)
   imageAlt?: string;
   disabled?: boolean;
@@ -21,7 +21,7 @@ export type Option = {
 };
 
 type SelectionProps = {
-  question: React.ReactNode;
+  question: string;
   answerKey?: string;
   ai_feedback?: string;
   image?: string;
@@ -165,7 +165,7 @@ ${answerKey ? `题目解析：${answerKey}` : ''}
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
       <div className="flex w-full items-start justify-between">
-        <div className="font-semibold">{question}</div>
+        <div className="font-semibold"><Response>{question}</Response></div>
         <Badge variant={'outline'} className={`h-8 border-gray-400 text-gray-400`}>
           {mode === 'single'? '单选题' : '多选题'}
           <Separator orientation="vertical" />
@@ -198,7 +198,7 @@ ${answerKey ? `题目解析：${answerKey}` : ''}
                 aria-checked={checked}
               />
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <div style={{ fontSize: compact ? 13 : 14 }}>{selectionNames[index]}: {opt.label}</div>
+                <div style={{ fontSize: compact ? 13 : 14 }}><Response>{`${selectionNames[index]}: ${opt.label?opt.label:''}`}</Response></div>
               </div>
             </div>
             {showImage && opt.image ? (

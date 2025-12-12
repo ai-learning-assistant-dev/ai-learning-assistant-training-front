@@ -5,7 +5,7 @@ import { useParams } from "react-router";
 import { getLoginUser } from "@/containers/auth-middleware";
 import { aiChatServer } from "@/server/training-server";
 import { Button } from "@/components/ui/button";
-import { Key } from 'lucide-react';
+import { Response } from '@/components/ui/shadcn-io/ai/response';
 
 type ShortAnswerProps = {
   id?: string;
@@ -91,7 +91,7 @@ export default function ShortAnswer({
     <div style={{ width: 720 }}>
       <label htmlFor={textareaId} style={{ display: "block", marginBottom: 8}} className="font-semibold">
         <div className="flex w-full items-start justify-between">
-          <div>{question}</div>
+          <div><Response>{question}</Response></div>
           <Badge variant={'outline'} className="h-8 border-gray-400 text-gray-400">简答题<Separator orientation="vertical" />
           <span className={textColor}>{ explanation && `${user_score}/`}{score}</span>
           </Badge>
