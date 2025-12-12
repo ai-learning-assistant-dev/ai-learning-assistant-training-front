@@ -60,6 +60,23 @@ export interface FastRTCClientConfig {
   visualizer?: VisualizerConfig;
 }
 /**
+ * 麦克风设备信息
+ */
+export interface MicrophoneDevice {
+  /** 设备 ID */
+  deviceId: string;
+  /** 设备标签/名称 */
+  label: string;
+  /** 是否为默认设备 */
+  isDefault: boolean;
+}
+
+/**
+ * 麦克风测试状态
+ */
+export type MicrophoneTestStatus = 'idle' | 'recording' | 'playing' | 'done';
+
+/**
  * FastRTC 客户端事件类型定义
  */
 export interface FastRTCClientEvents {
@@ -85,4 +102,8 @@ export interface FastRTCClientEvents {
   dataChannelOpen: undefined;
   /** 数据通道关闭 */
   dataChannelClose: undefined;
+  /** 麦克风切换 */
+  microphoneChange: MicrophoneDevice;
+  /** 麦克风测试状态变化 */
+  microphoneTestStatusChange: MicrophoneTestStatus;
 }
