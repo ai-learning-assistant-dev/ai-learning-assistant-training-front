@@ -607,6 +607,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     }, []);
 
     const messagePosition = showControls ? 'bottom-24' : 'bottom-8';
+    const subtitlePosition = showControls ? 'bottom-20' : 'bottom-8';
 
     const getProgress = () => {
       const el = videoPlayerRef.current;
@@ -650,8 +651,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
           {/* 字幕显示 */}
           {showSubtitles && currentSubtitle && (
-            <div className='absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4'>
-              <div className='bg-[rgba(24,25,28,0.87)] py-[2px] pl-[8px] pr-[12px] leading-[1.5] text-xl relative whitespace-normal cursor-default pointer-events-auto decoration-clone rounded text-white break-words select-none -mr-1 text-center'>{currentSubtitle}</div>
+            <div className={`absolute ${subtitlePosition} left-0 right-0 flex justify-center pointer-events-none px-4`}>
+              <div className='font-sans bg-[rgba(24,25,28,0.87)] py-[2px] pl-[8px] pr-[12px] leading-[1.5] text-xl relative whitespace-normal cursor-default pointer-events-auto decoration-clone rounded text-white break-words select-none -mr-1 text-center'>{currentSubtitle}</div>
             </div>
           )}
 
