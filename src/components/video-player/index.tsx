@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, forwa
 import * as dashJs from 'dashjs';
 import { uniqueId } from 'lodash';
 import type { MediaPlayerClass } from 'dashjs';
-import { serverHost, type KnowledgePoints } from '@/server/training-server';
+import { serverHost, type KnowledgePoints, type Subtitle } from '@/server/training-server';
 import type { Quality } from '../video-controls';
 import VideoControls from '../video-controls';
 import BilibiliLoginModal from '../bilibili-login-modal';
@@ -23,20 +23,13 @@ interface FormatItem {
   codecs?: string;
 }
 
-// 字幕接口定义
-export interface Subtitle {
-  end: string;
-  seq: number;
-  text: string;
-  start: string;
-}
 
 interface PlayerProps {
   url?: string;
   autoPlay?: boolean;
   width?: string;
   height?: string;
-  subtitles?: Subtitle[];
+  subtitles?: Subtitle[] | undefined;
   knowledge_points?: KnowledgePoints;
   onError?: (error: Error) => void;
   onLoaded?: (player: MediaPlayerClass) => void;
@@ -109,7 +102,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
     const [isPiPSupported] = useState<boolean>('pictureInPictureEnabled' in document);
     const [currentSubtitle, setCurrentSubtitle] = useState<string>('');
-    const [showSubtitles, setShowSubtitles] = useState<boolean>(true);
+    const [showSubtitles, setShowSubtitles] = useState<boolean>(false);
     const [showKnowledgePoints, setKnowledgePoints] = useState<boolean>(false);
 
     // Refs
@@ -658,12 +651,12 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           {/* 字幕显示 */}
           {showSubtitles && currentSubtitle && (
             <div className='absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4'>
-              <div className='bg-black/80 backdrop-blur-sm text-white px-6 py-3 rounded-lg text-lg font-medium max-w-4xl text-center shadow-lg'>{currentSubtitle}</div>
+              <div className='bg-[rgba(24,25,28,0.87)] py-[2px] pl-[8px] pr-[12px] leading-[1.5] text-xl relative whitespace-normal cursor-default pointer-events-auto decoration-clone rounded text-white break-words select-none -mr-1 text-center'>{currentSubtitle}</div>
             </div>
           )}
 
           {switchMessage && (
-            <div className={`absolute ${messagePosition} left-4 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg z-50 transition-all duration-300 shadow-lg`}>
+            <div className={`absolute ${messagePosition} left-4 bg-black/50 backdrop-blur-sm text-white px-4 py-2 rounded-lg z-50 transition-all duration-300 shadow-lg`}>
               {switchMessage}
             </div>
           )}

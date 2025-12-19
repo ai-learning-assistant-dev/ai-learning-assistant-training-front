@@ -173,6 +173,12 @@ export type KnowledgePoints = {
     title: string;
   }[];
 };
+export interface Subtitle {
+  end: string;
+  seq: number;
+  text: string;
+  start: string;
+}
 
 export type SectionResponse = {
   section_id: string;
@@ -180,7 +186,7 @@ export type SectionResponse = {
   chapter_id: string;
   video_url?: string;
   knowledge_points?: KnowledgePoints;
-  video_subtitles?: string;
+  video_subtitles?: Subtitle[];
   knowledge_content?: string;
   estimated_time?: number;
   section_order: number;
