@@ -114,6 +114,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const formatListRef = useRef<FormatItem[]>([]);
     const hideControlsTimer = useRef<number | null>(null);
     const previousBlobUrl = useRef<string | null>(null);
+    const subtitleRef = useRef<HTMLDivElement | null>(null);
 
     // 处理字幕数据，预先转换时间为秒数
     const processedSubtitles = useMemo(() => {
@@ -248,18 +249,19 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     };
 
     const handleSubtitleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingSubtitle || !videoPlayerRef.current) return;
+      if (!isDraggingSubtitle || !videoPlayerRef.current || !subtitleRef.current) return;
       
       const videoRect = videoPlayerRef.current.getBoundingClientRect();
+      const subtitleRect = subtitleRef.current.getBoundingClientRect();
+      
+      const maxXAbs = Math.max(0, videoRect.width / 2 - subtitleRect.width / 2) - 20;
+      const maxYAbs = Math.max(0, videoRect.height / 2 - subtitleRect.height / 2) - 20;
+      
       let newX = e.clientX - dragStartPos.x;
       let newY = e.clientY - dragStartPos.y;
       
-      // 限制在视频区域内
-      const maxX = videoRect.width / 2 - 50;
-      const maxY = videoRect.height / 2 - 50;
-      
-      newX = Math.max(-maxX, Math.min(maxX, newX));
-      newY = Math.max(-maxY, Math.min(maxY, newY));
+      newX = Math.max(-maxXAbs, Math.min(maxXAbs, newX));
+      newY = Math.max(-maxYAbs, Math.min(maxYAbs, newY));
       
       setSubtitlePosition({ x: newX, y: newY });
     };
@@ -707,9 +709,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     };
 
     const askAI = () => {
-      const p = getProgress();
-      console.log('用户手动获取播放进度：', p);
-
       const progress = getProgress();
       const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
       const pad = (n: number) => n.toString().padStart(2, '0');
@@ -750,7 +749,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
               }}
             >
               <div 
-                className={`group font-sans bg-[rgba(24,25,28,0.87)] py-[2px] pl-[8px] pr-[12px] leading-[1.5] text-xl relative whitespace-normal decoration-clone rounded text-white break-words select-none -mr-1 text-center transition-all ${
+                ref={subtitleRef}
+                className={`group font-sans bg-[rgba(24,25,28,0.87)] py-[2px] px-[8px] leading-[1.5] text-xl relative whitespace-normal decoration-clone rounded text-white break-words select-none -mr-1 text-center transition-all ${
                   isDraggingSubtitle 
                     ? 'cursor-grabbing shadow-2xl ring-2 ring-blue-400 scale-105' 
                     : 'cursor-grab hover:shadow-xl hover:ring-1 hover:ring-blue-300/50'
