@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, forwa
 import * as dashJs from 'dashjs';
 import { uniqueId } from 'lodash';
 import type { MediaPlayerClass } from 'dashjs';
-import { serverHost, type KnowledgePoints } from '@/server/training-server';
+import { serverHost, type KnowledgePoints, type Subtitle } from '@/server/training-server';
 import type { Quality } from '../video-controls';
 import VideoControls from '../video-controls';
 import BilibiliLoginModal from '../bilibili-login-modal';
@@ -23,20 +23,12 @@ interface FormatItem {
   codecs?: string;
 }
 
-// 字幕接口定义
-export interface Subtitle {
-  end: string;
-  seq: number;
-  text: string;
-  start: string;
-}
-
 interface PlayerProps {
   url?: string;
   autoPlay?: boolean;
   width?: string;
   height?: string;
-  subtitles?: Subtitle[];
+  subtitles?: Subtitle[] | undefined;
   knowledge_points?: KnowledgePoints;
   onError?: (error: Error) => void;
   onLoaded?: (player: MediaPlayerClass) => void;
@@ -55,11 +47,9 @@ export interface VideoPlayerRef {
 
 // 时间格式转换工具函数
 const parseTimeToSeconds = (timeString: string): number => {
-  // 格式: HH:MM:SS,mmm
   const [time, milliseconds] = timeString.split(',');
   const [hours, minutes, seconds] = time.split(':').map(Number);
   const ms = Number(milliseconds || 0);
-
   return hours * 3600 + minutes * 60 + seconds + ms / 1000;
 };
 
@@ -109,8 +99,13 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
     const [isPiPSupported] = useState<boolean>('pictureInPictureEnabled' in document);
     const [currentSubtitle, setCurrentSubtitle] = useState<string>('');
-    const [showSubtitles, setShowSubtitles] = useState<boolean>(true);
+    const [showSubtitles, setShowSubtitles] = useState<boolean>(false);
     const [showKnowledgePoints, setKnowledgePoints] = useState<boolean>(false);
+    
+    // 字幕拖动相关状态（仅支持垂直方向拖动）
+    const [subtitlePositionY, setSubtitlePositionY] = useState(0);
+    const [isDraggingSubtitle, setIsDraggingSubtitle] = useState(false);
+    const [dragStartY, setDragStartY] = useState(0);
 
     // Refs
     const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
@@ -119,6 +114,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const formatListRef = useRef<FormatItem[]>([]);
     const hideControlsTimer = useRef<number | null>(null);
     const previousBlobUrl = useRef<string | null>(null);
+    const subtitleRef = useRef<HTMLDivElement | null>(null);
 
     // 处理字幕数据，预先转换时间为秒数
     const processedSubtitles = useMemo(() => {
@@ -146,7 +142,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       }
 
       const currentSub = processedSubtitles.find(sub => currentTime >= sub.startTime && currentTime <= sub.endTime);
-
       setCurrentSubtitle(currentSub?.text || '');
     }, [currentTime, processedSubtitles]);
 
@@ -214,6 +209,77 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       refetchManifest();
     }, [url]);
 
+    // 字幕拖动处理函数（仅垂直方向）
+    const handleSubtitleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // 如果是第一次拖动（位置还是默认的 0），需要计算当前实际位置
+      if (subtitlePositionY === 0) {
+        const subtitleElement = e.currentTarget;
+        const videoElement = videoPlayerRef.current;
+        if (!videoElement) return;
+        
+        const videoRect = videoElement.getBoundingClientRect();
+        const subtitleRect = subtitleElement.getBoundingClientRect();
+        
+        // 计算字幕中心相对于视频中心的垂直偏移
+        const videoCenterY = videoRect.top + videoRect.height / 2;
+        const subtitleCenterY = subtitleRect.top + subtitleRect.height / 2;
+        
+        const initialY = subtitleCenterY - videoCenterY;
+        
+        setSubtitlePositionY(initialY);
+        setDragStartY(e.clientY - initialY);
+      } else {
+        setDragStartY(e.clientY - subtitlePositionY);
+      }
+      
+      setIsDraggingSubtitle(true);
+    };
+
+    const handleSubtitleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingSubtitle || !videoPlayerRef.current || !subtitleRef.current) return;
+      
+      const videoRect = videoPlayerRef.current.getBoundingClientRect();
+      const subtitleRect = subtitleRef.current.getBoundingClientRect();
+      
+      // 只限制垂直方向的边界
+      const maxYAbs = Math.max(0, videoRect.height / 2 - subtitleRect.height / 2) - 20;
+      
+      let newY = e.clientY - dragStartY;
+      newY = Math.max(-maxYAbs, Math.min(maxYAbs, newY));
+      
+      setSubtitlePositionY(newY);
+    };
+
+    const handleSubtitleMouseUp = () => {
+      setIsDraggingSubtitle(false);
+    };
+
+    // 字幕拖动事件监听
+    useEffect(() => {
+      if (isDraggingSubtitle) {
+        document.addEventListener('mousemove', handleSubtitleMouseMove);
+        document.addEventListener('mouseup', handleSubtitleMouseUp);
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+      } else {
+        document.removeEventListener('mousemove', handleSubtitleMouseMove);
+        document.removeEventListener('mouseup', handleSubtitleMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+
+      return () => {
+        document.removeEventListener('mousemove', handleSubtitleMouseMove);
+        document.removeEventListener('mouseup', handleSubtitleMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }, [isDraggingSubtitle, dragStartY, subtitlePositionY]);
+
     // Handlers
     const togglePlay = () => {
       if (!videoPlayerRef.current) return;
@@ -264,6 +330,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
     const handleSubtitleToggle = (show: boolean) => {
       setShowSubtitles(show);
+      // 重置字幕位置当切换显示/隐藏时
+      if (!show) {
+        setSubtitlePositionY(0);
+      }
     };
 
     const toggleFullscreen = () => {
@@ -295,7 +365,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
     const updateQualityList = () => {
       if (!playerRef.current) return;
-
       if (!playerRef.current || currentQualityIndex !== -1) return;
       const videoRepresentations = playerRef.current.getRepresentationsByType('video');
       if (videoRepresentations.length === 0) return;
@@ -507,7 +576,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const destroyPlayer = () => {
       if (playerRef.current) {
         try {
-          // 先移除所有事件监听器
           playerRef.current.reset();
           playerRef.current = null;
         } catch (error) {
@@ -627,11 +695,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         ended: el.ended,
       };
     };
-    const askAI = () => {
-      const p = getProgress();
-      console.log('用户手动获取播放进度：', p);
 
-      // Use player's current playback progress (seconds) and format as HH:MM:SS
+    const askAI = () => {
       const progress = getProgress();
       const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
       const pad = (n: number) => n.toString().padStart(2, '0');
@@ -655,15 +720,39 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             onClick={togglePlay}
           />
 
-          {/* 字幕显示 */}
+          {/* 可拖动字幕显示（仅垂直方向） */}
           {showSubtitles && currentSubtitle && (
-            <div className='absolute bottom-20 left-0 right-0 flex justify-center pointer-events-none px-4'>
-              <div className='bg-black/80 backdrop-blur-sm text-white px-6 py-3 rounded-lg text-lg font-medium max-w-4xl text-center shadow-lg'>{currentSubtitle}</div>
+            <div 
+              className="absolute flex justify-center px-4 transition-none"
+              style={{
+                bottom: subtitlePositionY === 0 ? (showControls ? '5rem' : '2rem') : 'auto',
+                left: 0,
+                right: 0,
+                top: subtitlePositionY === 0 ? 'auto' : '50%',
+                transform: subtitlePositionY === 0 
+                  ? 'none' 
+                  : `translateY(calc(-50% + ${subtitlePositionY}px))`,
+                pointerEvents: 'auto',
+                zIndex: 40
+              }}
+            >
+              <div 
+                ref={subtitleRef}
+                className={`group font-sans bg-[rgba(24,25,28,0.87)] py-[2px] px-[8px] leading-[1.5] text-xl relative whitespace-normal decoration-clone rounded text-white break-words select-none -mr-1 text-center transition-all ${
+                  isDraggingSubtitle 
+                    ? 'cursor-grabbing shadow-2xl ring-2 ring-blue-400 scale-105' 
+                    : 'cursor-grab hover:shadow-xl hover:ring-1 hover:ring-blue-300/50'
+                }`}
+                onMouseDown={handleSubtitleMouseDown}
+                title="上下拖动调整字幕位置"
+              >
+                {currentSubtitle}
+              </div>
             </div>
           )}
 
           {switchMessage && (
-            <div className={`absolute ${messagePosition} left-4 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg z-50 transition-all duration-300 shadow-lg`}>
+            <div className={`absolute ${messagePosition} left-4 bg-black/50 backdrop-blur-sm text-white px-4 py-2 rounded-lg z-50 transition-all duration-300 shadow-lg`}>
               {switchMessage}
             </div>
           )}

@@ -180,7 +180,7 @@ export function SectionDetail() {
         />
         {stage !== 'examination' && (
           <>
-            <VideoPlayer url={section.video_url} knowledge_points={section.knowledge_points} onEnded={handleVideoEnded} />
+            <VideoPlayer url={section.video_url} subtitles={section.video_subtitles} knowledge_points={section.knowledge_points} onEnded={handleVideoEnded} />
           </>
         )}
         {stage !== 'examination' && (
