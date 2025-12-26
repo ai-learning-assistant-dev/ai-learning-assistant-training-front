@@ -102,10 +102,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [showSubtitles, setShowSubtitles] = useState<boolean>(false);
     const [showKnowledgePoints, setKnowledgePoints] = useState<boolean>(false);
     
-    // 字幕拖动相关状态
-    const [subtitlePosition, setSubtitlePosition] = useState({ x: 0, y: 0 });
+    // 字幕拖动相关状态（仅支持垂直方向拖动）
+    const [subtitlePositionY, setSubtitlePositionY] = useState(0);
     const [isDraggingSubtitle, setIsDraggingSubtitle] = useState(false);
-    const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+    const [dragStartY, setDragStartY] = useState(0);
 
     // Refs
     const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
@@ -209,14 +209,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       refetchManifest();
     }, [url]);
 
-    // 字幕拖动处理函数
+    // 字幕拖动处理函数（仅垂直方向）
     const handleSubtitleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
       if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
       
-      // 如果是第一次拖动（位置还是默认的 {0, 0}），需要计算当前实际位置
-      if (subtitlePosition.x === 0 && subtitlePosition.y === 0) {
+      // 如果是第一次拖动（位置还是默认的 0），需要计算当前实际位置
+      if (subtitlePositionY === 0) {
         const subtitleElement = e.currentTarget;
         const videoElement = videoPlayerRef.current;
         if (!videoElement) return;
@@ -224,25 +224,16 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         const videoRect = videoElement.getBoundingClientRect();
         const subtitleRect = subtitleElement.getBoundingClientRect();
         
-        // 计算字幕中心相对于视频中心的偏移
-        const videoCenterX = videoRect.left + videoRect.width / 2;
+        // 计算字幕中心相对于视频中心的垂直偏移
         const videoCenterY = videoRect.top + videoRect.height / 2;
-        const subtitleCenterX = subtitleRect.left + subtitleRect.width / 2;
         const subtitleCenterY = subtitleRect.top + subtitleRect.height / 2;
         
-        const initialX = subtitleCenterX - videoCenterX;
         const initialY = subtitleCenterY - videoCenterY;
         
-        setSubtitlePosition({ x: initialX, y: initialY });
-        setDragStartPos({
-          x: e.clientX - initialX,
-          y: e.clientY - initialY
-        });
+        setSubtitlePositionY(initialY);
+        setDragStartY(e.clientY - initialY);
       } else {
-        setDragStartPos({
-          x: e.clientX - subtitlePosition.x,
-          y: e.clientY - subtitlePosition.y
-        });
+        setDragStartY(e.clientY - subtitlePositionY);
       }
       
       setIsDraggingSubtitle(true);
@@ -254,16 +245,13 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       const videoRect = videoPlayerRef.current.getBoundingClientRect();
       const subtitleRect = subtitleRef.current.getBoundingClientRect();
       
-      const maxXAbs = Math.max(0, videoRect.width / 2 - subtitleRect.width / 2) - 20;
+      // 只限制垂直方向的边界
       const maxYAbs = Math.max(0, videoRect.height / 2 - subtitleRect.height / 2) - 20;
       
-      let newX = e.clientX - dragStartPos.x;
-      let newY = e.clientY - dragStartPos.y;
-      
-      newX = Math.max(-maxXAbs, Math.min(maxXAbs, newX));
+      let newY = e.clientY - dragStartY;
       newY = Math.max(-maxYAbs, Math.min(maxYAbs, newY));
       
-      setSubtitlePosition({ x: newX, y: newY });
+      setSubtitlePositionY(newY);
     };
 
     const handleSubtitleMouseUp = () => {
@@ -290,7 +278,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
       };
-    }, [isDraggingSubtitle, dragStartPos, subtitlePosition]);
+    }, [isDraggingSubtitle, dragStartY, subtitlePositionY]);
 
     // Handlers
     const togglePlay = () => {
@@ -344,7 +332,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       setShowSubtitles(show);
       // 重置字幕位置当切换显示/隐藏时
       if (!show) {
-        setSubtitlePosition({ x: 0, y: 0 });
+        setSubtitlePositionY(0);
       }
     };
 
@@ -732,18 +720,18 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             onClick={togglePlay}
           />
 
-          {/* 可拖动字幕显示 */}
+          {/* 可拖动字幕显示（仅垂直方向） */}
           {showSubtitles && currentSubtitle && (
             <div 
               className="absolute flex justify-center px-4 transition-none"
               style={{
-                bottom: subtitlePosition.x === 0 && subtitlePosition.y === 0 ? (showControls ? '5rem' : '2rem') : 'auto',
-                left: subtitlePosition.x === 0 && subtitlePosition.y === 0 ? 0 : '50%',
-                right: subtitlePosition.x === 0 && subtitlePosition.y === 0 ? 0 : 'auto',
-                top: subtitlePosition.x === 0 && subtitlePosition.y === 0 ? 'auto' : '50%',
-                transform: subtitlePosition.x === 0 && subtitlePosition.y === 0 
+                bottom: subtitlePositionY === 0 ? (showControls ? '5rem' : '2rem') : 'auto',
+                left: 0,
+                right: 0,
+                top: subtitlePositionY === 0 ? 'auto' : '50%',
+                transform: subtitlePositionY === 0 
                   ? 'none' 
-                  : `translate(calc(-50% + ${subtitlePosition.x}px), calc(-50% + ${subtitlePosition.y}px))`,
+                  : `translateY(calc(-50% + ${subtitlePositionY}px))`,
                 pointerEvents: 'auto',
                 zIndex: 40
               }}
@@ -756,7 +744,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
                     : 'cursor-grab hover:shadow-xl hover:ring-1 hover:ring-blue-300/50'
                 }`}
                 onMouseDown={handleSubtitleMouseDown}
-                title="拖动调整字幕位置"
+                title="上下拖动调整字幕位置"
               >
                 {currentSubtitle}
               </div>
