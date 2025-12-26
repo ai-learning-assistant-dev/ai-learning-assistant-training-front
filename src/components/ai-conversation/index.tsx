@@ -18,6 +18,7 @@ import { match, P } from 'ts-pattern';
 import { VoiceUI } from './voice';
 import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
+import { Checkbox } from '../ui/checkbox';
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Response } from '@/components/ui/shadcn-io/ai/response';
 import { Streamdown } from 'streamdown';
@@ -82,6 +83,8 @@ const getWebRTCServerUrl = () => {
   // return "http://localhost:8989";
 };
 
+const EXTRA_QUESTIONS_KEY = 'ai-extra-questions-enabled';
+
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -99,6 +102,17 @@ const AiConversation = () => {
   const [previousMessage, setPreviousMessage] = useState('欢迎使用语音对话功能');
   const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(null);
   const [leadingQuestions, setLeadingQuestions] = useState<LeadingQuestionSuggestion[]>([]);
+  const [extraQuestionsEnabled, setExtraQuestionsEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(EXTRA_QUESTIONS_KEY);
+      if (stored === null) return true;
+      return stored === 'true';
+    } catch (error) {
+      console.warn('读取额外问题开关失败:', error);
+      return true;
+    }
+  });
+  const [extraQuestions, setExtraQuestions] = useState<string[]>([]);
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
@@ -111,6 +125,14 @@ const AiConversation = () => {
       setCurrentMessage('');
     }
   }, [voiceState, currentMessage]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(EXTRA_QUESTIONS_KEY, extraQuestionsEnabled ? 'true' : 'false');
+    } catch (error) {
+      console.warn('保存额外问题开关失败:', error);
+    }
+  }, [extraQuestionsEnabled]);
 
   const { data: personasResponse } = useAutoCache(aiChatServer.getPersonas, []);
   const personas = personasResponse?.data || [];
@@ -237,8 +259,17 @@ const AiConversation = () => {
     [currentSessionId]
   );
 
+  const handleExtraQuestionsToggle = useCallback((checked: boolean | 'indeterminate') => {
+    const enabled = checked === true;
+    setExtraQuestionsEnabled(enabled);
+    if (!enabled) {
+      setExtraQuestions([]);
+    }
+  }, []);
+
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
+    setExtraQuestions([]);
     try {
       // 如果sectionId为空，不读取历史记录，直接显示欢迎消息
       if (!sectionId) {
@@ -544,6 +575,7 @@ const AiConversation = () => {
       setMessages(prev => [...prev, userMessage]);
       setIsTyping(true);
       setLeadingQuestions([]);
+      setExtraQuestions([]);
 
       if (streamingTimerRef.current) {
         window.clearTimeout(streamingTimerRef.current);
@@ -587,6 +619,29 @@ const AiConversation = () => {
             daily: !sectionId,
           });
           await processStreamResponse(assistantMessageId, response);
+
+          if (extraQuestionsEnabled && sessionId) {
+            try {
+              const extraResponse = await aiChatServer.generateExtraQuestions({
+                userId: getUserId(),
+                message: trimmed,
+                sessionId,
+                sectionId: sectionId ?? '',
+                personaId: selectedPersona?.persona_id,
+                modelName: selectedModel || undefined,
+              });
+
+              const questions = extraResponse.data?.data?.questions ?? [];
+              if (Array.isArray(questions) && questions.length === 3) {
+                setExtraQuestions(questions);
+              } else {
+                setExtraQuestions([]);
+              }
+            } catch (error) {
+              console.error('生成额外问题失败:', error);
+              setExtraQuestions([]);
+            }
+          }
         } catch (error) {
           console.error('AI Chat Error:', error);
           let message = '对话失败，请检查AI设置和网络情况';
@@ -611,7 +666,7 @@ const AiConversation = () => {
         }
       }, 300);
     },
-    [isTyping, currentSessionId, sectionId, selectedPersona, selectedModel, processStreamResponse]
+    [isTyping, currentSessionId, sectionId, selectedPersona, selectedModel, processStreamResponse, extraQuestionsEnabled]
   );
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
@@ -634,11 +689,19 @@ const AiConversation = () => {
     [sendMessage]
   );
 
+  const handleExtraQuestionClick = useCallback(
+    (question: string) => {
+      sendMessage(question);
+    },
+    [sendMessage]
+  );
+
   const handleReset = useCallback(() => {
     loadChatHistory();
     setInputValue('');
     setIsTyping(false);
     setStreamingMessageId(null);
+    setExtraQuestions([]);
   }, [loadChatHistory]);
 
   // 新建会话
@@ -672,6 +735,7 @@ const AiConversation = () => {
       setInputValue('');
       setIsTyping(false);
       setStreamingMessageId(null);
+      setExtraQuestions([]);
 
       if (sectionId) {
         await fetchLeadingQuestions(sectionId);
@@ -704,9 +768,20 @@ const AiConversation = () => {
           <FileTextIcon />
           <span className='font-medium text-base'>AI对话框</span>
         </div>
-        <Button variant='outline' size='sm' onClick={handleNewSession} disabled={isTyping}>
-          新建对话
-        </Button>
+        <div className='flex items-center gap-3'>
+          <div className='flex items-center gap-2'>
+            <Checkbox id='extra-questions-toggle' checked={extraQuestionsEnabled} onCheckedChange={handleExtraQuestionsToggle} />
+            <label
+              htmlFor='extra-questions-toggle'
+              className='text-sm text-muted-foreground cursor-pointer select-none'
+            >
+              额外问题
+            </label>
+          </div>
+          <Button variant='outline' size='sm' onClick={handleNewSession} disabled={isTyping}>
+            新建对话
+          </Button>
+        </div>
       </div>
 
       {/* Voice Mode or Text Mode */}
@@ -840,6 +915,27 @@ const AiConversation = () => {
             </ConversationContent>
             <ConversationScrollButton />
           </Conversation>
+          {extraQuestionsEnabled && extraQuestions.length > 0 && (
+            <div className='px-4 pb-3'>
+              <div className='rounded-lg border border-dashed border-muted bg-muted/40 p-4'>
+                <div className='mb-3 text-xs font-medium text-muted-foreground'>额外问题</div>
+                <div className='grid gap-2'>
+                  {extraQuestions.map((question, index) => (
+                    <Button
+                      key={`${question}-${index}`}
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      className='justify-start whitespace-normal text-left'
+                      onClick={() => handleExtraQuestionClick(question)}
+                    >
+                      {question}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           {/* Input Area */}
           <div className='px-4 pt-1 pb-4 bg-white'>
             {/* Toolbar buttons */}

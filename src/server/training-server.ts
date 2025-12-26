@@ -397,6 +397,14 @@ export class AIChatServer extends TrainingServer<SessionInfo> {
     return this.textStream("/chat/stream", data);
   };
 
+  generateExtraQuestions = (data: ChatRequest) => {
+    return this.http.post<Status<{ questions: string[] }>>(
+      "/chat/extra-questions",
+      data,
+      { baseURL: this.baseUrl }
+    );
+  }
+
   sseStream = (data: ChatRequest, splitSeparator = "\n") => {
     return hookFetch
       .create({
