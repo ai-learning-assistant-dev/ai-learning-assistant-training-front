@@ -19,6 +19,7 @@ import { VoiceUI } from './voice';
 import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
 import { Checkbox } from '../ui/checkbox';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Response } from '@/components/ui/shadcn-io/ai/response';
 import { Streamdown } from 'streamdown';
@@ -921,16 +922,22 @@ const AiConversation = () => {
                 <div className='mb-3 text-xs font-medium text-muted-foreground'>额外问题</div>
                 <div className='grid gap-2'>
                   {extraQuestions.map((question, index) => (
-                    <Button
-                      key={`${question}-${index}`}
-                      type='button'
-                      variant='outline'
-                      size='sm'
-                      className='justify-start whitespace-normal text-left'
-                      onClick={() => handleExtraQuestionClick(question)}
-                    >
-                      {question}
-                    </Button>
+                    <Tooltip key={`${question}-${index}`}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          className='justify-start text-left overflow-hidden'
+                          onClick={() => handleExtraQuestionClick(question)}
+                        >
+                          <span className='truncate block'>{question}</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side='top' className='max-w-md'>
+                        <p className='text-xs'>{question}</p>
+                      </TooltipContent>
+                    </Tooltip>
                   ))}
                 </div>
               </div>
