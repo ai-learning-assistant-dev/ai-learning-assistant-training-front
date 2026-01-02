@@ -610,28 +610,34 @@ const AiConversation = () => {
           setMessages(prev => [...prev, assistantMessage]);
           setStreamingMessageId(assistantMessageId);
 
-          const response = await aiChatServer.textChatStream({
+          // 同时触发流式响应和额外问题生成（预加载）
+          const streamPromise = aiChatServer.textChatStream({
             userId: getUserId(),
             message: trimmed,
             sessionId,
             sectionId: sectionId ?? '',
             personaId: selectedPersona?.persona_id,
             modelName: selectedModel || undefined,
-            daily: !sectionId,
           });
-          await processStreamResponse(assistantMessageId, response);
 
-          if (extraQuestionsEnabled && sessionId) {
-            try {
-              const extraResponse = await aiChatServer.generateExtraQuestions({
+          const extraQuestionsPromise = extraQuestionsEnabled && sessionId
+            ? aiChatServer.generateExtraQuestions({
                 userId: getUserId(),
                 message: trimmed,
                 sessionId,
                 sectionId: sectionId ?? '',
                 personaId: selectedPersona?.persona_id,
                 modelName: selectedModel || undefined,
-              });
+              })
+            : null;
 
+          // 等待流式响应完成
+          await processStreamResponse(assistantMessageId, await streamPromise);
+
+          // 流式完成后，获取预加载的额外问题
+          if (extraQuestionsPromise) {
+            try {
+              const extraResponse = await extraQuestionsPromise;
               const questions = extraResponse.data?.data?.questions ?? [];
               if (Array.isArray(questions) && questions.length === 3) {
                 setExtraQuestions(questions);
@@ -692,9 +698,9 @@ const AiConversation = () => {
 
   const handleExtraQuestionClick = useCallback(
     (question: string) => {
-      sendMessage(question);
+      setInputValue(question);
     },
-    [sendMessage]
+    []
   );
 
   const handleReset = useCallback(() => {
