@@ -8,6 +8,7 @@ import { SectionDetail } from './pages/section-detail/index.tsx';
 import { CourseList } from './pages/course-list/index.tsx';
 import { CourseDetail } from './pages/course-detail/index.tsx';
 import UserList from './pages/user-list/index.tsx';
+import { Questionnaire } from './pages/questionnaire/index.tsx';
 import { authMiddleware } from './containers/auth-middleware/index.tsx';
 
 const router = createHashRouter([
@@ -39,6 +40,10 @@ const router = createHashRouter([
       {
         path: "courseList/courseDetail/:courseId/sectionDetail/:sectionId",
         Component: SectionDetail,
+      },
+      {
+        path: "questionnaire",
+        Component: Questionnaire,
       }
     ],
   },
