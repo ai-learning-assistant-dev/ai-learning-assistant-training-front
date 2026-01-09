@@ -48,7 +48,7 @@ const topItems = [
 const bottomItems = [
   {
     title: "填写反馈问卷",
-    url: "#/app/Questionnaire",
+    url: "#/app/questionnaire",
     icon: Clipboard,
     background: "linear-gradient(90deg, #68828B 0%, #E7CBE9 100%)",
     textColor: "#FAFAFA",
