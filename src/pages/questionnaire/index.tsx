@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import logoPng from "@/assets/logo.png";
 import qrCodeOne from "./qr-code-one.png";
 import qrCodeTwo from "./qr-code-two.png";
@@ -14,7 +15,12 @@ interface Question {
   title: string;
   description: string;
   qrCode: string;
-  bgClass: string;
+  variant: "purple" | "orange";
+}
+
+interface QuestionCardProps {
+  question: Question;
+  onClick: () => void;
 }
 
 export function Questionnaire() {
@@ -29,65 +35,105 @@ export function Questionnaire() {
 const questions: Question[] = [
     {
       title: "学习需求与功能体验综合调研问卷",
-      description: "为优化 AI 学习助手的功能、资源与使用体验，精准匹配您的学习需求，我们特开展本次调研。内容将覆盖您的学习情况、意向领域、学习形式偏好、核心功能需求及使用体验",
+      description: "为优化 AI 学习助手的功能、资源与使用体验,精准匹配您的学习需求,我们特开展本次调研。内容将覆盖您的学习情况、意向领域、学习形式偏好、核心功能需求及使用体验",
       qrCode: qrCodeOne,
-      bgClass: "bg-[image:linear-gradient(111.42deg,rgba(183,186,215,0.36)_33.59%,rgba(183,186,215,0.5)_85.04%),linear-gradient(#ffffff,#ffffff),linear-gradient(180deg,#ffffff_0%,#535353_100%)]",
+      variant: "purple",
     },
     {
       title: "课程内容学习体验与改进建议调查问卷",
-      description: "为确保课程内容更贴合您的学习目标与认知节奏，我们诚邀您参与本次调查。问卷将聚焦课程内容的实用性、难度适配性、结构合理性及学习收获等方面。",
+      description: "为确保课程内容更贴合您的学习目标与认知节奏,我们诚邀您参与本次调查。问卷将聚焦课程内容的实用性、难度适配性、结构合理性及学习收获等方面。",
       qrCode: qrCodeTwo,
-      bgClass: "bg-[image:linear-gradient(289.31deg,rgba(251,180,100,0.5)_7.64%,rgba(251,180,100,0.61)_45.67%),linear-gradient(#ffffff,#ffffff),linear-gradient(180deg,#ffffff_0%,#535353_100%)]",
+      variant: "orange",
     },
   ];
 
-  return <div className="h-[calc(100vh-112px)] font-sans pl-[27px] pt-[7px] pr-[27px] pb-[10px] flex flex-col overflow-hidden">
-    <h1 className="text-xl font-bold text-[#171717]">反馈问卷</h1>
-    <div className="grid grid-cols-2 gap-[15px] mt-[19px]">
-      {questions.map((question) => (
+  const getBackgroundClass = (variant: Question["variant"]) => {
+    const variants = {
+      purple:
+        "bg-[image:linear-gradient(111.42deg,rgba(183,186,215,0.36)_33.59%,rgba(183,186,215,0.5)_85.04%),linear-gradient(#ffffff,#ffffff),linear-gradient(180deg,#ffffff_0%,#535353_100%)]",
+      orange:
+        "bg-[image:linear-gradient(289.31deg,rgba(251,180,100,0.5)_7.64%,rgba(251,180,100,0.61)_45.67%),linear-gradient(#ffffff,#ffffff),linear-gradient(180deg,#ffffff_0%,#535353_100%)]",
+    };
+    return variants[variant];
+  };
+
+  const QuestionCard = ({ question, onClick }: QuestionCardProps) => {
+    const cardClassName = cn(
+      "w-full rounded-lg py-2 px-2.5 border border-transparent",
+      "[background-clip:padding-box,padding-box,border-box]",
+      "[background-origin:padding-box,padding-box,border-box]",
+      getBackgroundClass(question.variant)
+    );
+
+    return (
+      <div className={cardClassName}>
+        <div className="w-full text-center border-b border-black font-medium font-semibold leading-6">
+          {question.title}
+        </div>
+        <div className="w-full h-20 text-sm leading-5 text-center text-neutral-950/70 my-[17px] overflow-hidden line-clamp-4">
+          {question.description}
+        </div>
         <div
-          key={question.title}
-          className={`w-full rounded-lg py-[8px] px-[10px] border border-transparent [background-clip:padding-box,padding-box,border-box] [background-origin:padding-box,padding-box,border-box] ${question.bgClass}`}
+          className="flex justify-end items-center cursor-pointer transition-opacity hover:opacity-80"
+          onClick={onClick}
         >
-          <div className="w-full text-center border-b font-medium leading-6 font-semibold border-black">{question.title}</div>
-          <div className="w-full h-[80px] text-sm leading-5 text-center text-neutral-950/[70%] my-[17px] overflow-hidden line-clamp-4">{question.description}</div>
-          <div
-            className="flex justify-end items-center cursor-pointer"
+          <ArrowRight className="mr-1.5" />
+          <p className="text-black">进入问卷</p>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-[calc(100vh-112px)] font-sans px-[27px] py-[7px] pb-2.5 flex flex-col overflow-hidden">
+      <h1 className="text-xl font-bold text-neutral-900">反馈问卷</h1>
+      <div className="grid grid-cols-2 gap-[15px] mt-[19px]">
+        {questions.map((question) => (
+          <QuestionCard
+            key={question.title}
+            question={question}
             onClick={() => showQRDialog(question)}
-          >
-            <ArrowRight className="mr-[5px]" />
-            <p className="text-black">进入问卷</p>
+          />
+        ))}
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent
+          className="w-[23.14vw] rounded-2xl"
+          aria-describedby={undefined}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader className="bg-[#D6CCEA] -mx-6 -mt-6 px-6 pt-6 pb-4 rounded-t-2xl">
+            <DialogTitle className="text-center text-base">
+              {currentQuestion?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <img
+              src={currentQuestion?.qrCode}
+              alt="问卷二维码"
+              className="max-w-[200px]"
+            />
           </div>
-        </div>
-      ))}
-    </div>
+          <div className="flex items-center text-black/60 text-xs">
+            <Info className="mr-0.5" size={16} />
+            <span>感谢你的宝贵建议</span>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent
-        className="w-[23.14vw] rounded-[16px]"
-        aria-describedby={undefined}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-      >
-        <DialogHeader className="bg-[#D6CCEA] -mx-6 -mt-6 px-6 pt-6 pb-4 rounded-t-[16px]">
-          <DialogTitle className="text-center text-base">{currentQuestion?.title}</DialogTitle>
-        </DialogHeader>
-        <div className="flex justify-center py-4">
-          <img src={currentQuestion?.qrCode} alt="问卷二维码" className="max-w-[200px]" />
-        </div>
-        <div className="flex items-center text-black/[60%] text-xs">
-          <Info className="mr-[3px]" size={16} />
-          <span>感谢你的宝贵建议</span>
-        </div>
-      </DialogContent>
-    </Dialog>
-
-    <div className="mt-[5.23vh] text-center leading-5 text-neutral-950/[70%]">
-      <p>我们诚挚地邀请您参与本次问卷调查。</p>
-      <p>您的每一条反馈和建议，都是我们不断完善和优化课程内容的宝贵动力。</p>
+      <div className="mt-[5.23vh] text-center leading-5 text-neutral-950/70">
+        <p>我们诚挚地邀请您参与本次问卷调查。</p>
+        <p>您的每一条反馈和建议,都是我们不断完善和优化课程内容的宝贵动力。</p>
+      </div>
+      <div className="w-full flex-1 flex justify-center items-center overflow-hidden">
+        <img
+          src={logoPng}
+          alt="logo"
+          className="w-full h-full opacity-70 object-contain"
+        />
+      </div>
     </div>
-    <div className="w-full flex-1 flex justify-center items-center overflow-hidden">
-      <img src={logoPng} alt="logo" className="w-full h-full opacity-70 object-contain" />
-    </div>
-  </div>
+  );
 }
 
