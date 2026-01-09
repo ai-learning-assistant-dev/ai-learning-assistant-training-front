@@ -9,14 +9,14 @@ import {
 } from "@/components/ui/tabs"
 import { useAutoCache } from "@/containers/auto-cache";
 import { userServer } from "@/server/training-server";
-import logo from './logo.png';
+import logo from '@/assets/logo.png';
 import { useState } from "react";
 import { loginUser } from "@/containers/auth-middleware";
 import { useNavigate } from "react-router";
 
 
 export default function UserList() {
-  let navigate = useNavigate();
+  const navigate = useNavigate();
   const [trigger, setTrigger] = useState(1);
   const {data: userList} = useAutoCache(userServer.search, [{limit: 1000, page: 1}], undefined, trigger);
   async function loginOnSubmit(user_id: string){
