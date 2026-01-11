@@ -85,13 +85,25 @@ export class TrainingServer<T> {
   };
 }
 
+export type CourseCategory = "职业技能" | "文化基础" | "工具使用" | "人文素养";
+
+export const COURSE_CATEGORIES: CourseCategory[] = [
+  "职业技能",
+  "文化基础",
+  "工具使用",
+  "人文素养",
+];
+
 export interface CourseResponse {
   course_id: string;
   name: string;
   icon_url?: string;
   description?: string;
   default_ai_persona_id?: string;
+  category?: CourseCategory;
   chapters?: ChapterResponse[];
+  total_estimated_time?: number; // 新增字段：总学时（小时，保留两位小数）
+  contributors?: string; // 新增字段：讲师/贡献者列表
 }
 
 /** 调用课程接口的类，继承了基本增删改查的接口 */
