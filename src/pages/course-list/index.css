@@ -1,8 +1,128 @@
-.course-card .time {
-  color: rgb(115,115,115);
-}
-.course-card .content{
-  color: rgb(115,115,115);
+.course-description {
+  font-family: "Source Han Sans SC", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight: 400;
+  font-style: normal;
   font-size: 14px;
   line-height: 20px;
+  letter-spacing: normal;
+  color: var(--muted-foreground, #737373);
+  line-clamp: 4;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.course-title {
+  font-family: "Source Han Sans SC", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight: 700;
+  font-style: normal;
+  font-size: 16px;
+  line-height: 24px;
+  letter-spacing: normal;
+  color: var(--foreground, #0a0a0a);
+  margin-bottom: 4px;
+}
+
+.course-duration {
+  font-family: "Source Han Sans SC", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: normal;
+  color: #666666;
+  margin-bottom: 8px;
+}
+
+.course-icon-placeholder {
+  background: #f3f4f6;
+  border: 1px dashed #e5e7eb;
+}
+
+.course-heading {
+  font-family: "Source Han Sans SC", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.course-search-input {
+  font-family: "Source Han Sans SC", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.filter-bar {
+  width: 100%;
+}
+
+.category-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 8px; /* reduce vertical padding to make button flatter */
+  border-radius: 6px; /* small rounded corners */
+  border: 1px solid #e4e4e7;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.category-chip:hover {
+  background: #f8fafc;
+}
+
+.category-chip.active {
+  background: #f2f6ff;
+}
+
+/* color variants for category chips (no inline styles) */
+.chip-color-0 {
+  --chip-color: #3c5be5;
+  color: var(--chip-color);
+}
+.chip-color-1 {
+  --chip-color: #0f9d58;
+  color: var(--chip-color);
+}
+.chip-color-2 {
+  --chip-color: #ff6f00;
+  color: var(--chip-color);
+}
+.chip-color-3 {
+  --chip-color: #9333ea;
+  color: var(--chip-color);
+}
+
+.category-chip.active.chip-color-0,
+.category-chip.active.chip-color-1,
+.category-chip.active.chip-color-2,
+.category-chip.active.chip-color-3 {
+  border-color: var(--chip-color);
+  box-shadow: 0 0 0 1px var(--chip-color);
+}
+
+/* card border color variants matching chips */
+.course-card {
+  border: 2px solid;
+  border-image-slice: 1;
+  border-radius: 8px 8px 12px 12px;
+}
+
+.course-card.card-color-0 {
+  border-image-source: linear-gradient(180deg, rgba(60, 91, 229, 0) 0%, #3c5be5 100%);
+}
+.course-card.card-color-1 {
+  border-image-source: linear-gradient(180deg, rgba(15, 157, 88, 0) 0%, #0f9d58 100%);
+}
+.course-card.card-color-2 {
+  border-image-source: linear-gradient(180deg, rgba(255, 111, 0, 0) 0%, #ff6f00 100%);
+}
+.course-card.card-color-3 {
+  border-image-source: linear-gradient(180deg, rgba(147, 51, 234, 0) 0%, #9333ea 100%);
+}
+
+.course-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
