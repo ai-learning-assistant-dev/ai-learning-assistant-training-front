@@ -986,63 +986,6 @@ const AiConversation = () => {
             </ConversationContent>
             <ConversationScrollButton />
           </Conversation>
-          {extraQuestionsEnabled && extraQuestions.length > 0 && (
-            <div className='px-4 pb-3'>
-              <div className='rounded-lg border border-dashed border-muted bg-muted/40 p-4'>
-                <div className='mb-3 text-xs font-medium text-muted-foreground'>额外问题</div>
-                <div className='grid gap-2'>
-                  {extraQuestions.map((question, index) => (
-                    <Tooltip key={`${question}-${index}`}>
-                      <TooltipTrigger asChild>
-                        <Button
-                          type='button'
-                          variant='outline'
-                          size='sm'
-                          className='justify-start text-left overflow-hidden'
-                          onClick={() => handleExtraQuestionClick(question)}
-                        >
-                          <span className='truncate block'>{question}</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side='top' className='max-w-md'>
-                        <p className='text-xs'>{question}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          {/* Citations Area */}
-          {citations.length > 0 && (
-            <div className='px-4 pb-3'>
-              <div className='rounded-lg border border-dashed border-muted bg-muted/40 p-4'>
-                <div className='mb-3 text-xs font-medium text-muted-foreground'>引用内容</div>
-                <div className='flex flex-wrap gap-2'>
-                  {citations.map((citation) => (
-                    <Tooltip key={citation.id}>
-                      <TooltipTrigger asChild>
-                        <div className='inline-flex items-center gap-1 px-2 py-1 bg-background border border-border rounded-md text-sm cursor-default hover:bg-muted/50 transition-colors'>
-                          <Quote className='w-3 h-3 text-muted-foreground flex-shrink-0' />
-                          <span className='truncate max-w-[150px]'>{citation.text}</span>
-                          <button
-                            type='button'
-                            className='ml-1 text-muted-foreground hover:text-foreground transition-colors'
-                            onClick={() => handleRemoveCitation(citation.id)}
-                          >
-                            <XIcon className='w-3 h-3' />
-                          </button>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side='top' className='max-w-md whitespace-pre-wrap'>
-                        <p className='text-xs'>{citation.text}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
           {/* Input Area */}
           <div className='px-4 pt-1 pb-4 bg-white'>
             {/* Toolbar buttons */}
@@ -1059,8 +1002,63 @@ const AiConversation = () => {
             </div>
 
             <form onSubmit={handleSubmit}>
-              {/* Text input with embedded send Button */}
-              <div className='relative'>
+              {/* Composite input with citations and extra questions */}
+              <div className='relative rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring'>
+                {/* Extra Questions inside input */}
+                {extraQuestionsEnabled && extraQuestions.length > 0 && (
+                  <div className='p-2 pb-0 border-b border-border/50'>
+                    <div className='mb-1.5 text-xs font-medium text-muted-foreground'>额外问题</div>
+                    <div className='flex flex-wrap gap-1.5 pb-2'>
+                      {extraQuestions.map((question, index) => (
+                        <Tooltip key={`${question}-${index}`}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type='button'
+                              variant='outline'
+                              size='sm'
+                              className='h-7 px-2 text-xs justify-start text-left overflow-hidden'
+                              onClick={() => handleExtraQuestionClick(question)}
+                            >
+                              <span className='truncate block max-w-[200px]'>{question}</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side='top' className='max-w-md'>
+                            <p className='text-xs'>{question}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Citations inside input */}
+                {citations.length > 0 && (
+                  <div className={cn('p-2 pb-0', extraQuestionsEnabled && extraQuestions.length > 0 ? '' : 'border-b border-border/50')}>
+                    <div className='mb-1.5 text-xs font-medium text-muted-foreground'>引用内容</div>
+                    <div className='flex flex-wrap gap-2 pb-2'>
+                      {citations.map((citation) => (
+                        <Tooltip key={citation.id}>
+                          <TooltipTrigger asChild>
+                            <div className='inline-flex items-center gap-1 px-2 py-1 bg-muted/50 border border-border rounded-md text-xs cursor-default hover:bg-muted transition-colors'>
+                              <Quote className='w-3 h-3 text-muted-foreground flex-shrink-0' />
+                              <span className='truncate max-w-[120px]'>{citation.text}</span>
+                              <button
+                                type='button'
+                                className='ml-1 text-muted-foreground hover:text-foreground transition-colors'
+                                onClick={() => handleRemoveCitation(citation.id)}
+                              >
+                                <XIcon className='w-3 h-3' />
+                              </button>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side='top' className='max-w-md whitespace-pre-wrap'>
+                            <p className='text-xs'>{citation.text}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Textarea */}
                 <Textarea
                   name='message'
                   value={inputValue}
@@ -1068,19 +1066,24 @@ const AiConversation = () => {
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      if (inputValue.trim() && !isTyping) {
+                      if ((inputValue.trim() || citations.length > 0) && !isTyping) {
                         handleSubmit(e as any);
                       }
                     }
                   }}
-                  placeholder='输入你的问题......'
+                  placeholder={citations.length > 0 ? '添加问题或直接发送引用...' : '输入你的问题......'}
                   disabled={isTyping}
-                  className='w-full min-h-[120px] max-h-[300px]'
+                  className='w-full min-h-[80px] max-h-[200px] border-0 focus-visible:ring-0 resize-none'
                   rows={1}
                 />
 
                 {/* Send Button inside input */}
-                <Button type='submit' variant='ghost' disabled={!inputValue.trim() || isTyping} className='absolute right-3 top-1/2 -translate-y-1/2'>
+                <Button 
+                  type='submit' 
+                  variant='ghost' 
+                  disabled={(!inputValue.trim() && citations.length === 0) || isTyping} 
+                  className='absolute right-2 bottom-2'
+                >
                   <ArrowRightIcon />
                 </Button>
               </div>
