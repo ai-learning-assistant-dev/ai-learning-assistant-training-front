@@ -5,7 +5,7 @@ import { Message, MessageAvatar, MessageContent } from '@/components/ui/shadcn-i
 import { Reasoning, ReasoningContent, ReasoningTrigger } from '@/components/ui/shadcn-io/ai/reasoning';
 import { Source, Sources, SourcesContent, SourcesTrigger } from '@/components/ui/shadcn-io/ai/source';
 import { cn } from '@/lib/utils';
-import { MicIcon, ArrowUpIcon, PhoneIcon, MicOffIcon, XIcon, FileTextIcon, SunDimIcon, ArrowRightIcon, Fingerprint } from 'lucide-react';
+import { MicIcon, ArrowUpIcon, PhoneIcon, MicOffIcon, XIcon, FileTextIcon, SunDimIcon, ArrowRightIcon, Fingerprint, Quote } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { nanoid } from 'nanoid';
 import { type FormEventHandler, useCallback, useEffect, useRef, useState } from 'react';
@@ -45,6 +45,19 @@ export function aiLearningReview(sectionId: string) {
   );
 }
 
+export const ADD_CITATION = 'ai-add-citation';
+
+export function addCitation(text: string, sourcePosition?: string) {
+  window.dispatchEvent(
+    new CustomEvent(ADD_CITATION, {
+      detail: {
+        text,
+        sourcePosition,
+      },
+    })
+  );
+}
+
 type ChatMessage = {
   id: string;
   content: string;
@@ -58,6 +71,12 @@ type ChatMessage = {
 type LeadingQuestionSuggestion = {
   id: string;
   text: string;
+};
+
+type Citation = {
+  id: string;
+  text: string;
+  sourcePosition?: string;
 };
 
 interface ModelOption {
@@ -114,6 +133,7 @@ const AiConversation = () => {
     }
   });
   const [extraQuestions, setExtraQuestions] = useState<string[]>([]);
+  const [citations, setCitations] = useState<Citation[]>([]);
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
@@ -399,6 +419,31 @@ const AiConversation = () => {
     return () => window.removeEventListener(SEND_TO_AI, handler);
   }, []);
 
+  // Listen for add citation requests
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent)?.detail;
+        const text = detail?.text;
+        const sourcePosition = detail?.sourcePosition;
+        if (typeof text === 'string' && text.trim()) {
+          setCitations(prev => {
+            // 检查是否已存在相同内容的引用
+            if (prev.some(c => c.text === text)) {
+              return prev;
+            }
+            return [...prev, { id: nanoid(), text, sourcePosition }];
+          });
+        }
+      } catch (err) {
+        console.warn(`${ADD_CITATION} handler error`, err);
+      }
+    };
+
+    window.addEventListener(ADD_CITATION, handler);
+    return () => window.removeEventListener(ADD_CITATION, handler);
+  }, []);
+
   // Listen for chat history refresh requests
   useEffect(() => {
     const handler = () => {
@@ -561,15 +606,26 @@ const AiConversation = () => {
     return () => clearInterval(typeInterval);
   }, []);
   const sendMessage = useCallback(
-    (messageText: string) => {
+    (messageText: string, currentCitations: Citation[] = []) => {
       if (isTyping) return;
 
       const trimmed = messageText.trim();
-      if (!trimmed) return;
+      if (!trimmed && currentCitations.length === 0) return;
+
+      // 构建包含引用的完整消息
+      let fullMessage = trimmed;
+      if (currentCitations.length > 0) {
+        const citationText = currentCitations.map(c => `"${c.text}"`).join('\n\n');
+        if (trimmed) {
+          fullMessage = `关于以下引用内容：\n\n${citationText}\n\n${trimmed}`;
+        } else {
+          fullMessage = `请帮我理解以下内容：\n\n${citationText}`;
+        }
+      }
 
       const userMessage: ChatMessage = {
         id: nanoid(),
-        content: trimmed,
+        content: fullMessage,
         role: 'user',
         timestamp: new Date(),
       };
@@ -577,6 +633,7 @@ const AiConversation = () => {
       setIsTyping(true);
       setLeadingQuestions([]);
       setExtraQuestions([]);
+      setCitations([]); // 发送后清空引用
 
       if (streamingTimerRef.current) {
         window.clearTimeout(streamingTimerRef.current);
@@ -680,13 +737,14 @@ const AiConversation = () => {
     event => {
       event.preventDefault();
 
-      if (!inputValue.trim() || isTyping) return;
+      if ((!inputValue.trim() && citations.length === 0) || isTyping) return;
 
       const currentInput = inputValue;
+      const currentCitations = [...citations];
       setInputValue('');
-      sendMessage(currentInput);
+      sendMessage(currentInput, currentCitations);
     },
-    [inputValue, isTyping, sendMessage]
+    [inputValue, isTyping, sendMessage, citations]
   );
 
   const handleLeadingQuestionClick = useCallback(
@@ -703,12 +761,17 @@ const AiConversation = () => {
     []
   );
 
+  const handleRemoveCitation = useCallback((citationId: string) => {
+    setCitations(prev => prev.filter(c => c.id !== citationId));
+  }, []);
+
   const handleReset = useCallback(() => {
     loadChatHistory();
     setInputValue('');
     setIsTyping(false);
     setStreamingMessageId(null);
     setExtraQuestions([]);
+    setCitations([]);
   }, [loadChatHistory]);
 
   // 新建会话
@@ -743,6 +806,7 @@ const AiConversation = () => {
       setIsTyping(false);
       setStreamingMessageId(null);
       setExtraQuestions([]);
+      setCitations([]);
 
       if (sectionId) {
         await fetchLeadingQuestions(sectionId);
@@ -942,6 +1006,36 @@ const AiConversation = () => {
                       </TooltipTrigger>
                       <TooltipContent side='top' className='max-w-md'>
                         <p className='text-xs'>{question}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Citations Area */}
+          {citations.length > 0 && (
+            <div className='px-4 pb-3'>
+              <div className='rounded-lg border border-dashed border-muted bg-muted/40 p-4'>
+                <div className='mb-3 text-xs font-medium text-muted-foreground'>引用内容</div>
+                <div className='flex flex-wrap gap-2'>
+                  {citations.map((citation) => (
+                    <Tooltip key={citation.id}>
+                      <TooltipTrigger asChild>
+                        <div className='inline-flex items-center gap-1 px-2 py-1 bg-background border border-border rounded-md text-sm cursor-default hover:bg-muted/50 transition-colors'>
+                          <Quote className='w-3 h-3 text-muted-foreground flex-shrink-0' />
+                          <span className='truncate max-w-[150px]'>{citation.text}</span>
+                          <button
+                            type='button'
+                            className='ml-1 text-muted-foreground hover:text-foreground transition-colors'
+                            onClick={() => handleRemoveCitation(citation.id)}
+                          >
+                            <XIcon className='w-3 h-3' />
+                          </button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side='top' className='max-w-md whitespace-pre-wrap'>
+                        <p className='text-xs'>{citation.text}</p>
                       </TooltipContent>
                     </Tooltip>
                   ))}

@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircleQuestion } from 'lucide-react';
-import { sendToAI } from '@/components/ai-conversation';
+import { Quote } from 'lucide-react';
+import { addCitation } from '@/components/ai-conversation';
 import { cn } from '@/lib/utils';
 
 interface PopoverPosition {
@@ -16,17 +16,14 @@ interface TextSelectionPopoverProps {
   containerRef?: React.RefObject<HTMLElement | null>;
   /** 自定义提示文本 */
   tooltip?: string;
-  /** 自定义按钮点击后的回调，如果不传则默认使用 sendToAI */
+  /** 自定义按钮点击后的回调，如果不传则默认使用 addCitation */
   onSendText?: (text: string, sourcePosition?: string) => void;
-  /** 自定义前缀文本 */
-  prefixText?: string;
 }
 
 export function TextSelectionPopover({
   containerRef,
-  tooltip = '向AI提问',
+  tooltip = '引用到AI对话',
   onSendText,
-  prefixText = '请帮我理解以下内容：\n\n',
 }: TextSelectionPopoverProps) {
   const [selectedText, setSelectedText] = useState('');
   const [sourcePosition, setSourcePosition] = useState<string | undefined>();
@@ -201,12 +198,10 @@ export function TextSelectionPopover({
   const handleButtonClick = useCallback(() => {
     if (!selectedText) return;
     
-    const messageText = `${prefixText}"${selectedText}"`;
-    
     if (onSendText) {
-      onSendText(messageText, sourcePosition);
+      onSendText(selectedText, sourcePosition);
     } else {
-      sendToAI(messageText);
+      addCitation(selectedText, sourcePosition);
     }
     
     // 清除选中状态
@@ -214,7 +209,7 @@ export function TextSelectionPopover({
     setIsVisible(false);
     setSelectedText('');
     setSourcePosition(undefined);
-  }, [selectedText, sourcePosition, onSendText, prefixText]);
+  }, [selectedText, sourcePosition, onSendText]);
 
   // 处理点击外部关闭
   const handleClickOutside = useCallback((e: MouseEvent) => {
@@ -284,7 +279,7 @@ export function TextSelectionPopover({
         onClick={handleButtonClick}
         title={tooltip}
       >
-        <MessageCircleQuestion className="w-4 h-4" />
+        <Quote className="w-4 h-4" />
         <span>{tooltip}</span>
       </Button>
       {/* 小三角箭头指向选中区域 */}

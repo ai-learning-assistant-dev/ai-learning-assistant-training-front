@@ -196,8 +196,7 @@ export function SectionDetail() {
                 <Response className='text-base leading-relaxed'>{doc}</Response>
                 <TextSelectionPopover
                   containerRef={knowledgeContentRef}
-                  tooltip='向AI提问'
-                  prefixText='请帮我理解以下知识点内容：\n\n'
+                  tooltip='引用到AI对话'
                 />
               </div>
             </TabsContent>
