@@ -6,6 +6,8 @@ import { getLoginUser } from "@/containers/auth-middleware";
 import { aiChatServer } from "@/server/training-server";
 import { Button } from "@/components/ui/button";
 import { Response } from '@/components/ui/shadcn-io/ai/response';
+import { addCitation } from "../ai-conversation";
+import { Quote } from 'lucide-react';
 
 type ShortAnswerProps = {
   id?: string;
@@ -121,14 +123,33 @@ export default function ShortAnswer({
 
       {explanation && (
         <div style={{ position: 'relative', paddingTop: 8 }}>
-          <div>
-            <span className="font-bold">参考答案为：</span>{answerKey}
-          </div>
-          <div>
-            <span className="font-bold">你的答案为：</span>{value}
-          </div>
-          <div>
-            <span className="font-bold">AI批改：</span>{ai_feedback}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div>
+                <span className="font-bold">参考答案为：</span>{answerKey}
+              </div>
+              <div>
+                <span className="font-bold">你的答案为：</span>{value}
+              </div>
+              <div>
+                <span className="font-bold">AI批改：</span>{ai_feedback}
+              </div>
+            </div>
+            <div style={{ flex: '0 0 auto', marginLeft: 'auto' }}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="gap-1" 
+                onClick={() => {
+                  const citationText = `【简答题】${question}\n参考答案：${answerKey || '无'}\n我的答案：${value || '无'}\nAI批改：${ai_feedback || '无'}`;
+                  addCitation(citationText, `exercise-short-answer`);
+                }}
+              >
+                <Quote className="w-4 h-4" />
+                引用题目
+              </Button>
+            </div>
           </div>
         </div>
       )}
