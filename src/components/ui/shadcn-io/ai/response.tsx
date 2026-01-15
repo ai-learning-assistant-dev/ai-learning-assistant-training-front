@@ -159,6 +159,18 @@ function parseIncompleteMarkdown(text: string): string {
 // Create a hardened version of ReactMarkdown
 const HardenedMarkdown = hardenReactMarkdown(ReactMarkdown);
 
+// Helper function to get source position attribute from node
+const getSourcePosition = (node: any) => {
+  if (node?.position) {
+    return {
+      'data-source-position': `${node.position.start.line}-${node.position.end.line}`,
+      'data-start-line': node.position.start.line,
+      'data-end-line': node.position.end.line,
+    };
+  }
+  return {};
+};
+
 export type ResponseProps = HTMLAttributes<HTMLDivElement> & {
   options?: Options;
   children: Options['children'];
@@ -176,25 +188,45 @@ export type ResponseProps = HTMLAttributes<HTMLDivElement> & {
 
 const components: Options['components'] = {
   ol: ({ node, children, className, ...props }) => (
-    <ol className={cn('ml-4 list-outside list-decimal', className)} {...props}>
+    <ol 
+      className={cn('ml-4 list-outside list-decimal', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </ol>
   ),
   li: ({ node, children, className, ...props }) => (
-    <li className={cn('py-1', className)} {...props}>
+    <li 
+      className={cn('py-1', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </li>
   ),
   ul: ({ node, children, className, ...props }) => (
-    <ul className={cn('ml-4 list-outside list-disc', className)} {...props}>
+    <ul 
+      className={cn('ml-4 list-outside list-disc', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </ul>
   ),
   hr: ({ node, className, ...props }) => (
-    <hr className={cn('my-6 border-border', className)} {...props} />
+    <hr 
+      className={cn('my-6 border-border', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props} 
+    />
   ),
   strong: ({ node, children, className, ...props }) => (
-    <span className={cn('font-semibold', className)} {...props}>
+    <span 
+      className={cn('font-semibold', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </span>
   ),
@@ -203,6 +235,7 @@ const components: Options['components'] = {
       className={cn('font-medium text-primary underline', className)}
       rel="noreferrer"
       target="_blank"
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
       {...props}
     >
       {children}
@@ -211,6 +244,7 @@ const components: Options['components'] = {
   h1: ({ node, children, className, ...props }) => (
     <h1
       className={cn('mt-6 mb-2 font-semibold text-3xl', className)}
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
       {...props}
     >
       {children}
@@ -219,36 +253,53 @@ const components: Options['components'] = {
   h2: ({ node, children, className, ...props }) => (
     <h2
       className={cn('mt-6 mb-2 font-semibold text-2xl', className)}
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
       {...props}
     >
       {children}
     </h2>
   ),
   h3: ({ node, children, className, ...props }) => (
-    <h3 className={cn('mt-6 mb-2 font-semibold text-xl', className)} {...props}>
+    <h3 
+      className={cn('mt-6 mb-2 font-semibold text-xl', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </h3>
   ),
   h4: ({ node, children, className, ...props }) => (
-    <h4 className={cn('mt-6 mb-2 font-semibold text-lg', className)} {...props}>
+    <h4 
+      className={cn('mt-6 mb-2 font-semibold text-lg', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </h4>
   ),
   h5: ({ node, children, className, ...props }) => (
     <h5
       className={cn('mt-6 mb-2 font-semibold text-base', className)}
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
       {...props}
     >
       {children}
     </h5>
   ),
   h6: ({ node, children, className, ...props }) => (
-    <h6 className={cn('mt-6 mb-2 font-semibold text-sm', className)} {...props}>
+    <h6 
+      className={cn('mt-6 mb-2 font-semibold text-sm', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </h6>
   ),
   table: ({ node, children, className, ...props }) => (
-    <div className="my-4 overflow-x-auto">
+    <div 
+      className="my-4 overflow-x-auto" 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+    >
       <table
         className={cn('w-full border-collapse border border-border', className)}
         {...props}
@@ -258,30 +309,47 @@ const components: Options['components'] = {
     </div>
   ),
   thead: ({ node, children, className, ...props }) => (
-    <thead className={cn('bg-muted/50', className)} {...props}>
+    <thead 
+      className={cn('bg-muted/50', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </thead>
   ),
   tbody: ({ node, children, className, ...props }) => (
-    <tbody className={cn('divide-y divide-border', className)} {...props}>
+    <tbody 
+      className={cn('divide-y divide-border', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </tbody>
   ),
   tr: ({ node, children, className, ...props }) => (
-    <tr className={cn('border-border border-b', className)} {...props}>
+    <tr 
+      className={cn('border-border border-b', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </tr>
   ),
   th: ({ node, children, className, ...props }) => (
     <th
       className={cn('px-4 py-2 text-left font-semibold text-sm', className)}
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
       {...props}
     >
       {children}
     </th>
   ),
   td: ({ node, children, className, ...props }) => (
-    <td className={cn('px-4 py-2 text-sm', className)} {...props}>
+    <td 
+      className={cn('px-4 py-2 text-sm', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
       {children}
     </td>
   ),
@@ -291,6 +359,7 @@ const components: Options['components'] = {
         'my-4 border-muted-foreground/30 border-l-4 pl-4 text-muted-foreground italic',
         className
       )}
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
       {...props}
     >
       {children}
@@ -298,9 +367,10 @@ const components: Options['components'] = {
   ),
   code: ({ node, className, ...props }) => {
     const inline = node?.position?.start.line === node?.position?.end.line;
+    const dataSourcePosition = node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined;
 
     if (!inline) {
-      return <code className={className} {...props} />;
+      return <code className={className} data-source-position={dataSourcePosition} {...props} />;
     }
 
     return (
@@ -309,6 +379,7 @@ const components: Options['components'] = {
           'rounded bg-muted px-1.5 py-0.5 font-mono text-sm',
           className
         )}
+        data-source-position={dataSourcePosition}
         {...props}
       />
     );
@@ -337,6 +408,7 @@ const components: Options['components'] = {
         className={cn('my-4 h-auto', className)}
         code={code}
         language={language}
+        data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
       >
         <CodeBlockCopyButton
           onCopy={() => console.log('Copied code to clipboard')}
@@ -345,6 +417,15 @@ const components: Options['components'] = {
       </CodeBlock>
     );
   },
+  p: ({ node, children, className, ...props }) => (
+    <p 
+      className={cn('mb-4 last:mb-0', className)} 
+      data-source-position={node?.position ? `${node.position.start.line}-${node.position.end.line}` : undefined}
+      {...props}
+    >
+      {children}
+    </p>
+  ),
 };
 
 export const Response = memo(
