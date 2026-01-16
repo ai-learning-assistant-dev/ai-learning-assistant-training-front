@@ -161,7 +161,7 @@ const SubtitleMenu: React.FC<SubtitleMenuProps> = ({ showSubtitles, hasSubtitles
   }
 
   const subtitleOptions = [
-    { label: '无', value: false },
+    { label: '关闭', value: false },
     { label: '中文', value: true }
   ];
 
@@ -172,10 +172,10 @@ const SubtitleMenu: React.FC<SubtitleMenuProps> = ({ showSubtitles, hasSubtitles
       onMouseLeave={() => setShowMenu(false)}
     >
       <button
-        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 text-[15px]"
         title={showSubtitles ? '字幕: 中文' : '字幕: 无'}
       >
-        <Subtitles className={`w-6 h-6 ${showSubtitles ? 'text-[#00AEEC]' : ''}`} />
+        字幕
       </button>
       {showMenu && (
         <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-sm rounded-[8px] p-[5px_0] text-[14px] shadow-xl min-w-[100px]">
@@ -350,7 +350,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
   return (
     <div
-      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent p-[20px_10px_10px] transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+      className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent font-sans p-[20px_10px_10px] transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
         } hover:opacity-100`}
     >
       <ProgressBar
