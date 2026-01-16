@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Quote } from 'lucide-react';
+import { Sparkle } from 'lucide-react';
 import { addCitation } from '@/components/ai-conversation';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +22,7 @@ interface TextSelectionPopoverProps {
 
 export function TextSelectionPopover({
   containerRef,
-  tooltip = '引用到AI对话',
+  tooltip = '问问AI',
   onSendText,
 }: TextSelectionPopoverProps) {
   const [selectedText, setSelectedText] = useState('');
@@ -279,7 +279,7 @@ export function TextSelectionPopover({
         onClick={handleButtonClick}
         title={tooltip}
       >
-        <Quote className="w-4 h-4" />
+        <Sparkle className="w-4 h-4" />
         <span>{tooltip}</span>
       </Button>
       {/* 小三角箭头指向选中区域 */}

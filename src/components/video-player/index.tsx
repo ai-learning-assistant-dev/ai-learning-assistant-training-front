@@ -627,6 +627,11 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       };
     };
     const askAI = () => {
+      // 暂停视频播放
+      if (videoPlayerRef.current && !videoPlayerRef.current.paused) {
+        videoPlayerRef.current.pause();
+      }
+
       const p = getProgress();
       console.log('用户手动获取播放进度：', p);
 

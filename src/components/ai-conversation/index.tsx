@@ -1073,7 +1073,7 @@ const AiConversation = () => {
                   }}
                   placeholder={citations.length > 0 ? '添加问题或直接发送引用...' : '输入你的问题......'}
                   disabled={isTyping}
-                  className='w-full min-h-[80px] max-h-[200px] border-0 focus-visible:ring-0 resize-none'
+                  className='w-full min-h-[120px] max-h-[300px] border-0 focus-visible:ring-0 resize-none'
                   rows={1}
                 />
 

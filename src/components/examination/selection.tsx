@@ -6,7 +6,7 @@ import { shuffle } from "lodash";
 import { Button } from "@/components/ui/button";
 import { addCitation } from "../ai-conversation";
 import { Response } from '@/components/ui/shadcn-io/ai/response';
-import { Quote } from 'lucide-react';
+import { Sparkle } from 'lucide-react';
 
 export type Option = {
   id: string; // unique id for React keys
@@ -194,8 +194,8 @@ export default function Selection({
             </div>
             <div style={{ flex: '0 0 auto', marginLeft: 'auto'  }}>
               <Button type="button" variant="outline" size="sm" className="gap-1" onClick={handleCite}>
-                <Quote className="w-4 h-4" />
-                引用题目
+                <Sparkle className="w-4 h-4" />
+                问问AI
               </Button>
             </div>
           </div>

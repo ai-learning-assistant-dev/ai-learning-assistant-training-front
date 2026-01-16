@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Sparkles, PlayCircle } from 'lucide-react';
+import { X, Sparkle, PlayCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -51,7 +51,7 @@ export const AIVideoSummary = ({ data, className, open, onOpenChange, triggerBut
         {/* 头部区域 */}
         <div className='flex items-center justify-between p-4 pb-2'>
           <div className='flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg shadow-md'>
-            <Sparkles className='w-4 h-4' />
+            <Sparkle className='w-4 h-4' />
             <span className='text-sm font-semibold'>AI视频助手</span>
           </div>
           <Button variant='ghost' size='icon' className='h-8 w-8 text-gray-500 hover:bg-gray-200 rounded-full' onClick={() => handleOpenChange(false)}>

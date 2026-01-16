@@ -8,7 +8,7 @@ import {
   Minimize,
   PictureInPicture2,
   Subtitles,
-  CircleHelp
+  Sparkle
 } from 'lucide-react';
 import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
@@ -384,10 +384,10 @@ const VideoControls: React.FC<VideoControlsProps> = ({
             <button
               className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
               onClick={onAskAI}
-              title="这里不懂"
+              title="问问AI"
             >
-              <CircleHelp className="w-5 h-5" />
-              <span className="text-[13px]">这里不懂</span>
+              <Sparkle className="w-5 h-5" />
+              <span className="text-[13px]">问问AI</span>
             </button>
           )}
         </div>

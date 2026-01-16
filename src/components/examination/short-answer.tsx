@@ -7,7 +7,7 @@ import { aiChatServer } from "@/server/training-server";
 import { Button } from "@/components/ui/button";
 import { Response } from '@/components/ui/shadcn-io/ai/response';
 import { addCitation } from "../ai-conversation";
-import { Quote } from 'lucide-react';
+import { Sparkle } from 'lucide-react';
 
 type ShortAnswerProps = {
   id?: string;
@@ -146,8 +146,8 @@ export default function ShortAnswer({
                   addCitation(citationText, `exercise-short-answer`);
                 }}
               >
-                <Quote className="w-4 h-4" />
-                引用题目
+                <Sparkle className="w-4 h-4" />
+                问问AI
               </Button>
             </div>
           </div>
