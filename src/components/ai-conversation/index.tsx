@@ -675,6 +675,7 @@ const AiConversation = () => {
             sectionId: sectionId ?? '',
             personaId: selectedPersona?.persona_id,
             modelName: selectedModel || undefined,
+            daily: !sectionId,
           });
 
           const extraQuestionsPromise = extraQuestionsEnabled && sessionId
