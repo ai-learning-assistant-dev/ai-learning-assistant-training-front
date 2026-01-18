@@ -1,4 +1,4 @@
-import { Calendar, Home, Inbox, Book, Search, Settings, CircleQuestionMark, VideoIcon, Gauge, User, UserPen } from "lucide-react"
+import { Calendar, Home, Inbox, Book, Search, Settings, CircleQuestionMark, VideoIcon, Gauge, User, UserPen, Clipboard } from "lucide-react"
 
 import {
   Sidebar,
@@ -46,6 +46,15 @@ const topItems = [
 
 // Menu items.
 const bottomItems = [
+  {
+    title: "填写反馈问卷",
+    url: "#/app/questionnaire",
+    icon: Clipboard,
+    background: "linear-gradient(90deg, #68828B 0%, #E7CBE9 100%)",
+    textColor: "#FAFAFA",
+    iconColor: "rgba(30, 30, 30, 1)",
+    iconFill: "rgba(255, 255, 255, 0.76)"
+  },
   // {
   //   title: "设置",
   //   url: "#",
@@ -55,6 +64,7 @@ const bottomItems = [
     title: "切换账户",
     url: "#/userList",
     icon: UserPen,
+    iconFill: "#ffffff"
   },
   // {
   //   title: "获得帮助",
@@ -113,9 +123,9 @@ export function AppLeftSidebar({children}: {children?: React.ReactNode}) {
           <SidebarMenu>
             {bottomItems.map((item) => (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild style={{background: item.background, color: item.textColor}}>
                   <a href={item.url}>
-                    <item.icon />
+                    <item.icon color={item.iconColor} fill={item.iconFill}/>
                     <span>{item.title}</span>
                   </a>
                 </SidebarMenuButton>
