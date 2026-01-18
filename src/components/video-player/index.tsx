@@ -7,8 +7,7 @@ import type { Quality } from '../video-controls';
 import VideoControls from '../video-controls';
 import BilibiliLoginModal from '../bilibili-login-modal';
 import aiVideoAssistantImg from './ai_video_assistant.png';
-import questionHereImg from './question_here.png';
-import { sendToAI } from '../ai-conversation';
+import { addCitation } from '../ai-conversation';
 import { AIVideoSummary } from '../ai_video_assistant';
 
 export interface Source {
@@ -695,18 +694,24 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
         ended: el.ended,
       };
     };
-
     const askAI = () => {
+      // 暂停视频播放
+      if (videoPlayerRef.current && !videoPlayerRef.current.paused) {
+        videoPlayerRef.current.pause();
+      }
+
       const progress = getProgress();
+      console.log('用户手动获取播放进度：', progress);
+
       const currentSeconds = Math.max(0, Math.floor(progress?.currentTime ?? 0));
       const pad = (n: number) => n.toString().padStart(2, '0');
       const hh = pad(Math.floor(currentSeconds / 3600));
       const mm = pad(Math.floor((currentSeconds % 3600) / 60));
       const ss = pad(currentSeconds % 60);
       const timeStr = `${hh}:${mm}:${ss}`;
-      const text = `对于当前时间点：${timeStr}，我有以下问题：\n`;
+      const text = `视频时间点：${timeStr}`;
 
-      sendToAI(text);
+      addCitation(text, `video-${timeStr}`);
     };
 
     return (
@@ -785,6 +790,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             onToggleFullscreen={toggleFullscreen}
             onTogglePiP={togglePiP}
             onSubtitleToggle={handleSubtitleToggle}
+            onAskAI={askAI}
           />
         </div>
         <div className='flex gap-4 justify-end'>
@@ -798,9 +804,6 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
               </button>
             }
           />
-          <button type='button' className='w-22 h-8 p-0 bg-transparent border-0 flex items-center justify-center cursor-pointer focus:outline-none' onClick={askAI}>
-            <img src={questionHereImg} alt='这里不懂' className='max-w-full max-h-full' />
-          </button>
         </div>
         <BilibiliLoginModal visible={showLoginModal} onClose={() => setShowLoginModal(false)} onSuccess={handleLoginSuccess} />
       </div>

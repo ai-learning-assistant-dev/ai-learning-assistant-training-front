@@ -6,7 +6,9 @@ import {
   VolumeX,
   Maximize,
   Minimize,
-  PictureInPicture2
+  PictureInPicture2,
+  Subtitles,
+  Sparkle
 } from 'lucide-react';
 import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
@@ -306,6 +308,7 @@ interface VideoControlsProps {
   onToggleFullscreen: () => void;
   onTogglePiP: () => void;
   onSubtitleToggle: (show: boolean) => void;
+  onAskAI?: () => void;
 }
 
 const VideoControls: React.FC<VideoControlsProps> = ({
@@ -335,7 +338,8 @@ const VideoControls: React.FC<VideoControlsProps> = ({
   onLoginClick,
   onToggleFullscreen,
   onTogglePiP,
-  onSubtitleToggle
+  onSubtitleToggle,
+  onAskAI
 }) => {
   const formatTime = (seconds: number): string => {
     if (!isFinite(seconds)) return '00:00';
@@ -375,6 +379,17 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           <span className="text-white text-[14px] select-none font-medium">
             {formatTime(currentTime)} / {formatTime(duration)}
           </span>
+
+          {onAskAI && (
+            <button
+              className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+              onClick={onAskAI}
+              title="问问AI"
+            >
+              <Sparkle className="w-5 h-5" />
+              <span className="text-[13px]">问问AI</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-[10px]">

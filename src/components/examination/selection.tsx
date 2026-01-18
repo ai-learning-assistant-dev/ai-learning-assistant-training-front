@@ -3,12 +3,10 @@ import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import "./selection.css";
 import { shuffle } from "lodash";
-import { useParams } from "react-router";
-import { getLoginUser } from "@/containers/auth-middleware";
 import { Button } from "@/components/ui/button";
-import askAiImg from './ask_ai.png';
-import { sendToAI } from "../ai-conversation";
+import { addCitation } from "../ai-conversation";
 import { Response } from '@/components/ui/shadcn-io/ai/response';
+import { Sparkle } from 'lucide-react';
 
 export type Option = {
   id: string; // unique id for React keys
@@ -133,34 +131,15 @@ export default function Selection({
   }, [JSON.stringify(options)]);
 
   const textColor = explanation ? (user_score < score ? 'text-red-700': 'text-lime-400'): '';
-  const params = useParams();
 
-  const askAI = async () => {
-    try {
-      const user = getLoginUser();
-      const userId = user?.user_id || '';
-      const sectionId = params.sectionId || undefined;
-      if(sectionId == null){
-        return;
-      }
-
-      // compose message: include the question, the options text, and reference answer (if any)
-      const optionsText = (shuffledOptions ?? []).map((o, i) => `${selectionNames[i] || i + 1}. ${String(o.label)}`).join('\n');
-      const rightAnswer = shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')
-      const myAnswer = shuffledOptions?.map((item, index) => internal.includes(item.value) ? selectionNames[index] : null).filter(item=>item).join('，')
-      const composedMessage = 
-`${String(question)}
-选项：
-${optionsText}
-标准答案：${rightAnswer}
-我的答案：${myAnswer}
-${answerKey ? `题目解析：${answerKey}` : ''}
-`;
-      sendToAI(composedMessage)
-    } catch (e: any) {
-      console.error(e)
-    }
-  }
+  const handleCite = () => {
+    // compose citation text: include the question, the options text, and answers
+    const optionsText = (shuffledOptions ?? []).map((o, i) => `${selectionNames[i] || i + 1}. ${String(o.label)}`).join('\n');
+    const rightAnswer = shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，');
+    const myAnswer = shuffledOptions?.map((item, index) => internal.includes(item.value) ? selectionNames[index] : null).filter(item=>item).join('，');
+    const citationText = `【${mode === 'single' ? '单选题' : '多选题'}】${String(question)}\n选项：${optionsText}\n标准答案：${rightAnswer}\n我的答案：${myAnswer}`;
+    addCitation(citationText, `exercise-selection`);
+  };
 
   return (
     <div className={className} style={wrapperStyle} role={mode === "multiple" ? "list" : "radiogroup"}>
@@ -214,8 +193,9 @@ ${answerKey ? `题目解析：${answerKey}` : ''}
               <div><span className="font-bold">正确答案为：</span>{shuffledOptions?.map((item, index) => item.is_correct ? selectionNames[index] : null).filter(item=>item).join('，')}</div>
             </div>
             <div style={{ flex: '0 0 auto', marginLeft: 'auto'  }}>
-              <Button type="button" className={`w-[88px] h-[36x] p-0 border-none b-none`} onClick={askAI}>
-                <img src={askAiImg} alt="问问AI" className="w-[88px] h-[36x]" />
+              <Button type="button" variant="outline" size="sm" className="gap-1" onClick={handleCite}>
+                <Sparkle className="w-4 h-4" />
+                问问AI
               </Button>
             </div>
           </div>

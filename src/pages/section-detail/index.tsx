@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { aiLearningReview } from '@/components/ai-conversation';
 import { scrollCenterTop } from '@/components/app-left-sidebar';
+import { TextSelectionPopover } from '@/components/text-selection-popover';
 
 export function SectionDetail() {
   const params = useParams();
@@ -38,6 +39,7 @@ export function SectionDetail() {
   const isReviewMode = isExaminationPassed || exerciseResult?.data?.pass === true || isCompleted || mode === 'review';
 
   const rootRef = useRef<HTMLDivElement>(null);
+  const knowledgeContentRef = useRef<HTMLDivElement>(null);
   const learningReviewTriggeredRef = useRef(false);
 
   useEffect(() => {
@@ -190,8 +192,12 @@ export function SectionDetail() {
               {stage === 'compare' && <TabsTrigger value='examination'>随堂测验</TabsTrigger>}
             </TabsList>
             <TabsContent value='doc'>
-              <div className='flex'>
+              <div className='flex' ref={knowledgeContentRef}>
                 <Response className='text-base leading-relaxed'>{doc}</Response>
+                <TextSelectionPopover
+                  containerRef={knowledgeContentRef}
+                  tooltip='问问AI'
+                />
               </div>
             </TabsContent>
             {stage === 'compare' && (

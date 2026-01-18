@@ -5,7 +5,7 @@ import { Message, MessageAvatar, MessageContent } from '@/components/ui/shadcn-i
 import { Reasoning, ReasoningContent, ReasoningTrigger } from '@/components/ui/shadcn-io/ai/reasoning';
 import { Source, Sources, SourcesContent, SourcesTrigger } from '@/components/ui/shadcn-io/ai/source';
 import { cn } from '@/lib/utils';
-import { MicIcon, ArrowUpIcon, PhoneIcon, MicOffIcon, XIcon, FileTextIcon, SunDimIcon, ArrowRightIcon, Fingerprint } from 'lucide-react';
+import { MicIcon, ArrowUpIcon, PhoneIcon, MicOffIcon, XIcon, FileTextIcon, SunDimIcon, ArrowRightIcon, Fingerprint, Quote } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { nanoid } from 'nanoid';
 import { type FormEventHandler, useCallback, useEffect, useRef, useState } from 'react';
@@ -18,6 +18,8 @@ import { match, P } from 'ts-pattern';
 import { VoiceUI } from './voice';
 import { Textarea } from '../ui/textarea';
 import { Button } from '../ui/button';
+import { Checkbox } from '../ui/checkbox';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/tooltip';
 import { Item, ItemActions, ItemContent, ItemDescription, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { Response } from '@/components/ui/shadcn-io/ai/response';
 import { Streamdown } from 'streamdown';
@@ -43,6 +45,19 @@ export function aiLearningReview(sectionId: string) {
   );
 }
 
+export const ADD_CITATION = 'ai-add-citation';
+
+export function addCitation(text: string, sourcePosition?: string) {
+  window.dispatchEvent(
+    new CustomEvent(ADD_CITATION, {
+      detail: {
+        text,
+        sourcePosition,
+      },
+    })
+  );
+}
+
 type ChatMessage = {
   id: string;
   content: string;
@@ -56,6 +71,12 @@ type ChatMessage = {
 type LeadingQuestionSuggestion = {
   id: string;
   text: string;
+};
+
+type Citation = {
+  id: string;
+  text: string;
+  sourcePosition?: string;
 };
 
 interface ModelOption {
@@ -82,6 +103,8 @@ const getWebRTCServerUrl = () => {
   // return "http://localhost:8989";
 };
 
+const EXTRA_QUESTIONS_KEY = 'ai-extra-questions-enabled';
+
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -99,6 +122,18 @@ const AiConversation = () => {
   const [previousMessage, setPreviousMessage] = useState('欢迎使用语音对话功能');
   const [selectedPersona, setSelectedPersona] = useState<AiPersona | null>(null);
   const [leadingQuestions, setLeadingQuestions] = useState<LeadingQuestionSuggestion[]>([]);
+  const [extraQuestionsEnabled, setExtraQuestionsEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(EXTRA_QUESTIONS_KEY);
+      if (stored === null) return true;
+      return stored === 'true';
+    } catch (error) {
+      console.warn('读取额外问题开关失败:', error);
+      return true;
+    }
+  });
+  const [extraQuestions, setExtraQuestions] = useState<string[]>([]);
+  const [citations, setCitations] = useState<Citation[]>([]);
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
@@ -111,6 +146,14 @@ const AiConversation = () => {
       setCurrentMessage('');
     }
   }, [voiceState, currentMessage]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(EXTRA_QUESTIONS_KEY, extraQuestionsEnabled ? 'true' : 'false');
+    } catch (error) {
+      console.warn('保存额外问题开关失败:', error);
+    }
+  }, [extraQuestionsEnabled]);
 
   const { data: personasResponse } = useAutoCache(aiChatServer.getPersonas, []);
   const personas = personasResponse?.data || [];
@@ -237,8 +280,17 @@ const AiConversation = () => {
     [currentSessionId]
   );
 
+  const handleExtraQuestionsToggle = useCallback((checked: boolean | 'indeterminate') => {
+    const enabled = checked === true;
+    setExtraQuestionsEnabled(enabled);
+    if (!enabled) {
+      setExtraQuestions([]);
+    }
+  }, []);
+
   // 加载历史记录
   const loadChatHistory = useCallback(async () => {
+    setExtraQuestions([]);
     try {
       // 如果sectionId为空，不读取历史记录，直接显示欢迎消息
       if (!sectionId) {
@@ -365,6 +417,31 @@ const AiConversation = () => {
 
     window.addEventListener(SEND_TO_AI, handler);
     return () => window.removeEventListener(SEND_TO_AI, handler);
+  }, []);
+
+  // Listen for add citation requests
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent)?.detail;
+        const text = detail?.text;
+        const sourcePosition = detail?.sourcePosition;
+        if (typeof text === 'string' && text.trim()) {
+          setCitations(prev => {
+            // 检查是否已存在相同内容的引用
+            if (prev.some(c => c.text === text)) {
+              return prev;
+            }
+            return [...prev, { id: nanoid(), text, sourcePosition }];
+          });
+        }
+      } catch (err) {
+        console.warn(`${ADD_CITATION} handler error`, err);
+      }
+    };
+
+    window.addEventListener(ADD_CITATION, handler);
+    return () => window.removeEventListener(ADD_CITATION, handler);
   }, []);
 
   // Listen for chat history refresh requests
@@ -529,21 +606,34 @@ const AiConversation = () => {
     return () => clearInterval(typeInterval);
   }, []);
   const sendMessage = useCallback(
-    (messageText: string) => {
+    (messageText: string, currentCitations: Citation[] = []) => {
       if (isTyping) return;
 
       const trimmed = messageText.trim();
-      if (!trimmed) return;
+      if (!trimmed && currentCitations.length === 0) return;
+
+      // 构建包含引用的完整消息
+      let fullMessage = trimmed;
+      if (currentCitations.length > 0) {
+        const citationText = currentCitations.map(c => `"${c.text}"`).join('\n\n');
+        if (trimmed) {
+          fullMessage = `关于以下引用内容：\n\n${citationText}\n\n${trimmed}`;
+        } else {
+          fullMessage = `请帮我理解以下内容：\n\n${citationText}`;
+        }
+      }
 
       const userMessage: ChatMessage = {
         id: nanoid(),
-        content: trimmed,
+        content: fullMessage,
         role: 'user',
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, userMessage]);
       setIsTyping(true);
       setLeadingQuestions([]);
+      setExtraQuestions([]);
+      setCitations([]); // 发送后清空引用
 
       if (streamingTimerRef.current) {
         window.clearTimeout(streamingTimerRef.current);
@@ -577,16 +667,45 @@ const AiConversation = () => {
           setMessages(prev => [...prev, assistantMessage]);
           setStreamingMessageId(assistantMessageId);
 
-          const response = await aiChatServer.textChatStream({
+          // 同时触发流式响应和额外问题生成（预加载）
+          const streamPromise = aiChatServer.textChatStream({
             userId: getUserId(),
             message: trimmed,
             sessionId,
             sectionId: sectionId ?? '',
             personaId: selectedPersona?.persona_id,
             modelName: selectedModel || undefined,
-            daily: !sectionId,
           });
-          await processStreamResponse(assistantMessageId, response);
+
+          const extraQuestionsPromise = extraQuestionsEnabled && sessionId
+            ? aiChatServer.generateExtraQuestions({
+                userId: getUserId(),
+                message: trimmed,
+                sessionId,
+                sectionId: sectionId ?? '',
+                personaId: selectedPersona?.persona_id,
+                modelName: selectedModel || undefined,
+              })
+            : null;
+
+          // 等待流式响应完成
+          await processStreamResponse(assistantMessageId, await streamPromise);
+
+          // 流式完成后，获取预加载的额外问题
+          if (extraQuestionsPromise) {
+            try {
+              const extraResponse = await extraQuestionsPromise;
+              const questions = extraResponse.data?.data?.questions ?? [];
+              if (Array.isArray(questions) && questions.length === 3) {
+                setExtraQuestions(questions);
+              } else {
+                setExtraQuestions([]);
+              }
+            } catch (error) {
+              console.error('生成额外问题失败:', error);
+              setExtraQuestions([]);
+            }
+          }
         } catch (error) {
           console.error('AI Chat Error:', error);
           let message = '对话失败，请检查AI设置和网络情况';
@@ -611,20 +730,21 @@ const AiConversation = () => {
         }
       }, 300);
     },
-    [isTyping, currentSessionId, sectionId, selectedPersona, selectedModel, processStreamResponse]
+    [isTyping, currentSessionId, sectionId, selectedPersona, selectedModel, processStreamResponse, extraQuestionsEnabled]
   );
 
   const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
     event => {
       event.preventDefault();
 
-      if (!inputValue.trim() || isTyping) return;
+      if ((!inputValue.trim() && citations.length === 0) || isTyping) return;
 
       const currentInput = inputValue;
+      const currentCitations = [...citations];
       setInputValue('');
-      sendMessage(currentInput);
+      sendMessage(currentInput, currentCitations);
     },
-    [inputValue, isTyping, sendMessage]
+    [inputValue, isTyping, sendMessage, citations]
   );
 
   const handleLeadingQuestionClick = useCallback(
@@ -634,11 +754,24 @@ const AiConversation = () => {
     [sendMessage]
   );
 
+  const handleExtraQuestionClick = useCallback(
+    (question: string) => {
+      setInputValue(question);
+    },
+    []
+  );
+
+  const handleRemoveCitation = useCallback((citationId: string) => {
+    setCitations(prev => prev.filter(c => c.id !== citationId));
+  }, []);
+
   const handleReset = useCallback(() => {
     loadChatHistory();
     setInputValue('');
     setIsTyping(false);
     setStreamingMessageId(null);
+    setExtraQuestions([]);
+    setCitations([]);
   }, [loadChatHistory]);
 
   // 新建会话
@@ -672,6 +805,8 @@ const AiConversation = () => {
       setInputValue('');
       setIsTyping(false);
       setStreamingMessageId(null);
+      setExtraQuestions([]);
+      setCitations([]);
 
       if (sectionId) {
         await fetchLeadingQuestions(sectionId);
@@ -704,9 +839,20 @@ const AiConversation = () => {
           <FileTextIcon />
           <span className='font-medium text-base'>AI对话框</span>
         </div>
-        <Button variant='outline' size='sm' onClick={handleNewSession} disabled={isTyping}>
-          新建对话
-        </Button>
+        <div className='flex items-center gap-3'>
+          <div className='flex items-center gap-2'>
+            <Checkbox id='extra-questions-toggle' checked={extraQuestionsEnabled} onCheckedChange={handleExtraQuestionsToggle} />
+            <label
+              htmlFor='extra-questions-toggle'
+              className='text-sm text-muted-foreground cursor-pointer select-none'
+            >
+              额外问题
+            </label>
+          </div>
+          <Button variant='outline' size='sm' onClick={handleNewSession} disabled={isTyping}>
+            新建对话
+          </Button>
+        </div>
       </div>
 
       {/* Voice Mode or Text Mode */}
@@ -856,8 +1002,63 @@ const AiConversation = () => {
             </div>
 
             <form onSubmit={handleSubmit}>
-              {/* Text input with embedded send Button */}
-              <div className='relative'>
+              {/* Composite input with citations and extra questions */}
+              <div className='relative rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring'>
+                {/* Extra Questions inside input */}
+                {extraQuestionsEnabled && extraQuestions.length > 0 && (
+                  <div className='p-2 pb-0 border-b border-border/50'>
+                    <div className='mb-1.5 text-xs font-medium text-muted-foreground'>额外问题</div>
+                    <div className='flex flex-wrap gap-1.5 pb-2'>
+                      {extraQuestions.map((question, index) => (
+                        <Tooltip key={`${question}-${index}`}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              type='button'
+                              variant='outline'
+                              size='sm'
+                              className='h-7 px-2 text-xs justify-start text-left overflow-hidden'
+                              onClick={() => handleExtraQuestionClick(question)}
+                            >
+                              <span className='truncate block max-w-[200px]'>{question}</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side='top' className='max-w-md'>
+                            <p className='text-xs'>{question}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Citations inside input */}
+                {citations.length > 0 && (
+                  <div className={cn('p-2 pb-0', extraQuestionsEnabled && extraQuestions.length > 0 ? '' : 'border-b border-border/50')}>
+                    <div className='mb-1.5 text-xs font-medium text-muted-foreground'>引用内容</div>
+                    <div className='flex flex-wrap gap-2 pb-2'>
+                      {citations.map((citation) => (
+                        <Tooltip key={citation.id}>
+                          <TooltipTrigger asChild>
+                            <div className='inline-flex items-center gap-1 px-2 py-1 bg-muted/50 border border-border rounded-md text-xs cursor-default hover:bg-muted transition-colors'>
+                              <Quote className='w-3 h-3 text-muted-foreground flex-shrink-0' />
+                              <span className='truncate max-w-[120px]'>{citation.text}</span>
+                              <button
+                                type='button'
+                                className='ml-1 text-muted-foreground hover:text-foreground transition-colors'
+                                onClick={() => handleRemoveCitation(citation.id)}
+                              >
+                                <XIcon className='w-3 h-3' />
+                              </button>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side='top' className='max-w-md whitespace-pre-wrap'>
+                            <p className='text-xs'>{citation.text}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Textarea */}
                 <Textarea
                   name='message'
                   value={inputValue}
@@ -865,19 +1066,24 @@ const AiConversation = () => {
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      if (inputValue.trim() && !isTyping) {
+                      if ((inputValue.trim() || citations.length > 0) && !isTyping) {
                         handleSubmit(e as any);
                       }
                     }
                   }}
-                  placeholder='输入你的问题......'
+                  placeholder={citations.length > 0 ? '添加问题或直接发送引用...' : '输入你的问题......'}
                   disabled={isTyping}
-                  className='w-full min-h-[120px] max-h-[300px]'
+                  className='w-full min-h-[120px] max-h-[300px] border-0 focus-visible:ring-0 resize-none'
                   rows={1}
                 />
 
                 {/* Send Button inside input */}
-                <Button type='submit' variant='ghost' disabled={!inputValue.trim() || isTyping} className='absolute right-3 top-1/2 -translate-y-1/2'>
+                <Button 
+                  type='submit' 
+                  variant='ghost' 
+                  disabled={(!inputValue.trim() && citations.length === 0) || isTyping} 
+                  className='absolute right-2 bottom-2'
+                >
                   <ArrowRightIcon />
                 </Button>
               </div>
