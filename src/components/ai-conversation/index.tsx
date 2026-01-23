@@ -675,6 +675,7 @@ const AiConversation = () => {
             sectionId: sectionId ?? '',
             personaId: selectedPersona?.persona_id,
             modelName: selectedModel || undefined,
+            daily: !sectionId // 控制是否为日常对话
           });
 
           const extraQuestionsPromise = extraQuestionsEnabled && sessionId
