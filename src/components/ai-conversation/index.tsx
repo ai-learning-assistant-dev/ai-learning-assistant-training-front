@@ -1067,14 +1067,15 @@ const AiConversation = () => {
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    // Shift+Enter 或 Ctrl+Enter 发送消息，普通 Enter 换行
+                    if (e.key === 'Enter' && (e.shiftKey || e.ctrlKey)) {
                       e.preventDefault();
                       if ((inputValue.trim() || citations.length > 0) && !isTyping) {
                         handleSubmit(e as any);
                       }
                     }
                   }}
-                  placeholder={citations.length > 0 ? '添加问题或直接发送引用...' : '输入你的问题......'}
+                  placeholder={citations.length > 0 ? '添加问题或直接发送引用...' : '输入你的问题......（Shift+Enter 发送）'}
                   disabled={isTyping}
                   className='w-full min-h-[120px] max-h-[300px] border-0 focus-visible:ring-0 resize-none'
                   rows={1}
