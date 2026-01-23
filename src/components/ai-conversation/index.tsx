@@ -623,6 +623,8 @@ const AiConversation = () => {
         }
       }
 
+      console.log('发送消息到AI:', fullMessage);
+
       const userMessage: ChatMessage = {
         id: nanoid(),
         content: fullMessage,
@@ -670,7 +672,7 @@ const AiConversation = () => {
           // 同时触发流式响应和额外问题生成（预加载）
           const streamPromise = aiChatServer.textChatStream({
             userId: getUserId(),
-            message: trimmed,
+            message: fullMessage,
             sessionId,
             sectionId: sectionId ?? '',
             personaId: selectedPersona?.persona_id,
@@ -681,7 +683,7 @@ const AiConversation = () => {
           const extraQuestionsPromise = extraQuestionsEnabled && sessionId
             ? aiChatServer.generateExtraQuestions({
                 userId: getUserId(),
-                message: trimmed,
+                message: fullMessage,
                 sessionId,
                 sectionId: sectionId ?? '',
                 personaId: selectedPersona?.persona_id,
