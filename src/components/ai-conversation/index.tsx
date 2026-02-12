@@ -104,6 +104,9 @@ const getWebRTCServerUrl = () => {
 };
 
 const EXTRA_QUESTIONS_KEY = 'ai-extra-questions-enabled';
+const FONT_SIZE_KEY = 'ai-chat-font-size';
+const FONT_SIZE_OPTIONS = [12, 14, 16, 18, 20];
+const DEFAULT_FONT_SIZE = 14;
 
 const AiConversation = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -134,6 +137,18 @@ const AiConversation = () => {
   });
   const [extraQuestions, setExtraQuestions] = useState<string[]>([]);
   const [citations, setCitations] = useState<Citation[]>([]);
+  const [fontSize, setFontSize] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem(FONT_SIZE_KEY);
+      if (stored) {
+        const size = parseInt(stored, 10);
+        if (FONT_SIZE_OPTIONS.includes(size)) return size;
+      }
+      return DEFAULT_FONT_SIZE;
+    } catch {
+      return DEFAULT_FONT_SIZE;
+    }
+  });
   const streamingTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const params = useParams();
@@ -154,6 +169,14 @@ const AiConversation = () => {
       console.warn('保存额外问题开关失败:', error);
     }
   }, [extraQuestionsEnabled]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FONT_SIZE_KEY, fontSize.toString());
+    } catch (error) {
+      console.warn('保存字体大小失败:', error);
+    }
+  }, [fontSize]);
 
   const { data: personasResponse } = useAutoCache(aiChatServer.getPersonas, []);
   const personas = personasResponse?.data || [];
@@ -623,6 +646,8 @@ const AiConversation = () => {
         }
       }
 
+      console.log('发送消息到AI:', fullMessage);
+
       const userMessage: ChatMessage = {
         id: nanoid(),
         content: fullMessage,
@@ -670,17 +695,18 @@ const AiConversation = () => {
           // 同时触发流式响应和额外问题生成（预加载）
           const streamPromise = aiChatServer.textChatStream({
             userId: getUserId(),
-            message: trimmed,
+            message: fullMessage,
             sessionId,
             sectionId: sectionId ?? '',
             personaId: selectedPersona?.persona_id,
             modelName: selectedModel || undefined,
+            daily: !sectionId // 控制是否为日常对话
           });
 
           const extraQuestionsPromise = extraQuestionsEnabled && sessionId
             ? aiChatServer.generateExtraQuestions({
                 userId: getUserId(),
-                message: trimmed,
+                message: fullMessage,
                 sessionId,
                 sectionId: sectionId ?? '',
                 personaId: selectedPersona?.persona_id,
@@ -841,6 +867,20 @@ const AiConversation = () => {
         </div>
         <div className='flex items-center gap-3'>
           <div className='flex items-center gap-2'>
+          {/* 字体调节 */}
+          <Select value={fontSize.toString()} onValueChange={(val) => setFontSize(parseInt(val, 10))}>
+            <SelectTrigger className='w-[91px] h-8'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {FONT_SIZE_OPTIONS.map(size => (
+                <SelectItem key={size} value={size.toString()}>
+                  {size}px
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className='flex items-center gap-2'>
             <Checkbox id='extra-questions-toggle' checked={extraQuestionsEnabled} onCheckedChange={handleExtraQuestionsToggle} />
             <label
               htmlFor='extra-questions-toggle'
@@ -852,6 +892,7 @@ const AiConversation = () => {
           <Button variant='outline' size='sm' onClick={handleNewSession} disabled={isTyping}>
             新建对话
           </Button>
+        </div>
         </div>
       </div>
 
@@ -942,11 +983,11 @@ const AiConversation = () => {
               {messages.map(message => (
                 <div key={message.id} className='space-y-3'>
                   <Message from={message.role}>
-                    <MessageContent>
+                    <MessageContent style={{ fontSize: `${fontSize}px` }}>
                       {message.isStreaming && message.content === '' ? (
                         <div className='flex items-center gap-2'>
                           <Loader size={14} />
-                          <span className='text-muted-foreground text-sm'>Thinking...</span>
+                          <span className='text-muted-foreground'>Thinking...</span>
                         </div>
                       ) : message.role === 'assistant' ? (
                         <Streamdown>{message.content}</Streamdown>
@@ -1064,14 +1105,15 @@ const AiConversation = () => {
                   value={inputValue}
                   onChange={e => setInputValue(e.target.value)}
                   onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    // Shift+Enter 或 Ctrl+Enter 发送消息，普通 Enter 换行
+                    if (e.key === 'Enter' && (e.shiftKey || e.ctrlKey)) {
                       e.preventDefault();
                       if ((inputValue.trim() || citations.length > 0) && !isTyping) {
                         handleSubmit(e as any);
                       }
                     }
                   }}
-                  placeholder={citations.length > 0 ? '添加问题或直接发送引用...' : '输入你的问题......'}
+                  placeholder={citations.length > 0 ? '添加问题或直接发送引用...' : '输入你的问题......（Shift+Enter 发送）'}
                   disabled={isTyping}
                   className='w-full min-h-[120px] max-h-[300px] border-0 focus-visible:ring-0 resize-none'
                   rows={1}
