@@ -8,8 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import logoPng from "@/assets/logo.png";
-import qrCodeOne from "./qr-code-one.png";
-import qrCodeTwo from "./qr-code-two.png";
+import feedbackSurveyQrcode from "./experience-feedback-survey.png";
+// import qrCodeTwo from "./experience-feedback-survey.png";
 
 interface Question {
   title: string;
@@ -36,13 +36,13 @@ const questions: Question[] = [
     {
       title: "学习需求与功能体验综合调研问卷",
       description: "为优化 AI 学习助手的功能、资源与使用体验,精准匹配您的学习需求,我们特开展本次调研。内容将覆盖您的学习情况、意向领域、学习形式偏好、核心功能需求及使用体验",
-      qrCode: qrCodeOne,
+      qrCode: feedbackSurveyQrcode,
       variant: "purple",
     },
     {
       title: "课程内容学习体验与改进建议调查问卷",
       description: "为确保课程内容更贴合您的学习目标与认知节奏,我们诚邀您参与本次调查。问卷将聚焦课程内容的实用性、难度适配性、结构合理性及学习收获等方面。",
-      qrCode: qrCodeTwo,
+      qrCode: feedbackSurveyQrcode,
       variant: "orange",
     },
   ];
