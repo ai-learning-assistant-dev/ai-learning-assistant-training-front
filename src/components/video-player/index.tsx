@@ -86,6 +86,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [playedPercent, setPlayedPercent] = useState<number>(0);
     const [volume, setVolume] = useState<number>(0.7);
     const [isMuted, setIsMuted] = useState<boolean>(false);
+        const [volumeBeforeMute, setVolumeBeforeMute] = useState<number>(0.7); // 保存静音前的音量
     const [showControls, setShowControls] = useState<boolean>(true);
     const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
     const [formatListTwo, setFormatListTwo] = useState<FormatItem[]>([]);
@@ -293,23 +294,34 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       setVolume(newVolume);
       if (videoPlayerRef.current) {
         videoPlayerRef.current.volume = newVolume;
-        setIsMuted(newVolume === 0);
+        // 如果用户通过滑块调整音量到非零值，自动取消静音
+        if (newVolume > 0 && isMuted) {
+          videoPlayerRef.current.muted = false;
+          setIsMuted(false);
+          setVolumeBeforeMute(newVolume); // 更新记录的音量
+        }
+        // 如果音量调到零，设置为静音状态
+        if (newVolume === 0) {
+          setIsMuted(true);
+        }
       }
     };
 
     const toggleMute = () => {
       if (!videoPlayerRef.current) return;
       if (isMuted) {
+        // 取消静音：恢复到静音前的音量
         videoPlayerRef.current.muted = false;
         setIsMuted(false);
-        if (volume === 0) {
-          const newVolume = 0.5;
-          setVolume(newVolume);
-          videoPlayerRef.current.volume = newVolume;
-        }
+        const restoreVolume = volumeBeforeMute > 0 ? volumeBeforeMute : 0.5;
+        setVolume(restoreVolume);
+        videoPlayerRef.current.volume = restoreVolume;
       } else {
+        // 静音：保存当前音量，然后设置音量为0（视觉上归零）
+        setVolumeBeforeMute(volume);
         videoPlayerRef.current.muted = true;
         setIsMuted(true);
+        setVolume(0); // 视觉上滑块归零
       }
     };
 
@@ -624,6 +636,120 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       setIsLoggedIn(true);
       refetchManifest();
     };
+
+    // 键盘快捷键处理
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // 如果焦点在输入框等元素上，不处理快捷键
+        const activeElement = document.activeElement;
+        if (
+          activeElement?.tagName === 'INPUT' ||
+          activeElement?.tagName === 'TEXTAREA' ||
+          activeElement?.getAttribute('contenteditable') === 'true'
+        ) {
+          return;
+        }
+
+        const video = videoPlayerRef.current;
+        if (!video) return;
+
+        switch (e.key.toLowerCase()) {
+          // 空格键或K键：播放/暂停（直接操作视频元素，避免闭包问题）
+          case ' ':
+          case 'k':
+            e.preventDefault();
+            if (video.paused) {
+              video.play();
+            } else {
+              video.pause();
+            }
+            break;
+
+          // 左箭头：快退5秒
+          case 'arrowleft':
+            e.preventDefault();
+            video.currentTime = Math.max(0, video.currentTime - 5);
+            break;
+
+          // 右箭头：快进5秒
+          case 'arrowright':
+            e.preventDefault();
+            video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+            break;
+
+          // 上箭头：音量增加10%
+          case 'arrowup':
+            e.preventDefault();
+            {
+              const newVolume = Math.min(1, video.volume + 0.1);
+              video.volume = newVolume;
+              setVolume(newVolume);
+              setIsMuted(newVolume === 0);
+            }
+            break;
+
+          // 下箭头：音量减少10%
+          case 'arrowdown':
+            e.preventDefault();
+            {
+              const newVolume = Math.max(0, video.volume - 0.1);
+              video.volume = newVolume;
+              setVolume(newVolume);
+              setIsMuted(newVolume === 0);
+            }
+            break;
+
+          // M键：静音/取消静音
+          case 'm':
+            e.preventDefault();
+            {
+              if (video.muted) {
+                // 取消静音：恢复到静音前的音量
+                video.muted = false;
+                setIsMuted(false);
+                const restoreVol = volumeBeforeMute > 0 ? volumeBeforeMute : 0.5;
+                video.volume = restoreVol;
+                setVolume(restoreVol);
+              } else {
+                // 静音：保存当前音量
+                setVolumeBeforeMute(video.volume);
+                video.muted = true;
+                setIsMuted(true);
+                setVolume(0);
+              }
+            }
+            break;
+
+          // F键：进入/退出全屏
+          case 'f':
+            e.preventDefault();
+            {
+              const container = video.parentElement;
+              if (!container) return;
+              if (!document.fullscreenElement) {
+                container.requestFullscreen?.();
+              } else {
+                document.exitFullscreen?.();
+              }
+            }
+            break;
+
+          // Escape键：退出全屏（浏览器默认已处理，这里作为备用）
+          case 'escape':
+            if (document.fullscreenElement) {
+              e.preventDefault();
+              document.exitFullscreen?.();
+            }
+            break;
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }, [volumeBeforeMute]);
 
     useEffect(() => {
       if (!videoPlayerRef.current) return;
