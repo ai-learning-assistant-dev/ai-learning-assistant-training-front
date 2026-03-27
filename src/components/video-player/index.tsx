@@ -84,9 +84,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [duration, setDuration] = useState<number>(0);
     const [bufferedPercent, setBufferedPercent] = useState<number>(0);
     const [playedPercent, setPlayedPercent] = useState<number>(0);
-    const [volume, setVolume] = useState<number>(0.7);
-    const [isMuted, setIsMuted] = useState<boolean>(false);
-        const [volumeBeforeMute, setVolumeBeforeMute] = useState<number>(0.7); // 保存静音前的音量
+    const [volume, setVolume] = useState<number>(0.7);  // 真实音量（静音时也保持）
+    const [isMuted, setIsMuted] = useState<boolean>(false);  // 静音状态（与音量独立）
     const [showControls, setShowControls] = useState<boolean>(true);
     const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
     const [formatListTwo, setFormatListTwo] = useState<FormatItem[]>([]);
@@ -290,38 +289,37 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       }
     };
 
-    const handleVolumeChange = (newVolume: number) => {
-      setVolume(newVolume);
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.volume = newVolume;
-        // 如果用户通过滑块调整音量到非零值，自动取消静音
-        if (newVolume > 0 && isMuted) {
-          videoPlayerRef.current.muted = false;
-          setIsMuted(false);
-          setVolumeBeforeMute(newVolume); // 更新记录的音量
-        }
-        // 如果音量调到零，设置为静音状态
-        if (newVolume === 0) {
-          setIsMuted(true);
-        }
-      }
+    // 滑块显示值：静音时显示0，否则显示真实音量
+    const displayVolume = isMuted ? 0 : volume;
+
+    // 统一的音频状态设置函数（所有音量/静音操作都通过这个函数）
+    const setAudioState = (nextVolume: number, nextMuted: boolean) => {
+      const video = videoPlayerRef.current;
+      if (!video) return;
+
+      const clampedVolume = Math.max(0, Math.min(1, nextVolume));
+      video.volume = clampedVolume;
+      video.muted = nextMuted;
+      setVolume(clampedVolume);
+      setIsMuted(nextMuted);
     };
 
+    // 音量滑块变化
+    const handleVolumeChange = (newVolume: number) => {
+      // 拖动滑块时，音量>0则取消静音，音量=0则静音
+      setAudioState(newVolume, newVolume === 0);
+    };
+
+    // 切换静音状态
     const toggleMute = () => {
-      if (!videoPlayerRef.current) return;
       if (isMuted) {
-        // 取消静音：恢复到静音前的音量
-        videoPlayerRef.current.muted = false;
-        setIsMuted(false);
-        const restoreVolume = volumeBeforeMute > 0 ? volumeBeforeMute : 0.5;
-        setVolume(restoreVolume);
-        videoPlayerRef.current.volume = restoreVolume;
+        // 取消静音：volume 已经是正确的值（静音时保持不变）
+        // 如果 volume 为0，给个默认值
+        const restoreVolume = volume > 0 ? volume : 0.5;
+        setAudioState(restoreVolume, false);
       } else {
-        // 静音：保存当前音量，然后设置音量为0（视觉上归零）
-        setVolumeBeforeMute(volume);
-        videoPlayerRef.current.muted = true;
-        setIsMuted(true);
-        setVolume(0); // 视觉上滑块归零
+        // 静音：保持 volume 不变，只设置 muted
+        setAudioState(volume, true);
       }
     };
 
@@ -677,14 +675,15 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
             break;
 
-          // 上箭头：音量增加10%
+          // 上箭头：音量增加10%（同时取消静音）
           case 'arrowup':
             e.preventDefault();
             {
-              const newVolume = Math.min(1, video.volume + 0.1);
-              video.volume = newVolume;
-              setVolume(newVolume);
-              setIsMuted(newVolume === 0);
+              const newVol = Math.min(1, video.volume + 0.1);
+              video.volume = newVol;
+              video.muted = false;
+              setVolume(newVol);
+              setIsMuted(false);
             }
             break;
 
@@ -692,30 +691,30 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           case 'arrowdown':
             e.preventDefault();
             {
-              const newVolume = Math.max(0, video.volume - 0.1);
-              video.volume = newVolume;
-              setVolume(newVolume);
-              setIsMuted(newVolume === 0);
+              const newVol = Math.max(0, video.volume - 0.1);
+              video.volume = newVol;
+              // 音量为0时静音，否则取消静音
+              video.muted = newVol === 0;
+              setVolume(newVol);
+              setIsMuted(newVol === 0);
             }
             break;
 
-          // M键：静音/取消静音
+          // M键：切换静音
           case 'm':
             e.preventDefault();
             {
               if (video.muted) {
-                // 取消静音：恢复到静音前的音量
+                // 取消静音：恢复到 video.volume（静音时保持不变）
+                const restoreVol = video.volume > 0 ? video.volume : 0.5;
                 video.muted = false;
-                setIsMuted(false);
-                const restoreVol = volumeBeforeMute > 0 ? volumeBeforeMute : 0.5;
                 video.volume = restoreVol;
+                setIsMuted(false);
                 setVolume(restoreVol);
               } else {
-                // 静音：保存当前音量
-                setVolumeBeforeMute(video.volume);
+                // 静音：保持 volume 不变
                 video.muted = true;
                 setIsMuted(true);
-                setVolume(0);
               }
             }
             break;
@@ -749,7 +748,21 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       return () => {
         document.removeEventListener('keydown', handleKeyDown);
       };
-    }, [volumeBeforeMute]);
+    }, []);  // 直接操作 video 元素，无需依赖状态
+
+    // 监听 volumechange 事件，同步外部变化（如 PiP 控制器、浏览器控件等）
+    useEffect(() => {
+      const video = videoPlayerRef.current;
+      if (!video) return;
+
+      const handleVolumeChangeEvent = () => {
+        setVolume(video.volume);
+        setIsMuted(video.muted);
+      };
+
+      video.addEventListener('volumechange', handleVolumeChangeEvent);
+      return () => video.removeEventListener('volumechange', handleVolumeChangeEvent);
+    }, []);
 
     useEffect(() => {
       if (!videoPlayerRef.current) return;
@@ -892,7 +905,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             isPlaying={isPlaying}
             currentTime={currentTime}
             duration={duration}
-            volume={volume}
+            volume={displayVolume}
             isMuted={isMuted}
             isFullscreen={isFullscreen}
             isPiPSupported={isPiPSupported}
