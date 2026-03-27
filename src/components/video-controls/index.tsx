@@ -7,7 +7,6 @@ import {
   Maximize,
   Minimize,
   PictureInPicture2,
-  Subtitles,
   Sparkle
 } from 'lucide-react';
 import { useState } from 'react';
@@ -59,7 +58,7 @@ const VolumeControl: React.FC<VolumeControlProps> = ({ volume, isMuted, onVolume
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}>
       <button
-        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none"
         onClick={onToggleMute}
         title={isMuted ? '取消静音' : '静音'}
       >
@@ -122,7 +121,7 @@ const PlaybackSpeedMenu: React.FC<PlaybackSpeedMenuProps> = ({ currentSpeed, onS
       onMouseLeave={() => setShowMenu(false)}
     >
       <button
-        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity text-[15px] duration-200 hover:opacity-80"
+        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity text-[15px] duration-200 hover:opacity-80 focus-visible:outline-none"
         title={`播放速度: ${currentSpeed}x`}
       >
         倍速
@@ -172,7 +171,7 @@ const SubtitleMenu: React.FC<SubtitleMenuProps> = ({ showSubtitles, hasSubtitles
       onMouseLeave={() => setShowMenu(false)}
     >
       <button
-        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 text-[15px]"
+        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none text-[15px]"
         title={showSubtitles ? '字幕: 中文' : '字幕: 无'}
       >
         字幕
@@ -232,7 +231,7 @@ const QualityMenu: React.FC<QualityMenuProps> = ({
       onMouseLeave={() => setShowMenu(false)}
     >
       <button
-        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+        className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none"
         title={`清晰度: ${currentQuality}`}
       >
         <span className="text-[15px]">{currentQuality}</span>
@@ -362,7 +361,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-[10px]">
           <button
-            className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+            className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none"
             onClick={onTogglePlay}
             title={isPlaying ? '暂停' : '播放'}
           >
@@ -382,7 +381,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
           {onAskAI && (
             <button
-              className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+              className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none"
               onClick={onAskAI}
               title="问问AI"
             >
@@ -415,7 +414,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
 
           {isPiPSupported && (
             <button
-              className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+              className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none"
               onClick={onTogglePiP}
               title="画中画"
             >
@@ -424,7 +423,7 @@ const VideoControls: React.FC<VideoControlsProps> = ({
           )}
 
           <button
-            className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80"
+            className="bg-none border-none text-white cursor-pointer p-[8px] flex items-center gap-[5px] transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none"
             onClick={onToggleFullscreen}
             title={isFullscreen ? '退出全屏' : '全屏'}
           >
