@@ -113,6 +113,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [valueChangeIcon, setValueChangeIcon] = useState<React.ReactNode>(null);
     const valueChangeTimerRef = useRef<number | null>(null);
     const isInitialVolumeSetRef = useRef(true);  // 标记初始化阶段，跳过首次 volumechange
+    const isInternalChangeRef = useRef(false);   // 标记内部音量操作，避免 volumechange 重复触发
 
     // Refs
     const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
@@ -122,6 +123,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const hideControlsTimer = useRef<number | null>(null);
     const previousBlobUrl = useRef<string | null>(null);
     const subtitleRef = useRef<HTMLDivElement | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const isPlayerHoveredRef = useRef(false);  // 鼠标是否在播放器容器内
 
     // 处理字幕数据，预先转换时间为秒数
     const processedSubtitles = useMemo(() => {
@@ -201,7 +204,9 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           const xmlBlob = new Blob([xmlString], {
             type: 'application/dash+xml',
           });
+          revokePreviousBlobUrl();
           const blobUrl = URL.createObjectURL(xmlBlob);
+          previousBlobUrl.current = blobUrl;
           setOptions({
             src: blobUrl,
             type: 'application/dash+xml',
@@ -322,15 +327,25 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     }, []);
 
     // 统一的音频状态设置函数（所有音量/静音操作都通过这个函数）
+    // 用 isInternalChangeRef 包裹，防止连续设置 volume/muted 触发多次 volumechange
     const setAudioState = (nextVolume: number, nextMuted: boolean) => {
       const video = videoPlayerRef.current;
       if (!video) return;
 
       const clampedVolume = Math.max(0, Math.min(1, nextVolume));
+      isInternalChangeRef.current = true;
       video.volume = clampedVolume;
       video.muted = nextMuted;
+      isInternalChangeRef.current = false;
       setVolume(clampedVolume);
       setIsMuted(nextMuted);
+
+      // 内部操作也需要显示 Popup（手动触发一次）
+      if (!isInitialVolumeSetRef.current) {
+        const displayVol = nextMuted ? 0 : clampedVolume;
+        const icon = getVolumeIcon(clampedVolume, nextMuted);
+        showValueChange(`${Math.round(displayVol * 100)}%`, icon);
+      }
     };
 
     // 音量滑块变化
@@ -504,7 +519,12 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       }, 3000);
     };
 
-    const hideControlsFn = () => {
+    const handleContainerMouseEnter = () => {
+      isPlayerHoveredRef.current = true;
+    };
+
+    const handleContainerMouseLeave = () => {
+      isPlayerHoveredRef.current = false;
       if (isPlaying) {
         setShowControls(false);
       }
@@ -664,9 +684,15 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       refetchManifest();
     };
 
-    // 键盘快捷键处理
+    // 键盘快捷键处理（仅在播放器容器悬停时生效，弹窗打开时禁用）
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
+        // 播放器未悬停时不处理快捷键
+        if (!isPlayerHoveredRef.current) return;
+
+        // 弹窗打开时不处理快捷键（检查 DOM 中是否有打开的 dialog/弹层）
+        if (document.querySelector('[role="dialog"], [data-state="open"]')) return;
+
         // 如果焦点在输入框等元素上，不处理快捷键
         const activeElement = document.activeElement;
         if (
@@ -707,13 +733,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           // 上箭头：音量增加10%（同时取消静音）
           case 'arrowup':
             e.preventDefault();
-            {
-              const newVol = Math.min(1, video.volume + 0.1);
-              video.volume = newVol;
-              video.muted = false;
-              setVolume(newVol);
-              setIsMuted(false);
-            }
+            setAudioState(Math.min(1, video.volume + 0.1), false);
             break;
 
           // 下箭头：音量减少10%
@@ -721,30 +741,18 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             e.preventDefault();
             {
               const newVol = Math.max(0, video.volume - 0.1);
-              video.volume = newVol;
-              // 音量为0时静音，否则取消静音
-              video.muted = newVol === 0;
-              setVolume(newVol);
-              setIsMuted(newVol === 0);
+              setAudioState(newVol, newVol === 0);
             }
             break;
 
-          // M键：切换静音
+          // M键：切换静音（从 DOM 读取当前状态，避免闭包陈旧）
           case 'm':
             e.preventDefault();
-            {
-              if (video.muted) {
-                // 取消静音：恢复到 video.volume（静音时保持不变）
-                const restoreVol = video.volume > 0 ? video.volume : 0.5;
-                video.muted = false;
-                video.volume = restoreVol;
-                setIsMuted(false);
-                setVolume(restoreVol);
-              } else {
-                // 静音：保持 volume 不变
-                video.muted = true;
-                setIsMuted(true);
-              }
+            if (video.muted) {
+              const restoreVol = video.volume > 0 ? video.volume : 0.5;
+              setAudioState(restoreVol, false);
+            } else {
+              setAudioState(video.volume, true);
             }
             break;
 
@@ -785,6 +793,9 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       if (!video) return;
 
       const handleVolumeChangeEvent = () => {
+        // 内部操作已自行处理状态和 Popup，跳过避免重复
+        if (isInternalChangeRef.current) return;
+
         const vol = video.volume;
         const muted = video.muted;
         setVolume(vol);
@@ -901,7 +912,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
     return (
       <div className='flex flex-col gap-4'>
-        <div className='w-full aspect-[16/9] relative overflow-hidden bg-black rounded-lg' onMouseMove={handleMouseMove} onMouseLeave={hideControlsFn}>
+        <div ref={containerRef} className='w-full aspect-[16/9] relative overflow-hidden bg-black rounded-lg' onMouseMove={handleMouseMove} onMouseEnter={handleContainerMouseEnter} onMouseLeave={handleContainerMouseLeave}>
           <video
             ref={videoPlayerRef}
             id={playerIdRef.current}
