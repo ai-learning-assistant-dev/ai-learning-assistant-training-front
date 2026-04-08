@@ -854,6 +854,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     useEffect(() => {
       return () => {
         destroyPlayer();
+        if (valueChangeTimerRef.current) {
+          clearTimeout(valueChangeTimerRef.current);
+          valueChangeTimerRef.current = null;
+        }
         if (videoPlayerRef.current) {
           videoPlayerRef.current.src = '';
           videoPlayerRef.current.load();
