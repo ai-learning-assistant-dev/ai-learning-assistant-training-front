@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef, useCallback } from 'react';
 import * as dashJs from 'dashjs';
 import { uniqueId } from 'lodash';
 import type { MediaPlayerClass } from 'dashjs';
+import { Volume2, Volume1, VolumeX } from 'lucide-react';
 import { serverHost, type KnowledgePoints, type Subtitle } from '@/server/training-server';
 import type { Quality } from '../video-controls';
 import VideoControls from '../video-controls';
@@ -105,6 +106,13 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [subtitlePositionY, setSubtitlePositionY] = useState(0);
     const [isDraggingSubtitle, setIsDraggingSubtitle] = useState(false);
     const [dragStartY, setDragStartY] = useState(0);
+
+    // 音量变化提示 Popup 状态
+    const [valueChangeVisible, setValueChangeVisible] = useState(false);
+    const [valueChangeMessage, setValueChangeMessage] = useState('');
+    const [valueChangeIcon, setValueChangeIcon] = useState<React.ReactNode>(null);
+    const valueChangeTimerRef = useRef<number | null>(null);
+    const isInitialVolumeSetRef = useRef(true);  // 标记初始化阶段，跳过首次 volumechange
 
     // Refs
     const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
@@ -291,6 +299,27 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
     // 滑块显示值：静音时显示0，否则显示真实音量
     const displayVolume = isMuted ? 0 : volume;
+
+    // 根据音量值获取对应图标
+    const getVolumeIcon = (vol: number, muted: boolean) => {
+      if (muted || vol === 0) return <VolumeX className="w-4 h-4 shrink-0" />;
+      if (vol > 0.5) return <Volume2 className="w-4 h-4 shrink-0" />;
+      return <Volume1 className="w-4 h-4 shrink-0" />;
+    };
+
+    // 显示音量变化 Popup
+    const showValueChange = useCallback((message: string, icon: React.ReactNode) => {
+      setValueChangeMessage(message);
+      setValueChangeIcon(icon);
+      setValueChangeVisible(true);
+
+      if (valueChangeTimerRef.current) {
+        clearTimeout(valueChangeTimerRef.current);
+      }
+      valueChangeTimerRef.current = window.setTimeout(() => {
+        setValueChangeVisible(false);
+      }, 2000);
+    }, []);
 
     // 统一的音频状态设置函数（所有音量/静音操作都通过这个函数）
     const setAudioState = (nextVolume: number, nextMuted: boolean) => {
@@ -750,19 +779,32 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       };
     }, []);  // 直接操作 video 元素，无需依赖状态
 
-    // 监听 volumechange 事件，同步外部变化（如 PiP 控制器、浏览器控件等）
+    // 监听 volumechange 事件，同步外部变化并显示 Popup
     useEffect(() => {
       const video = videoPlayerRef.current;
       if (!video) return;
 
       const handleVolumeChangeEvent = () => {
-        setVolume(video.volume);
-        setIsMuted(video.muted);
+        const vol = video.volume;
+        const muted = video.muted;
+        setVolume(vol);
+        setIsMuted(muted);
+
+        // 初始化阶段不显示 Popup
+        if (isInitialVolumeSetRef.current) {
+          isInitialVolumeSetRef.current = false;
+          return;
+        }
+
+        // 显示音量变化 Popup
+        const displayVol = muted ? 0 : vol;
+        const icon = getVolumeIcon(vol, muted);
+        showValueChange(`${Math.round(displayVol * 100)}%`, icon);
       };
 
       video.addEventListener('volumechange', handleVolumeChangeEvent);
       return () => video.removeEventListener('volumechange', handleVolumeChangeEvent);
-    }, []);
+    }, [showValueChange]);
 
     useEffect(() => {
       if (!videoPlayerRef.current) return;
@@ -900,6 +942,19 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
               {switchMessage}
             </div>
           )}
+
+          {/* 音量变化提示 Popup */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 pointer-events-none z-[2] flex items-center justify-center gap-1 rounded-[5px] px-2 py-1.5 text-white text-xs w-[72px] transition-opacity duration-500 ease-in-out"
+            style={{
+              top: '60px',
+              backgroundColor: 'rgb(0 0 0 / 70%)',
+              opacity: valueChangeVisible ? 1 : 0,
+            }}
+          >
+            {valueChangeIcon}
+            <span>{valueChangeMessage}</span>
+          </div>
 
           <VideoControls
             isPlaying={isPlaying}
