@@ -672,6 +672,7 @@ const AiConversation = () => {
             const response = await aiChatServer.new({
               userId: getUserId(),
               sectionId: sectionId ?? '',
+              modelName: selectedModel || undefined,
             });
             sessionId = response.data.data.session_id;
             setCurrentSessionId(sessionId);

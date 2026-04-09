@@ -3,9 +3,9 @@ chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 REM 设置网络代理
-set https_proxy=http://127.0.0.1:10809
-set http_proxy=http://127.0.0.1:10809
-set all_proxy=socks5://127.0.0.1:10808
+@REM set https_proxy=http://127.0.0.1:10809
+@REM set http_proxy=http://127.0.0.1:10808
+@REM set all_proxy=socks5://127.0.0.1:10808
 
 REM 目标仓库URL
 set TARGET_REPO=https://gitee.com/shiftonetothree/ai-learning-assistant-training-front-dist.git
@@ -64,6 +64,10 @@ for /f "tokens=*" %%i in ('dir /b /ad ^| findstr /v /i ".git"') do (
 REM 复制dist目录中的所有文件到目标目录
 echo 复制dist目录内容...
 xcopy "..\dist\*" "." /E /Y /I
+
+REM 复制LICENSE文件到dist根目录
+echo 复制LICENSE文件...
+copy "..\LICENSE" "." /Y
 
 REM 添加所有文件
 git add .

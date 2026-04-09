@@ -226,6 +226,7 @@ interface CreateSessionRequest {
   userId: string;
   sectionId?: string;
   personaId?: string;
+  modelName?: string;
 }
 
 interface SessionInfo {
