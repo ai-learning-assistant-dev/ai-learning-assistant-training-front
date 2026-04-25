@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import logoPng from "@/assets/logo.png";
+import logoPng from "@/assets/logo_word.svg";
 import feedbackSurveyQrcode from "./experience-feedback-survey.png";
 // import qrCodeTwo from "./experience-feedback-survey.png";
 

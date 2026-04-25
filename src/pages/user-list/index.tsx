@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/tabs"
 import { useAutoCache } from "@/containers/auto-cache";
 import { userServer } from "@/server/training-server";
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo_word.svg';
 import { useState } from "react";
 import { loginUser } from "@/containers/auth-middleware";
 import { useNavigate } from "react-router";
