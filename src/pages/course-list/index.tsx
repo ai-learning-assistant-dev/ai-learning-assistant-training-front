@@ -202,7 +202,18 @@ export function CourseList() {
                         </div>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <p className="course-description">
+                        <p
+                          className="course-description"
+                          // 悬停时若文字被截断（末尾显示...），通过 HTML 原生 title 悬浮窗显示全文
+                          onMouseEnter={(e) => {
+                            const el = e.currentTarget;
+                            if (el.scrollHeight > el.clientHeight) {
+                              el.title = course.description || "暂无课程描述";
+                            } else {
+                              el.removeAttribute("title");
+                            }
+                          }}
+                        >
                           {course.description || "暂无课程描述"}
                         </p>
                       </CardContent>
