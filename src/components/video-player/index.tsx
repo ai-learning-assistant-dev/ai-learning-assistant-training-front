@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef, useCallback } from 'react';
 import * as dashJs from 'dashjs';
 import { uniqueId } from 'lodash';
 import type { MediaPlayerClass } from 'dashjs';
+import { Volume2, Volume1, VolumeX } from 'lucide-react';
 import { serverHost, type KnowledgePoints, type Subtitle } from '@/server/training-server';
 import type { Quality } from '../video-controls';
 import VideoControls from '../video-controls';
@@ -84,8 +85,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [duration, setDuration] = useState<number>(0);
     const [bufferedPercent, setBufferedPercent] = useState<number>(0);
     const [playedPercent, setPlayedPercent] = useState<number>(0);
-    const [volume, setVolume] = useState<number>(0.7);
-    const [isMuted, setIsMuted] = useState<boolean>(false);
+    const [volume, setVolume] = useState<number>(0.7);  // 真实音量（静音时也保持）
+    const [isMuted, setIsMuted] = useState<boolean>(false);  // 静音状态（与音量独立）
     const [showControls, setShowControls] = useState<boolean>(true);
     const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
     const [formatListTwo, setFormatListTwo] = useState<FormatItem[]>([]);
@@ -106,6 +107,14 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const [isDraggingSubtitle, setIsDraggingSubtitle] = useState(false);
     const [dragStartY, setDragStartY] = useState(0);
 
+    // 音量变化提示 Popup 状态
+    const [valueChangeVisible, setValueChangeVisible] = useState(false);
+    const [valueChangeMessage, setValueChangeMessage] = useState('');
+    const [valueChangeIcon, setValueChangeIcon] = useState<React.ReactNode>(null);
+    const valueChangeTimerRef = useRef<number | null>(null);
+    const isInitialVolumeSetRef = useRef(true);  // 标记初始化阶段，跳过首次 volumechange
+    const isInternalChangeRef = useRef(false);   // 标记内部音量操作，避免 volumechange 重复触发
+
     // Refs
     const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
     const playerRef = useRef<MediaPlayerClass | null>(null);
@@ -114,6 +123,8 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     const hideControlsTimer = useRef<number | null>(null);
     const previousBlobUrl = useRef<string | null>(null);
     const subtitleRef = useRef<HTMLDivElement | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const isPlayerHoveredRef = useRef(false);  // 鼠标是否在播放器容器内
 
     // 处理字幕数据，预先转换时间为秒数
     const processedSubtitles = useMemo(() => {
@@ -193,7 +204,9 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
           const xmlBlob = new Blob([xmlString], {
             type: 'application/dash+xml',
           });
+          revokePreviousBlobUrl();
           const blobUrl = URL.createObjectURL(xmlBlob);
+          previousBlobUrl.current = blobUrl;
           setOptions({
             src: blobUrl,
             type: 'application/dash+xml',
@@ -289,27 +302,68 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       }
     };
 
-    const handleVolumeChange = (newVolume: number) => {
-      setVolume(newVolume);
-      if (videoPlayerRef.current) {
-        videoPlayerRef.current.volume = newVolume;
-        setIsMuted(newVolume === 0);
+    // 滑块显示值：静音时显示0，否则显示真实音量
+    const displayVolume = isMuted ? 0 : volume;
+
+    // 根据音量值获取对应图标
+    const getVolumeIcon = (vol: number, muted: boolean) => {
+      if (muted || vol === 0) return <VolumeX className="w-4 h-4 shrink-0" />;
+      if (vol > 0.5) return <Volume2 className="w-4 h-4 shrink-0" />;
+      return <Volume1 className="w-4 h-4 shrink-0" />;
+    };
+
+    // 显示音量变化 Popup
+    const showValueChange = useCallback((message: string, icon: React.ReactNode) => {
+      setValueChangeMessage(message);
+      setValueChangeIcon(icon);
+      setValueChangeVisible(true);
+
+      if (valueChangeTimerRef.current) {
+        clearTimeout(valueChangeTimerRef.current);
+      }
+      valueChangeTimerRef.current = window.setTimeout(() => {
+        setValueChangeVisible(false);
+      }, 2000);
+    }, []);
+
+    // 统一的音频状态设置函数（所有音量/静音操作都通过这个函数）
+    // 用 isInternalChangeRef 包裹，防止连续设置 volume/muted 触发多次 volumechange
+    const setAudioState = (nextVolume: number, nextMuted: boolean) => {
+      const video = videoPlayerRef.current;
+      if (!video) return;
+
+      const clampedVolume = Math.max(0, Math.min(1, nextVolume));
+      isInternalChangeRef.current = true;
+      video.volume = clampedVolume;
+      video.muted = nextMuted;
+      isInternalChangeRef.current = false;
+      setVolume(clampedVolume);
+      setIsMuted(nextMuted);
+
+      // 内部操作也需要显示 Popup（手动触发一次）
+      if (!isInitialVolumeSetRef.current) {
+        const displayVol = nextMuted ? 0 : clampedVolume;
+        const icon = getVolumeIcon(clampedVolume, nextMuted);
+        showValueChange(`${Math.round(displayVol * 100)}%`, icon);
       }
     };
 
+    // 音量滑块变化
+    const handleVolumeChange = (newVolume: number) => {
+      // 拖动滑块时，音量>0则取消静音，音量=0则静音
+      setAudioState(newVolume, newVolume === 0);
+    };
+
+    // 切换静音状态
     const toggleMute = () => {
-      if (!videoPlayerRef.current) return;
       if (isMuted) {
-        videoPlayerRef.current.muted = false;
-        setIsMuted(false);
-        if (volume === 0) {
-          const newVolume = 0.5;
-          setVolume(newVolume);
-          videoPlayerRef.current.volume = newVolume;
-        }
+        // 取消静音：volume 已经是正确的值（静音时保持不变）
+        // 如果 volume 为0，给个默认值
+        const restoreVolume = volume > 0 ? volume : 0.5;
+        setAudioState(restoreVolume, false);
       } else {
-        videoPlayerRef.current.muted = true;
-        setIsMuted(true);
+        // 静音：保持 volume 不变，只设置 muted
+        setAudioState(volume, true);
       }
     };
 
@@ -465,7 +519,12 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       }, 3000);
     };
 
-    const hideControlsFn = () => {
+    const handleContainerMouseEnter = () => {
+      isPlayerHoveredRef.current = true;
+    };
+
+    const handleContainerMouseLeave = () => {
+      isPlayerHoveredRef.current = false;
       if (isPlaying) {
         setShowControls(false);
       }
@@ -625,6 +684,139 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
       refetchManifest();
     };
 
+    // 键盘快捷键处理（仅在播放器容器悬停时生效，弹窗打开时禁用）
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        // 播放器未悬停时不处理快捷键
+        if (!isPlayerHoveredRef.current) return;
+
+        // 弹窗打开时不处理快捷键（检查 DOM 中是否有打开的 dialog/弹层）
+        if (document.querySelector('[role="dialog"], [data-state="open"]')) return;
+
+        // 如果焦点在输入框等元素上，不处理快捷键
+        const activeElement = document.activeElement;
+        if (
+          activeElement?.tagName === 'INPUT' ||
+          activeElement?.tagName === 'TEXTAREA' ||
+          activeElement?.getAttribute('contenteditable') === 'true'
+        ) {
+          return;
+        }
+
+        const video = videoPlayerRef.current;
+        if (!video) return;
+
+        switch (e.key.toLowerCase()) {
+          // 空格键或K键：播放/暂停（直接操作视频元素，避免闭包问题）
+          case ' ':
+          case 'k':
+            e.preventDefault();
+            if (video.paused) {
+              video.play();
+            } else {
+              video.pause();
+            }
+            break;
+
+          // 左箭头：快退5秒
+          case 'arrowleft':
+            e.preventDefault();
+            video.currentTime = Math.max(0, video.currentTime - 5);
+            break;
+
+          // 右箭头：快进5秒
+          case 'arrowright':
+            e.preventDefault();
+            video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+            break;
+
+          // 上箭头：音量增加10%（同时取消静音）
+          case 'arrowup':
+            e.preventDefault();
+            setAudioState(Math.min(1, video.volume + 0.1), false);
+            break;
+
+          // 下箭头：音量减少10%
+          case 'arrowdown':
+            e.preventDefault();
+            {
+              const newVol = Math.max(0, video.volume - 0.1);
+              setAudioState(newVol, newVol === 0);
+            }
+            break;
+
+          // M键：切换静音（从 DOM 读取当前状态，避免闭包陈旧）
+          case 'm':
+            e.preventDefault();
+            if (video.muted) {
+              const restoreVol = video.volume > 0 ? video.volume : 0.5;
+              setAudioState(restoreVol, false);
+            } else {
+              setAudioState(video.volume, true);
+            }
+            break;
+
+          // F键：进入/退出全屏
+          case 'f':
+            e.preventDefault();
+            {
+              const container = video.parentElement;
+              if (!container) return;
+              if (!document.fullscreenElement) {
+                container.requestFullscreen?.();
+              } else {
+                document.exitFullscreen?.();
+              }
+            }
+            break;
+
+          // Escape键：退出全屏（浏览器默认已处理，这里作为备用）
+          case 'escape':
+            if (document.fullscreenElement) {
+              e.preventDefault();
+              document.exitFullscreen?.();
+            }
+            break;
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }, []);  // 直接操作 video 元素，无需依赖状态
+
+    // 监听 volumechange 事件，同步外部变化并显示 Popup
+    useEffect(() => {
+      const video = videoPlayerRef.current;
+      if (!video) return;
+
+      const handleVolumeChangeEvent = () => {
+        // 内部操作已自行处理状态和 Popup，跳过避免重复
+        if (isInternalChangeRef.current) return;
+
+        const vol = video.volume;
+        const muted = video.muted;
+        setVolume(vol);
+        setIsMuted(muted);
+
+        // 初始化阶段不显示 Popup
+        if (isInitialVolumeSetRef.current) {
+          isInitialVolumeSetRef.current = false;
+          return;
+        }
+
+        // 显示音量变化 Popup
+        const displayVol = muted ? 0 : vol;
+        const icon = getVolumeIcon(vol, muted);
+        showValueChange(`${Math.round(displayVol * 100)}%`, icon);
+      };
+
+      video.addEventListener('volumechange', handleVolumeChangeEvent);
+      return () => video.removeEventListener('volumechange', handleVolumeChangeEvent);
+    }, [showValueChange]);
+
     useEffect(() => {
       if (!videoPlayerRef.current) return;
 
@@ -673,6 +865,10 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
     useEffect(() => {
       return () => {
         destroyPlayer();
+        if (valueChangeTimerRef.current) {
+          clearTimeout(valueChangeTimerRef.current);
+          valueChangeTimerRef.current = null;
+        }
         if (videoPlayerRef.current) {
           videoPlayerRef.current.src = '';
           videoPlayerRef.current.load();
@@ -716,7 +912,7 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
 
     return (
       <div className='flex flex-col gap-4'>
-        <div className='w-full aspect-[16/9] relative overflow-hidden bg-black rounded-lg' onMouseMove={handleMouseMove} onMouseLeave={hideControlsFn}>
+        <div ref={containerRef} className='w-full aspect-[16/9] relative overflow-hidden bg-black rounded-lg' onMouseMove={handleMouseMove} onMouseEnter={handleContainerMouseEnter} onMouseLeave={handleContainerMouseLeave}>
           <video
             ref={videoPlayerRef}
             id={playerIdRef.current}
@@ -762,11 +958,24 @@ export const VideoPlayer = forwardRef<VideoPlayerRef, PlayerProps>(
             </div>
           )}
 
+          {/* 音量变化提示 Popup */}
+          <div
+            className="absolute left-1/2 -translate-x-1/2 pointer-events-none z-[2] flex items-center justify-center gap-1 rounded-[5px] px-2 py-1.5 text-white text-xs w-[72px] transition-opacity duration-500 ease-in-out"
+            style={{
+              top: '60px',
+              backgroundColor: 'rgb(0 0 0 / 70%)',
+              opacity: valueChangeVisible ? 1 : 0,
+            }}
+          >
+            {valueChangeIcon}
+            <span>{valueChangeMessage}</span>
+          </div>
+
           <VideoControls
             isPlaying={isPlaying}
             currentTime={currentTime}
             duration={duration}
-            volume={volume}
+            volume={displayVolume}
             isMuted={isMuted}
             isFullscreen={isFullscreen}
             isPiPSupported={isPiPSupported}
